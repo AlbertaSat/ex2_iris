@@ -25,5 +25,21 @@ void spi_Melexis_Init(void){
     spiREG4->GCR1 = (spiREG4->GCR1 & 0xFFFFFFFCU) | ((uint32)((uint32)1U << 1U)  /* CLOKMOD */
                   | 1U);  /* MASTER */
 
+    /** - Data Format 0 */
+    spiREG4->FMT0 = (uint32)((uint32)5U << 24U)  /* wdelay */
+                  | (uint32)((uint32)0U << 23U)  /* parity Polarity */
+                  | (uint32)((uint32)0U << 22U)  /* parity enable */
+                  | (uint32)((uint32)0U << 21U)  /* wait on enable */
+                  | (uint32)((uint32)0U << 20U)  /* shift direction */
+                  | (uint32)((uint32)1U << 17U)  /* clock polarity */
+                  | (uint32)((uint32)0U << 16U)  /* clock phase */
+                  | (uint32)((uint32)44U << 8U) /* baudrate prescale */
+                  | (uint32)((uint32)16U << 0U);  /* data word length, must be changed for second part of command transfer */
+
+    /** - Delays */
+    spiREG4->DELAY = (uint32)((uint32)6U << 24U)  /* C2TDELAY */
+                   | (uint32)((uint32)7U << 16U)  /* T2CDELAY */
+                   | (uint32)((uint32)0U << 8U)   /* T2EDELAY */
+                   | (uint32)((uint32)0U << 0U);  /* C2EDELAY */
 
 }
