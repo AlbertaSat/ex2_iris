@@ -16,13 +16,19 @@
 -- @file sensor_comm_v1_2.vhd
 -- @author Campbell Rea
 -- @date 2020-06-07
---	
+----------------------------------------------------------------
+
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
 -- @brief
 --	 Module for configuring registers within the VNIR sensor
---	
+-- 
 -- @details
 --	 Sensor register values are originally contained within an
---	 array named reg_data of size NUM_REG by 15.  Within an 
+--	 array named reg_data of size num_reg by 15.  Within an 
 --	 array entry, the first 7 bits represent the VNIR sensor 
 --	 register address while the last 8 bits represent the desired
 --	 register value.  Register values can be read from, and 
@@ -39,123 +45,83 @@
 --	 https://www.digikey.com/eewiki/pages/viewpage.action?pageId=4096096
 --
 -- @attention
+--	 NOTE: during the transfer process, register values
+--	 cannot be read from or written to reg_data until the 
+--	 process is completed.
+--
+-- @param[in] num_reg
+-- 		Number of registers contained within reg_data.
+-- 
+-- @param[in] clock
+-- 		main input system clock
+-- @param[in] reset_n
+-- 		Active low synchronous reset. As soon as the device
+--		exits reset, the default register settings are uploaded
+--		to the VNIR
+--
+-- @param[in] transmit_cmd
+-- 		Assert to begin transmitting register data out of the
+-- 		SPI output.
 --		NOTE: during the transfer process, register values
 --		cannot be read from or written to reg_data until the 
---		process is completed
--- @attention
---		Upon exiting reset, the module automatically uploads default 
---		sensor values to the sensor
+--		process is completed.
+-- @param[out] is_transmitting
+-- 		Asserted when register data is currently being
+-- 		transmitted along SPI.
+-- 			'1' - indicates that register data is
+-- 				  currently being transmitted to the VNIR
+--			'0' - indicates that the module is in IDLE 
+--				  mode. Contents of reg_data can be read/written
+--				  and next transfer can take place.
 --
--- @param NUM_REG
---		number of registers contained within the internal array
--- @param clk_sys
---		main input system clock
--- @param rst_sys
---		active low system reset
--- @param transmit_array
---		trigger to begin transmission of registers to sensor
--- @param read_reg
---		trigger to read register value within internal array
--- @param read_index
---		internal array index from which the register value should be read
--- @param write_reg
---		trigger to write new register value to internal array
--- @param write_index
---		internal array index from which the new register value should be written to
--- @param reg_in
---		new register value to be written to the internal array
--- @param miso
---		master-in, slave-out line for SPI communication with sensor
---	
--- @return transmit_done
---		indicates the completion of register transfer to sensor
--- @return reg_out
---		register value read from internal array	
--- @return sclk
---		output clock for SPI communication synchronization
--- @return ss
---		active-high SPI slave select line to sensor
--- @return mosi
---		master-out, slave-in line for SPI communication with sensor
---	
------------------------------------------------------------------
-		
-
-library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-
+-- @param[in] read_cmd
+-- 		Assert to return the contents of reg_data at the address
+-- 		given by read_address on the output read_out.
+-- @param[in] read_address
+-- 		Specifies reg_data array address to be read. Range of 0 to
+-- 		num_reg-1.
+-- @param[out] read_out
+-- 		Contains the read contents from reg_data during a read
+--		operation.  read_out remains unchanged until another read
+--		operation is completed
+-- 
+-- @param[in] write_cmd
+-- 		Assert to change the contents of reg_data at the address
+--		given by write_address to the value given by write_in.
+-- @param[in] write_address
+-- 		Specifies the reg_data array address to be written to.
+-- 		Range of 0 to num_reg-1.
+-- @param[in] write_in
+-- 		Contains the std_logic_vector to be written to reg_data
+--		at the address given by write_index
+--
+-- @param[out] sclk
+-- 		SPI output clock for data transfer synchronization
+-- @param[in] miso
+-- 		SPI master-in, slave-out 
+-- @param[out] ss
+-- 		active-high SPI slave-select line
+-- @param[out] mosi
+-- 		SPI master-out, slave-in
 entity sensor_comm_v1_2 is
-	----------------------------------------------------------------
-	--	Generics:
-	--		NUM_REG: number of registers contained within reg_data
-	--
-	--	Signals:
-	--		clk_sys: main input system clock
-	--		rst_sys: active low synchronous reset. As soon as the device
-	--			exits reset, the default register settings are uploaded
-	--			to the VNIR
-	--		transmit_array: '0' - device remains in IDLE mode
-	--						'1' - signals module to begin process to
-	--							transmit current contents of reg_data
-	--							to the VNIR
-	--			NOTE: during the transfer process, register values
-	--			cannot be read from or written to reg_data until the 
-	--			process is completed
-	--		transmit_done:	'0' - indicates that register data is
-	--							currently being transmitted to the VNIR
-	--						'1' - indicates that the module is in IDLE 
-	--							mode. contents of reg_data can be read/written
-	--							and next transfer can take place
-	--		read_reg: '1' - tells module to return contents of reg_data
-	--						located at the address given by read_index
-	--		read_index: (integer) specifies reg_data array address to be read
-	--			range of 0 to NUM_REG-1
-	--		reg_out: contains the read contents from reg_data during a read
-	--			operation.  reg_out remains unchanged until another read
-	--			operation is completed
-	--		write_reg: '1' - tells the module to change the contents of
-	--			reg_data, located at the index given by write_index, to the 
-	--			value given by reg_in
-	--		write_index: (integer) specifies the reg_data array address to
-	--			be written to. range of 0 to NUM_REG-1
-	--		reg_in: contains the std_logic_vector to be written to reg_data
-	--			at the address given by write_index
-	--		sclk: SPI output clock for data transfer synchronization
-	--		miso: SPI master-in, slave-out 
-	--		ss: active-high SPI slave-select line
-	--		mosi: SPI master-out, slave-in
-	--
-	----------------------------------------------------------------
-	
 	generic(	
-		NUM_REG : integer	
+		num_reg : integer	
 	);
 	port(	
-		-- Main clock and reset
-		clk_sys 		: in std_logic;
-		rst_sys 		: in std_logic;
-		
-		-- Controls for uploading code to sensor
-		transmit_array 	: in std_logic := '0';    
-		transmit_done  	: out std_logic := '0';    
-		
-		-- Controls for reading reg value from array
-		read_reg       	: in std_logic := '0';
-		read_index     	: in integer;
-		reg_out        	: out std_logic_vector (14 downto 0);
-		
-		-- Controls for writing reg value to array
-		write_reg    	: in std_logic := '0';
-		write_index    	: in integer;
-		reg_in         	: in std_logic_vector (14 downto 0);	
-		
-		-- SPI Data transfer signals
+		clock			: in std_logic;
+		reset_n			: in std_logic;
+		transmit_cmd	: in std_logic;    
+		is_transmitting	: out std_logic;    
+		read_cmd		: in std_logic;
+		read_address	: in integer;
+		read_out		: out std_logic_vector (14 downto 0);
+		write_cmd		: in std_logic;
+		write_address	: in integer;
+		write_in		: in std_logic_vector (14 downto 0);	
 		sclk			: out std_logic;
 		miso			: in std_logic;
-		ss				: out std_logic;		-- active high ss line
+		ss				: out std_logic;
 		mosi			: out std_logic
-		
 	);
 	
 end entity sensor_comm_v1_2;
@@ -163,30 +129,21 @@ end entity sensor_comm_v1_2;
 architecture rtl of sensor_comm_v1_2 is
 
 	-- Internal array for sensor register data
-	type register_data_array is array (0 to NUM_REG-1) of
-				     std_logic_vector (14 downto 0);
-	-- default sensor register values
-	signal reg_data : register_data_array := (
-		0 => "101010101010101",
-		1 => "010101010101010",
-		2 => "111111100000001" 
-		
-		-- add more address rows as needed	(Remember to update NUM_REG accordingly)	
-		-- first 7 bits are register address, last 8 bits is desired register data
-	);
+	type register_data_array is array (0 to num_reg-1) of std_logic_vector (14 downto 0);
+	signal reg_data : register_data_array;  -- first 7 bits are register address, last 8 bits is desired register data
 	
 	-- signal to store value of busy during previous clk_sys cycle (used in 'busy' signal edge finding)
-	signal busy_prev	: STD_LOGIC := '0';	
+	signal busy_prev	: STD_LOGIC;	
 	
 	-- for main finite state machine (FSM) of module
 	type   t_state is (IDLE, REPROGRAM, FINISHING);
-	signal state : t_state := IDLE;
+	signal state : t_state;
 	
 	-- SPI controller signals
-	signal enable	:	std_logic := '0';
-	signal cont		:	std_logic := '0';
+	signal enable	:	std_logic;
+	signal cont		:	std_logic;
 	signal tx_data	:	std_logic_vector(15 downto 0);
-	signal busy		:	std_logic := '0';
+	signal busy		:	std_logic;
 	signal rx_data	:	std_logic_vector(15 downto 0);
 	signal ss_n		: std_logic_vector(0 downto 0);
 	
@@ -219,18 +176,18 @@ begin
 
 
 	-- Contains the main FSM which coordinates the process
-	main_process : process (clk_sys,rst_sys)
+	main_process : process (clock, reset_n)
 	
 		-- Variables for indexing through reg_data (updated immediately in simulation)
-		subtype t_array_index is integer range NUM_REG-1 downto 0;
+		subtype t_array_index is integer range num_reg-1 downto 0;
 		variable array_index	: t_array_index := 0;
 		
 	begin
-		if rising_edge(clk_sys) then
-			if (rst_sys = '0') then
+		if rising_edge(clock) then
+			if (reset_n = '0') then
 				-- Upload default register values on reset
 				state <= REPROGRAM;
-				transmit_done <= '0';
+				is_transmitting <= '1';
 				array_index := 0;
 				tx_data <= '1' & reg_data(array_index);
 			
@@ -240,24 +197,24 @@ begin
 					when IDLE =>
 					
 						-- indicate system ready to modify internal array or begin new transmission
-						transmit_done <= '1';
+						is_transmitting <= '0';
 						
 						-- Begin register transfer process
-						if (transmit_array = '1') then						
+						if (transmit_cmd = '1') then						
 							state <= REPROGRAM;
-							transmit_done <= '0';
+							is_transmitting <= '1';
 							array_index := 0;
 							tx_data <= '1' & reg_data(array_index);														
 						end if;
 						
 						-- Read value at specified array index
-						if (read_reg = '1') then
-							reg_out <= reg_data(read_index);
+						if (read_cmd = '1') then
+							read_out <= reg_data(read_address);
 						end if;
 						
 						-- Write data to specified array index
-						if (write_reg = '1') then
-							reg_data(write_index) <= reg_in;
+						if (write_cmd = '1') then
+							reg_data(write_address) <= write_in;
 						end if;
 					
 					-- Iterate through reg_data and transmit all contents via SPI
@@ -269,7 +226,7 @@ begin
 						
 						-- if SPI has finished sending previous value
 						if (busy = '1' and busy_prev = '0') then          -- find rising edge of busy					
-							if (array_index = NUM_REG-1) then							
+							if (array_index = num_reg-1) then							
 								-- All reg have been transmitted
 								state <= FINISHING;							
 							else
@@ -311,8 +268,8 @@ begin
 			slaves		=>	1,
 			d_width		=>	16)
 		port map(
-			clock		=>	clk_sys,
-			reset_n		=>	rst_sys,
+			clock		=>	clock,
+			reset_n		=>	reset_n,
 			enable		=>	enable,
 			cpol		=>	'0',		-- chosen based on CMV2000 datasheet
 			cpha		=>	'0',		-- ^

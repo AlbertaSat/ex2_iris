@@ -1,4 +1,22 @@
-
+----------------------------------------------------------------
+--	
+--	 Copyright (C) 2015  University of Alberta
+--	
+--	 This program is free software; you can redistribute it and/or
+--	 modify it under the terms of the GNU General Public License
+--	 as published by the Free Software Foundation; either version 2
+--	 of the License, or (at your option) any later version.
+--	
+--	 This program is distributed in the hope that it will be useful,
+--	 but WITHOUT ANY WARRANTY; without even the implied warranty of
+--	 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--	 GNU General Public License for more details.
+--	
+--	
+-- @file sensor_comm_v1_2_TB.vhd
+-- @authors Alexander Epp, Campbell Rea
+-- @date 2020-06-16
+----------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -6,30 +24,24 @@ use ieee.numeric_std.all;
 
 
 entity sensor_comm_v1_2_TB is
-
 end entity;
 
-architecture rtl of sensor_comm_v1_2_TB is
+architecture tests of sensor_comm_v1_2_TB is
 
-	constant clockPeriod	: time := 20 ns;
+	constant clock_period	: time := 20 ns;
 
-	signal clk_sys			: std_logic := '0';
-	signal rst_sys			: std_logic := '1';
-	
-	signal transmit_array	: std_logic := '0';
-	signal transmit_done	: std_logic := '0';
-	
-	signal read_reg			: std_logic := '0';
-	signal read_index		: integer := 0;
-	signal reg_out			: std_logic_vector (14 downto 0);
-	
-	signal write_reg		: std_logic := '0';
-	signal write_index		: integer := 0;
-	signal reg_in			: std_logic_vector (14 downto 0);
-	
+	signal clock			: std_logic := '0';
+	signal reset_n			: std_logic := '1';
+	signal transmit_cmd		: std_logic := '0';
+	signal is_transmitting	: std_logic := '1';
+	signal read_cmd			: std_logic := '0';
+	signal read_address		: integer := 0;
+	signal read_out			: std_logic_vector (14 downto 0);
+	signal write_cmd		: std_logic := '0';
+	signal write_address	: integer := 0;
+	signal write_in			: std_logic_vector (14 downto 0);
 	signal sclk				: std_logic;
 	signal miso				: std_logic;
-	--signal ss_n				: std_logic_vector (0 downto 0);
 	signal mosi				: std_logic;
 	signal ss				: std_logic;
 
@@ -41,46 +53,35 @@ architecture rtl of sensor_comm_v1_2_TB is
 			NUM_REG : integer	
 		);
 		port(
-			-- Main clock and reset
-			clk_sys 		: in std_logic;
-			rst_sys 		: in std_logic;
-			
-			-- Controls for uploading code to sensor
-			transmit_array 	: in std_logic := '0';    
-			transmit_done  	: out std_logic := '0';    
-			
-			-- Controls for reading reg value from array
-			read_reg       	: in std_logic := '0';
-			read_index     	: in integer;
-			reg_out        	: out std_logic_vector (14 downto 0);
-			
-			-- Controls for writing reg value to array
-			write_reg    	: in std_logic := '0';
-			write_index    	: in integer;
-			reg_in         	: in std_logic_vector (14 downto 0);	
-			
-			-- SPI Data transfer signals
+			clock 			: in std_logic;
+			reset_n 		: in std_logic;
+			transmit_cmd 	: in std_logic;    
+			is_transmitting	: out std_logic;    
+			read_cmd		: in std_logic;
+			read_address	: in integer;
+			read_out       	: out std_logic_vector (14 downto 0);
+			write_cmd    	: in std_logic;
+			write_address	: in integer;
+			write_in       	: in std_logic_vector (14 downto 0);	
 			sclk			: out std_logic;
 			miso			: in std_logic;
-			--ss_n			: out std_logic_vector(0 downto 0);
 			ss				: out std_logic;
 			mosi			: out std_logic
-			
 		);
 	end component;
 
 begin
 
 	-- Generate main clock signal
-	clockGen : process
+	clock_gen : process
 	begin
-		wait for clockPeriod / 2;
-		clk_sys <= not clk_sys;
-	end process clockGen;
+		wait for clock_period / 2;
+		clock <= not clock;
+	end process clock_gen;
 	
 	
 	-- Group SPI output into 48-bit std logic vectors for easy verification
-	collect_spi_output : process(mosi, clk_sys, sclk, spi_output)
+	collect_spi_output : process(mosi, clock, sclk, spi_output)
 		variable i			: integer range spi_output_size downto 0 := 0;
 		variable out_tmp	: std_logic_vector(0 to spi_output_size-1);	
 	begin
@@ -106,37 +107,37 @@ begin
 		-- -----------------------------------
 		report "Test: read after write";
 		-- Reset and wait for initial transmission to end
-		wait until rising_edge(clk_sys); rst_sys <= '0'; wait until rising_edge(clk_sys); rst_sys <= '1';
-		wait until transmit_done = '1';
+		wait until rising_edge(clock); reset_n <= '0'; wait until rising_edge(clock); reset_n <= '1';
+		wait until is_transmitting = '0';
 		-- Fill buffer
-		wait until rising_edge(clk_sys);
-		write_index <= 0; reg_in <= "010101010101010"; write_reg <= '1';  wait until rising_edge(clk_sys); write_reg <= '0';
-		write_index <= 1; reg_in <= "101010101010101"; write_reg <= '1';  wait until rising_edge(clk_sys); write_reg <= '0';
-		write_index <= 2; reg_in <= "110011001100110"; write_reg <= '1';  wait until rising_edge(clk_sys); write_reg <= '0';
+		wait until rising_edge(clock);
+		write_address <= 0; write_in <= "010101010101010"; write_cmd <= '1';  wait until rising_edge(clock); write_cmd <= '0';
+		write_address <= 1; write_in <= "101010101010101"; write_cmd <= '1';  wait until rising_edge(clock); write_cmd <= '0';
+		write_address <= 2; write_in <= "110011001100110"; write_cmd <= '1';  wait until rising_edge(clock); write_cmd <= '0';
 		-- Read out buffer
-		read_index <= 2; read_reg <= '1'; wait until rising_edge(clk_sys); read_reg <= '0'; wait until falling_edge(clk_sys); assert reg_out = "110011001100110" report "Test failed: read after write #1";
-		read_index <= 1; read_reg <= '1'; wait until rising_edge(clk_sys); read_reg <= '0'; wait until falling_edge(clk_sys); assert reg_out = "101010101010101" report "Test failed: read after write #2";
-		read_index <= 0; read_reg <= '1'; wait until rising_edge(clk_sys); read_reg <= '0'; wait until falling_edge(clk_sys); assert reg_out = "010101010101010" report "Test failed: read after write #3";
+		read_address <= 2; read_cmd <= '1'; wait until rising_edge(clock); read_cmd <= '0'; wait until falling_edge(clock); assert read_out = "110011001100110" report "Test failed: read after write #1";
+		read_address <= 1; read_cmd <= '1'; wait until rising_edge(clock); read_cmd <= '0'; wait until falling_edge(clock); assert read_out = "101010101010101" report "Test failed: read after write #2";
+		read_address <= 0; read_cmd <= '1'; wait until rising_edge(clock); read_cmd <= '0'; wait until falling_edge(clock); assert read_out = "010101010101010" report "Test failed: read after write #3";
 		
 		-- -----------------------------------
 		-- Test resetting then reading back data
 		-- -----------------------------------
 		report "Test: read after reset";
 		-- Reset and wait for initial transmission to end
-		wait until rising_edge(clk_sys); rst_sys <= '0'; wait until rising_edge(clk_sys); rst_sys <= '1';
-		wait until transmit_done = '1';
+		wait until rising_edge(clock); reset_n <= '0'; wait until rising_edge(clock); reset_n <= '1';
+		wait until is_transmitting = '0';
 		-- Read out buffer
-		read_index <= 2; read_reg <= '1'; wait until rising_edge(clk_sys); read_reg <= '0'; wait until falling_edge(clk_sys); assert reg_out = "110011001100110" report "Test failed: read after reset #1";
-		read_index <= 1; read_reg <= '1'; wait until rising_edge(clk_sys); read_reg <= '0'; wait until falling_edge(clk_sys); assert reg_out = "101010101010101" report "Test failed: read after reset #2";
-		read_index <= 0; read_reg <= '1'; wait until rising_edge(clk_sys); read_reg <= '0'; wait until falling_edge(clk_sys); assert reg_out = "010101010101010" report "Test failed: read after reset #3";
+		read_address <= 2; read_cmd <= '1'; wait until rising_edge(clock); read_cmd <= '0'; wait until falling_edge(clock); assert read_out = "110011001100110" report "Test failed: read after reset #1";
+		read_address <= 1; read_cmd <= '1'; wait until rising_edge(clock); read_cmd <= '0'; wait until falling_edge(clock); assert read_out = "101010101010101" report "Test failed: read after reset #2";
+		read_address <= 0; read_cmd <= '1'; wait until rising_edge(clock); read_cmd <= '0'; wait until falling_edge(clock); assert read_out = "010101010101010" report "Test failed: read after reset #3";
 
 		-- -----------------------------------
 		-- Test uploading data
 		-- -----------------------------------
 		report "Test: upload";
-		wait until rising_edge(clk_sys); transmit_array <= '1'; wait until rising_edge(clk_sys); transmit_array <= '0';
-		wait until transmit_done = '1';
-		wait until falling_edge(clk_sys);
+		wait until rising_edge(clock); transmit_cmd <= '1'; wait until rising_edge(clock); transmit_cmd <= '0';
+		wait until is_transmitting = '0';
+		wait until falling_edge(clock);
 		assert spi_output( 0 to 15) = "1010101010101010" report "Test failed: upload #1";
 		assert spi_output(16 to 31) = "1101010101010101" report "Test failed: upload #2";
 		assert spi_output(32 to 47) = "1110011001100110" report "Test failed: upload #3";
@@ -145,9 +146,9 @@ begin
 		-- Test uploading on reset
 		-- -----------------------------------
 		report "Test: upload after reset";
-		wait until rising_edge(clk_sys); rst_sys <= '0'; wait until rising_edge(clk_sys); rst_sys <= '1';
-		wait until transmit_done = '1';
-		wait until falling_edge(clk_sys);
+		wait until rising_edge(clock); reset_n <= '0'; wait until rising_edge(clock); reset_n <= '1';
+		wait until is_transmitting = '0';
+		wait until falling_edge(clock);
 		assert spi_output( 0 to 15) = "1010101010101010" report "Test failed: upload after reset #1";
 		assert spi_output(16 to 31) = "1101010101010101" report "Test failed: upload after reset #2";
 		assert spi_output(32 to 47) = "1110011001100110" report "Test failed: upload after reset #3";
@@ -161,32 +162,23 @@ begin
 	-- Instantiate the sensor register control module
 	dut : sensor_comm_v1_2
 		generic map(
-			NUM_REG		=> 3
+			num_reg			=> 3
 		)
 		port map(
-			clk_sys			=> clk_sys,
-			rst_sys			=> rst_sys,
-			transmit_array	=> transmit_array,
-			transmit_done	=> transmit_done,
-			read_reg		=> read_reg,
-			read_index		=> read_index,
-			reg_out			=> reg_out,
-			write_reg		=> write_reg,
-			write_index		=> write_index,
-			reg_in			=> reg_in,
+			clock			=> clock,
+			reset_n			=> reset_n,
+			transmit_cmd	=> transmit_cmd,
+			is_transmitting	=> is_transmitting,
+			read_cmd		=> read_cmd,
+			read_address	=> read_address,
+			read_out		=> read_out,
+			write_cmd		=> write_cmd,
+			write_address	=> write_address,
+			write_in		=> write_in,
 			sclk			=> sclk,
 			miso			=> miso,
-			--ss_n			=> ss_n,
 			ss				=> ss,
 			mosi			=> mosi
 		);
 
-end rtl;
-
-
-
-
-
-
-
-
+end tests;
