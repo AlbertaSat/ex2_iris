@@ -101,7 +101,7 @@ int heuristic_img(int imgnum)
         FILE *fptr;
         fptr = fopen("../test/testImage.bin", "rb");
 
-        if (fptr == NULL){
+        if (fptr == NULL) {
                 printf("Unable to open image file");
                 return 1;
         }
@@ -117,27 +117,27 @@ int heuristic_img(int imgnum)
         }
 
         //Reading the BSQ formatted raster file. Populating b, r, nir, swir band arrays
-        if(img_buffer[0].in_interleaving == BSQ){
-                for(int j = 0; j < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; j++){
+        if (img_buffer[0].in_interleaving == BSQ) {
+                for (int j = 0; j < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; j++) {
                         fscanf(fptr, "%f ", b+j);
                 }
 
-                for(int j = 0; j < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; j++){
+                for (int j = 0; j < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; j++) {
                         fscanf(fptr, "%f ", r+j);
                 }
  
-                for(int j = 0; j < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; j++){
+                for (int j = 0; j < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; j++) {
                         fscanf(fptr, "%f ", nir+j);
                 }
 
-                for(int j = 0; j < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; j++){
+                for (int j = 0; j < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; j++) {
                         fscanf(fptr, "%f ", swir+j);
                 }
 
                 //Loop through each index of the band arrays and running isCloud() on each iteration (each pixel)
-                for(int i = 0; i < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; i++){
+                for (int i = 0; i < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; i++) {
                         printf("b: %f\nr: %f\nnir: %f\nswir: %f\n\n", *(b+i), *(r+i), *(nir+i), *(swir+i));
-                        if(isCloud(*(b+i), *(r+i), *(nir+i), *(swir+i))){
+                        if (isCloud(*(b+i), *(r+i), *(nir+i), *(swir+i))) {
                                 raw_heuristic+=1;
                         }
                 }
@@ -150,15 +150,15 @@ int heuristic_img(int imgnum)
                 fclose(fptr);
 
                 //Returns number of cloudy pixels / all pixels.
-                return raw_heuristic/(img_buffer[imgnum].x_size * img_buffer[imgnum].y_size);
+                return raw_heuristic / (img_buffer[imgnum].x_size * img_buffer[imgnum].y_size);
 
         //Reading the BIP formatted raster file. Populating b, r, nir, swir band arrays
         } else if (img_buffer[0].in_interleaving == BIP) {
-                for(int i = 0; i < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; i++){
+                for (int i = 0; i < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; i++) {
                         fscanf(fptr, "%f %f %f %f ", b+i, r+i, nir+i, swir+i);
                 }
 
-                for(int i = 0; i < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; i++){
+                for (int i = 0; i < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; i++) {
                         printf("b: %f\nr: %f\nnir: %f\nswir: %f\n\n", *(b+i), *(r+i), *(nir+i), *(swir+i));
                         if(isCloud(*(b+i), *(r+i), *(nir+i), *(swir+i))){
                                 raw_heuristic+=1;
@@ -171,31 +171,31 @@ int heuristic_img(int imgnum)
                 free(swir);
                 fclose(fptr);
 
-                return raw_heuristic/(img_buffer[imgnum].x_size * img_buffer[imgnum].y_size);
+                return raw_heuristic / (img_buffer[imgnum].x_size * img_buffer[imgnum].y_size);
 
         //Reading the BIL formatted raster file. Populating b, r, nir, swir band arrays
-        } else if(img_buffer[imgnum].in_interleaving == BIL){
+        } else if (img_buffer[imgnum].in_interleaving == BIL) {
                 int b_index, r_index, nir_index, swir_index = 0;
-                for(int i = 1; i < (img_buffer[imgnum].x_size * img_buffer[imgnum].y_size)+1; i++){
-                        if(i%4 == 1){
+                for (int i = 1; i < (img_buffer[imgnum].x_size * img_buffer[imgnum].y_size)+1; i++) {
+                        if(i%4 == 1) {
                                 fscanf(fptr, "%f ", b+b_index);
                                 b_index+=1; 
-                        } else if(i%4 == 2){
+                        } else if(i%4 == 2) {
                                 fscanf(fptr, "%f ", r+r_index);
                                 r_index+=1; 
-                        } else if(i%4 == 3){
+                        } else if(i%4 == 3) {
                                 fscanf(fptr, "%f ", nir+nir_index);
                                 nir_index+=1;            
-                        } else if(i%4 == 0){
+                        } else if(i%4 == 0) {
                                 fscanf(fptr, "%f ", swir+swir_index);
                                 swir_index+=1; 
                         }
 
                 }
 
-                for(int i = 0; i < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; i++){
+                for( int i = 0; i < img_buffer[imgnum].x_size * img_buffer[imgnum].y_size; i++) {
                         printf("b: %f\nr: %f\nnir: %f\nswir: %f\n\n", *(b+i), *(r+i), *(nir+i), *(swir+i));
-                        if(isCloud(*(b+i), *(r+i), *(nir+i), *(swir+i))){
+                        if (isCloud(*(b+i), *(r+i), *(nir+i), *(swir+i))) {
                                 raw_heuristic+=1;
                         }
                 }
@@ -206,7 +206,7 @@ int heuristic_img(int imgnum)
                 free(swir);
                 fclose(fptr);
 
-                return raw_heuristic /(img_buffer[imgnum].x_size * img_buffer[imgnum].y_size);      
+                return raw_heuristic / (img_buffer[imgnum].x_size * img_buffer[imgnum].y_size);      
         }
 }
 
