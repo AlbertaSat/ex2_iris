@@ -39,7 +39,7 @@ struct input_feature img_buffer[10]; //Temporary solution for storing image para
  * @return
  * 		Returns 1 if not sucessful.
  */
-int capture_img(int width)
+int generate_img(int width)
 {       
         //Create image raster file 
         FILE *fptr;
@@ -213,7 +213,7 @@ int heuristic_img(int imgnum)
 int main()
 {
         //Generate 4x2048x2048 image
-        capture_img(2048);
+        generate_img(2048);
 
         //Run heuristic calculation on generated dummy image binary file.
         printf("Heuristic value: %d", heuristic_img(0));
