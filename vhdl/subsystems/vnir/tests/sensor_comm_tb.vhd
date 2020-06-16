@@ -13,7 +13,7 @@
 --	 GNU General Public License for more details.
 --	
 --	
--- @file sensor_comm_v1_2_TB.vhd
+-- @file sensor_comm_tb.vhd
 -- @authors Alexander Epp, Campbell Rea
 -- @date 2020-06-16
 ----------------------------------------------------------------
@@ -23,10 +23,10 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 
-entity sensor_comm_v1_2_TB is
+entity sensor_comm_tb is
 end entity;
 
-architecture tests of sensor_comm_v1_2_TB is
+architecture tests of sensor_comm_tb is
 
 	constant clock_period	: time := 20 ns;
 
@@ -48,7 +48,7 @@ architecture tests of sensor_comm_v1_2_TB is
 	constant spi_output_size : integer := 48;  -- 3 * 16
 	signal spi_output : std_logic_vector (0 to spi_output_size-1);
 
-	component sensor_comm_v1_2 is
+	component sensor_comm is
 		generic(	
 			NUM_REG : integer	
 		);
@@ -160,7 +160,7 @@ begin
 	end process test;
 	
 	-- Instantiate the sensor register control module
-	dut : sensor_comm_v1_2
+	dut : sensor_comm
 		generic map(
 			num_reg			=> 3
 		)

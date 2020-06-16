@@ -13,7 +13,7 @@
 --	 GNU General Public License for more details.
 --	
 --	
--- @file sensor_comm_v1_2.vhd
+-- @file sensor_comm.vhd
 -- @author Campbell Rea
 -- @date 2020-06-07
 ----------------------------------------------------------------
@@ -103,7 +103,7 @@ use ieee.numeric_std.all;
 -- 		active-high SPI slave-select line
 -- @param[out] mosi
 -- 		SPI master-out, slave-in
-entity sensor_comm_v1_2 is
+entity sensor_comm is
 	generic(	
 		num_reg : integer	
 	);
@@ -124,9 +124,9 @@ entity sensor_comm_v1_2 is
 		mosi			: out std_logic
 	);
 	
-end entity sensor_comm_v1_2;
+end entity sensor_comm;
 
-architecture rtl of sensor_comm_v1_2 is
+architecture rtl of sensor_comm is
 
 	-- Internal array for sensor register data
 	type register_data_array is array (0 to num_reg-1) of std_logic_vector (14 downto 0);

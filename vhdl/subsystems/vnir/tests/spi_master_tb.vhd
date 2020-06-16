@@ -7,11 +7,11 @@ USE ieee.std_logic_unsigned.all;
 USE ieee.numeric_std.all;
 
 
-entity spi_master_TB is
+entity spi_master_tb is
 
 end entity;
 
-architecture rtl of spi_master_TB is	
+architecture rtl of spi_master_tb is	
 	
 	constant	clockPeriod : time := 20 ns;
 	
