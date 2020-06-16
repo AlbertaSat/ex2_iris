@@ -21,11 +21,8 @@
 #ifndef HEURISTIC_H
 #define HEURISTIC_H
 
-//Macro used to move from a matrix notation to a linear array, when the matrix
-//is ordered according to the BSQ order
-//#define MATRIX_BSQ_INDEX(matrix, input_params, x, y, z) matrix[(z)*input_params.x_size*input_params.y_size + (y)*input_params.x_size + (x)]
-
-#define MATRIX_BSQ_INDEX(matrix, input_params, x, y, z) matrix[input_params.x_size*((z)*input_params.y_size + (y)) + (x)]
+#define Z_PIXELS 4      //B, R, NIR, SWIR Bands
+#define Y_PIXELS 2048   //Y dimension of image are constant
 
 typedef enum{BSQ, BIP, BIL} interleaving_t;
 typedef enum{LITTLE, BIG} endianness_t;
@@ -43,6 +40,5 @@ typedef struct input_feature{
     endianness_t byte_ordering;
     unsigned char regular_input;
 } input_feature_t;
-
 
 #endif 
