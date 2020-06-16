@@ -33,14 +33,14 @@ architecture rtl of sensor_comm_v1_2_TB is
 	signal mosi				: std_logic;
 	signal ss				: std_logic;
 
-
-	signal sentWord			: std_logic_vector (0 to 15);
+	constant spi_output_size : integer := 48;  -- 3 * 16
+	signal spi_output : std_logic_vector (0 to spi_output_size-1);
 
 	component sensor_comm_v1_2 is
 		generic(	
 			NUM_REG : integer	
 		);
-		port(	
+		port(
 			-- Main clock and reset
 			clk_sys 		: in std_logic;
 			rst_sys 		: in std_logic;
@@ -79,94 +79,84 @@ begin
 	end process clockGen;
 	
 	
-	-- Group SPI output into 16-bit std logic vectors for easy verification
-	outputWords : process(mosi, clk_sys, sclk, sentWord)	
-		subtype t_count is integer range 16 downto 0;
-		variable count	: t_count := 0;                    
-		variable tempWord : std_logic_vector(0 to 15);	
+	-- Group SPI output into 48-bit std logic vectors for easy verification
+	collect_spi_output : process(mosi, clk_sys, sclk, spi_output)
+		variable i			: integer range spi_output_size downto 0 := 0;
+		variable out_tmp	: std_logic_vector(0 to spi_output_size-1);	
 	begin
 		if rising_edge(sclk) then		
 			
-			tempWord(count) := mosi;
-			--tempWord := tempWord(15 downto 1) & mosi;	
-			count := count + 1;
+			out_tmp(i) := mosi;
+			i := i + 1;
 			
-			if (count = 16) then			
-				sentWord <= tempWord;
-				count := 0;
+			if (i = spi_output_size) then			
+				spi_output <= out_tmp;
+				i := 0;
 			end if;
 						
 		end if;
-	end process outputWords;
+	end process collect_spi_output;
 	
 	
 	test : process
 	begin
-	
-		wait for 20 ns;	
-		
-		
-		-- Test ability to read data stored in register array
-		-- read_index <= 0;
-		-- read_reg <= '1';
-		-- wait for 20 ns;		
-		-- read_reg <= '0';
-		-- wait for 20 ns;
-		
-		-- read_index <= 1;
-		-- read_reg <= '1';
-		-- wait for 20 ns;
-		-- read_reg <= '0';
-		-- wait for 20 ns;
-		
-		-- Test ability to write data stored in register array		
-		-- write_index <= 0;
-		-- reg_in <= "111111111111111";
-		-- write_reg <= '1';
-		-- wait for 20 ns;
-		-- write_reg <= '0';
-		
-		-- read_index <= 0;
-		-- read_reg <= '1';
-		-- wait for 20 ns;
-		-- read_reg <= '0';
-		-- wait for 20 ns;
-		
-		-- Test ability to transmit register data via SPI
-		transmit_array <= '1';
-		wait for 20 ns;
-		transmit_array <= '0';
+
+		-- -----------------------------------
+		-- Test writing then reading back data
+		-- -----------------------------------
+		report "Test: read after write";
+		-- Reset and wait for initial transmission to end
+		wait until rising_edge(clk_sys); rst_sys <= '0'; wait until rising_edge(clk_sys); rst_sys <= '1';
 		wait until transmit_done = '1';
-		wait for 2 ps;                     -- Requires short delay here, not sure why, might be so sim updates signals?
-		-- w/o delay, first interal array write doesn't work properly
+		-- Fill buffer
+		wait until rising_edge(clk_sys);
+		write_index <= 0; reg_in <= "010101010101010"; write_reg <= '1';  wait until rising_edge(clk_sys); write_reg <= '0';
+		write_index <= 1; reg_in <= "101010101010101"; write_reg <= '1';  wait until rising_edge(clk_sys); write_reg <= '0';
+		write_index <= 2; reg_in <= "110011001100110"; write_reg <= '1';  wait until rising_edge(clk_sys); write_reg <= '0';
+		-- Read out buffer
+		read_index <= 2; read_reg <= '1'; wait until rising_edge(clk_sys); read_reg <= '0'; wait until falling_edge(clk_sys); assert reg_out = "110011001100110" report "Test failed: read after write #1";
+		read_index <= 1; read_reg <= '1'; wait until rising_edge(clk_sys); read_reg <= '0'; wait until falling_edge(clk_sys); assert reg_out = "101010101010101" report "Test failed: read after write #2";
+		read_index <= 0; read_reg <= '1'; wait until rising_edge(clk_sys); read_reg <= '0'; wait until falling_edge(clk_sys); assert reg_out = "010101010101010" report "Test failed: read after write #3";
 		
-		-- Test ability to modify internal register array between transfers
-		write_index <= 0;
-		reg_in <= "111011101100000";
-		write_reg <= '1';
-		wait for 20 ns;
-		write_index <= 1;
-		reg_in <= "100001000001010";
-		write_reg <= '1';
-		wait for 20 ns;
-		write_index <= 2;
-		reg_in <= "100011001000000";
-		write_reg <= '1';
-		wait for 20 ns;
-		write_reg <= '0';
-		wait for 20 ns;         -- to update value of write_reg in sim
-		
-		-- Second data transfer
-		transmit_array <= '1';
-		wait for 20 ns;
-		transmit_array <= '0';
+		-- -----------------------------------
+		-- Test resetting then reading back data
+		-- -----------------------------------
+		report "Test: read after reset";
+		-- Reset and wait for initial transmission to end
+		wait until rising_edge(clk_sys); rst_sys <= '0'; wait until rising_edge(clk_sys); rst_sys <= '1';
 		wait until transmit_done = '1';
-		
-		
+		-- Read out buffer
+		read_index <= 2; read_reg <= '1'; wait until rising_edge(clk_sys); read_reg <= '0'; wait until falling_edge(clk_sys); assert reg_out = "110011001100110" report "Test failed: read after reset #1";
+		read_index <= 1; read_reg <= '1'; wait until rising_edge(clk_sys); read_reg <= '0'; wait until falling_edge(clk_sys); assert reg_out = "101010101010101" report "Test failed: read after reset #2";
+		read_index <= 0; read_reg <= '1'; wait until rising_edge(clk_sys); read_reg <= '0'; wait until falling_edge(clk_sys); assert reg_out = "010101010101010" report "Test failed: read after reset #3";
+
+		-- -----------------------------------
+		-- Test uploading data
+		-- -----------------------------------
+		report "Test: upload";
+		wait until rising_edge(clk_sys); transmit_array <= '1'; wait until rising_edge(clk_sys); transmit_array <= '0';
+		wait until transmit_done = '1';
+		wait until falling_edge(clk_sys);
+		assert spi_output( 0 to 15) = "1010101010101010" report "Test failed: upload #1";
+		assert spi_output(16 to 31) = "1101010101010101" report "Test failed: upload #2";
+		assert spi_output(32 to 47) = "1110011001100110" report "Test failed: upload #3";
+
+		-- -----------------------------------
+		-- Test uploading on reset
+		-- -----------------------------------
+		report "Test: upload after reset";
+		wait until rising_edge(clk_sys); rst_sys <= '0'; wait until rising_edge(clk_sys); rst_sys <= '1';
+		wait until transmit_done = '1';
+		wait until falling_edge(clk_sys);
+		assert spi_output( 0 to 15) = "1010101010101010" report "Test failed: upload after reset #1";
+		assert spi_output(16 to 31) = "1101010101010101" report "Test failed: upload after reset #2";
+		assert spi_output(32 to 47) = "1110011001100110" report "Test failed: upload after reset #3";
+
+		report "Finished running tests.";
+
 		wait;
 	
 	end process test;
-	
 	
 	-- Instantiate the sensor register control module
 	dut : sensor_comm_v1_2
