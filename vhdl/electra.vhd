@@ -162,6 +162,8 @@ architecture rtl of electra is
     signal vnir_lvds_n : std_logic;
     signal vnir_lvds_p : std_logic;
 
+    signal swir_config : swir_config_t;
+    signal swir_config_done : std_logic;
     -- swir <=> ddr3
     signal swir_row_available : std_logic;
     signal swir_row : swir_row_t;
