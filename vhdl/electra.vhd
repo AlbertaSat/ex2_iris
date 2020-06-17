@@ -61,6 +61,8 @@ architecture rtl of electra is
         reset_n         : in std_logic;
         vnir_config     : in vnir_config_t;
         config_done     : out std_logic;
+        row_request     : in std_logic;
+        is_imaging      : out std_logic;
         row_available   : out std_logic;
         row_1           : out vnir_row_t;
         row_2           : out vnir_row_t;
@@ -84,6 +86,8 @@ architecture rtl of electra is
         reset_n         : in std_logic;
         swir_config     : in swir_config_t;
         config_done     : out std_logic;
+        row_request     : in std_logic;
+        is_imaging      : out std_logic;
         row_available   : out std_logic;
         row             : out swir_row_t;
     );
@@ -124,10 +128,13 @@ architecture rtl of electra is
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
+        row_request         : out std_logic;
         vnir_config         : out vnir_config_t;
         vnir_config_done    : in std_logic;
+        vnir_is_imaging     : in std_logic;
         swir_config         : out swir_config_t;
         swir_config_done    : in std_logic;
+        swir_is_imaging     : in std_logic;
         timestamp           : out timestamp_t;
         ddr3_config         : out ddr3_config_t;
         ddr3_config_done    : in std_logic;
@@ -139,9 +146,13 @@ architecture rtl of electra is
     signal clock    : std_logic;  -- Main clock
     signal reset_n  : std_logic;  -- Main reset
 
+    -- fpga <=> vnir, swir
+    signal row_request : std_logic;
+
     -- fpga <=> vnir
     signal vnir_config : vnir_config_t;
     signal vnir_config_done : std_logic;
+    signal vnir_is_imaging : std_logic
 
     -- vnir <=> ddr3
     signal vnir_row_available : std_logic;
@@ -162,8 +173,11 @@ architecture rtl of electra is
     signal vnir_lvds_n : std_logic;
     signal vnir_lvds_p : std_logic;
 
+    -- fpga <=> swir
     signal swir_config : swir_config_t;
     signal swir_config_done : std_logic;
+    signal swir_is_imaging : std_logic;
+
     -- swir <=> ddr3
     signal swir_row_available : std_logic;
     signal swir_row : swir_row_t;
@@ -219,6 +233,8 @@ begin
         reset_n => reset_n,
         vnir_config => vnir_config,
         config_done => vnir_config_done,
+        row_request => row_request,
+        is_imaging => vnir_is_imaging,
         row_available => vnir_row_available,
         row_1 => vnir_row_1,
         row_2 => vnir_row_2,
@@ -241,6 +257,8 @@ begin
         reset_n => reset_n,
         swir_config => swir_config,
         config_done => swir_config_done,
+        row_request => row_request,
+        is_imaging => swir_is_imaging,
         row_available => swir_row_available,
         row => swir_row
     );
@@ -277,10 +295,13 @@ begin
     component fpga_subsystem port map (
         clock => clock,
         reset_n => reset_n,
+        row_request => row_request,
         vnir_config => vnir_config,
         vnir_config_done => vnir_config_done,
+        vnir_is_imaging => vnir_is_imaging,
         swir_config => swir_config,
         swir_config_done => swir_config_done,
+        swir_is_imaging => swir_is_imaging,
         timestamp => timestamp,
         ddr3_config => ddr3_config,
         ddr3_config_done => ddr3_config_done,

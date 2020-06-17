@@ -32,6 +32,8 @@ entity swir_subsystem is
         reset_n         : in std_logic;
         swir_config     : in swir_config_t;
         config_done     : out std_logic;
+        row_request     : in std_logic;
+        is_imaging      : out std_logic;
         row_available   : out std_logic;
         row             : out swir_row_t;
         -- TODO: Add more here

@@ -45,7 +45,12 @@ use work.vnir_types.all;
 --      VNIR configuration parameters
 -- @param[out] config_done (std_logic)
 --      Held low while cofiguring
---
+-- @param[in] row_request (std_logic)
+--      Request a row be recorded by theg subsystem
+-- @param[out] is_imaging (std_logic)
+--      Held low when it is ok to request a row, i.e. when the subsystem
+--      is not currently taking an image
+-- 
 -- @param[out] row_available (std_logic)
 --      Asserted when a row is ready to be read off of the row outputs
 -- @param[out] row_1 (vnir_row_t)
@@ -83,6 +88,8 @@ entity vnir_subsystem is
         reset_n         : in std_logic;
         vnir_config     : in vnir_config_t;
         config_done     : out std_logic;
+        row_request     : in std_logic;
+        is_imaging      : out std_logic;
         row_available   : out std_logic;
         row_1           : out vnir_row_t;
         row_2           : out vnir_row_t;
