@@ -81,7 +81,7 @@ entity vnir_subsystem is
     port (
         clock           : in std_logic;
         reset_n         : in std_logic;
-        vnir_cofig      : in vnir_config_t;
+        vnir_config     : in vnir_config_t;
         config_done     : out std_logic;
         row_available   : out std_logic;
         row_1           : out vnir_row_t;
@@ -95,7 +95,7 @@ entity vnir_subsystem is
         spi_mosi        : out std_logic;
         frame_request   : out std_logic;
         lvds_clock      : in std_logic;
-        lvds_cotrol     : in std_logic;
+        lvds_control     : in std_logic;
         lvds_n, pvds_p  : in unsigned (14 downto 0);
     );
 end entity vnir_subsystem;

@@ -59,7 +59,7 @@ architecture rtl of electra is
     port (
         clock           : in std_logic;
         reset_n         : in std_logic;
-        vnir_cofig      : in vnir_config_t;
+        vnir_config     : in vnir_config_t;
         config_done     : out std_logic;
         row_available   : out std_logic;
         row_1           : out vnir_row_t;
@@ -73,7 +73,7 @@ architecture rtl of electra is
         spi_mosi        : out std_logic;
         frame_request   : out std_logic;
         lvds_clock      : in std_logic;
-        lvds_cotrol     : in std_logic;
+        lvds_control     : in std_logic;
         lvds_n, pvds_p  : in unsigned (14 downto 0);
     );
     end component;
@@ -82,7 +82,7 @@ architecture rtl of electra is
     port (
         clock           : in std_logic;
         reset_n         : in std_logic;
-        swir_cofig      : in swir_config_t;
+        swir_config     : in swir_config_t;
         config_done     : out std_logic;
         row_available   : out std_logic;
         row             : out swir_row_t;
@@ -111,12 +111,12 @@ architecture rtl of electra is
         write_writedata     : out std_logic_vector(31 downto 0);
         write_byteenable    : out std_logic_vector(3 downto 0);
         write_write         : out std_logic;
-        read_address       : out std_logic_vector(29 downto 0);
-        read_burstcount    : out std_logic_vector(7 downto 0);
-        read_waitrequest   : in std_logic;
-        read_readdata      : in std_logic_vector(31 downto 0);
-        read_readdatavalid : in std_logic;
-        read_read          : out std_logic;
+        read_address        : out std_logic_vector(29 downto 0);
+        read_burstcount     : out std_logic_vector(7 downto 0);
+        read_waitrequest    : in std_logic;
+        read_readdata       : in std_logic_vector(31 downto 0);
+        read_readdatavalid  : in std_logic;
+        read_read           : out std_logic;
     );
     end component;
 

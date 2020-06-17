@@ -30,7 +30,7 @@ entity swir_subsystem is
     port (
         clock           : in std_logic;
         reset_n         : in std_logic;
-        swir_cofig      : in swir_config_t;
+        swir_config     : in swir_config_t;
         config_done     : out std_logic;
         row_available   : out std_logic;
         row             : out swir_row_t;

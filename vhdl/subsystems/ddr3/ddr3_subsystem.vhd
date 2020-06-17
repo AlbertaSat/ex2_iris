@@ -108,11 +108,11 @@ entity ddr3_subsystem is
         write_writedata     : out std_logic_vector(31 downto 0);
         write_byteenable    : out std_logic_vector(3 downto 0);
         write_write         : out std_logic;
-        read_address       : out std_logic_vector(29 downto 0);
-        read_burstcount    : out std_logic_vector(7 downto 0);
-        read_waitrequest   : in std_logic;
-        read_readdata      : in std_logic_vector(31 downto 0);
-        read_readdatavalid : in std_logic;
-        read_read          : out std_logic;
+        read_address        : out std_logic_vector(29 downto 0);
+        read_burstcount     : out std_logic_vector(7 downto 0);
+        read_waitrequest    : in std_logic;
+        read_readdata       : in std_logic_vector(31 downto 0);
+        read_readdatavalid  : in std_logic;
+        read_read           : out std_logic;
     );
 end entity ddr3_subsystem;
