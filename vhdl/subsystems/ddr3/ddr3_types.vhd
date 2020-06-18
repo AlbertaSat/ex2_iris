@@ -24,6 +24,6 @@ use ieee.numeric_std.all;
 
 package ddr3_types is
     type ddr3_config_t is record
-        -- TODO: add here
+        some_element : std_logic;  -- TODO: add here
     end record ddr3_config_t;
 end package ddr3_types;

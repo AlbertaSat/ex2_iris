@@ -23,6 +23,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+use work.ddr3_types.all;
 use work.vnir_types.all;  -- Accept inputs from VNIR subsystem
 use work.swir_types.all;  -- Accept inputs from SWIR subsystem
 use work.fpga_types.all;  -- Accept inputs from FPGA subsystem
@@ -103,7 +104,7 @@ entity ddr3_subsystem is
         ddr3_full           : out std_logic;
         ddr3_busy           : out std_logic;
         write_address       : out std_logic_vector(29 downto 0);
-        write_burstcount    : out std_logic_vector(7 dowto 0);
+        write_burstcount    : out std_logic_vector(7 downto 0);
         write_waitrequest   : in std_logic;
         write_writedata     : out std_logic_vector(31 downto 0);
         write_byteenable    : out std_logic_vector(3 downto 0);
@@ -113,6 +114,6 @@ entity ddr3_subsystem is
         read_waitrequest    : in std_logic;
         read_readdata       : in std_logic_vector(31 downto 0);
         read_readdatavalid  : in std_logic;
-        read_read           : out std_logic;
+        read_read           : out std_logic
     );
 end entity ddr3_subsystem;

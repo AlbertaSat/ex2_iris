@@ -24,11 +24,11 @@ use ieee.numeric_std.all;
 
 package swir_types is
     type swir_config_t is record
-        -- TODO: add config values
+        some_element : std_logic;  -- TODO: add config values
     end record swir_config_t;
 
-    constant swir_pixel_bits : integer := 0;  -- TODO: define this
+    constant swir_pixel_bits : integer := 12;  -- TODO: define this
     constant swir_row_width : integer := 512; -- TODO: define this
-    subtype swir_pixel_t is unsigned(0 to swir_row_width-1);
-    type swir_rot_t is array(0 to swir_row_width-1) of swir_pixel_t;
+    subtype swir_pixel_t is unsigned(0 to swir_pixel_bits-1);
+    type swir_row_t is array(0 to swir_row_width-1) of swir_pixel_t;
 end package swir_types;

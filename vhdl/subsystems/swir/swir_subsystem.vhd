@@ -35,7 +35,7 @@ entity swir_subsystem is
         row_request     : in std_logic;
         is_imaging      : out std_logic;
         row_available   : out std_logic;
-        row             : out swir_row_t;
+        row             : out swir_row_t
         -- TODO: Add more here
     );
 end entity swir_subsystem;

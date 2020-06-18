@@ -25,8 +25,8 @@ use ieee.numeric_std.all;
 
 package vnir_types is
     type vnir_window_t is record
-        lo  : unsigned;
-        hi  : unsigned;
+        lo  : integer range 0 to 2048-1;
+        hi  : integer range 0 to 2048-1;
     end record vnir_window_t;
 
     type vnir_config_t is record

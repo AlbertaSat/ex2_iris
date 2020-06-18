@@ -25,6 +25,7 @@ use ieee.numeric_std.all;
 
 use work.vnir_types.all;  -- Gives outputs to the VNIR subsystem
 use work.swir_types.all;  -- Gives outputs from SWIR subsystem
+use work.ddr3_types.all;  -- Gives outptu to DDR3 subsystem
 use work.fpga_types.all;  -- For timestamp_t
 
 
@@ -43,6 +44,6 @@ entity fpga_subsystem is
         ddr3_config         : out ddr3_config_t;
         ddr3_config_done    : in std_logic;
         request_image       : in std_logic;
-        init_timestamp      : in timestamp_t;
+        init_timestamp      : in timestamp_t
     );
 end entity fpga_subsystem;

@@ -103,6 +103,6 @@ entity vnir_subsystem is
         frame_request   : out std_logic;
         lvds_clock      : in std_logic;
         lvds_control     : in std_logic;
-        lvds_n, pvds_p  : in unsigned (14 downto 0);
+        lvds_n, pvds_p  : in unsigned (14 downto 0)
     );
 end entity vnir_subsystem;
