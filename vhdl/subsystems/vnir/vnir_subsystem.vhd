@@ -23,87 +23,31 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+use work.spi_types.all;
 use work.sensor_comm_types.all;
 use work.vnir_types.all;
 
--- @brief
---	 VNIR subsystem top-level entity
--- 
--- @details
---	 Top-level entity for the VNIR subsystem. Interfaces with the VNIR
---   sensor, the fpga subsystem, and the ddr3 subsystem.
---
--- @attention
---	 Not implemented yet.
---
---
--- @param[in] clock (std_logic)
---      Main input system clock
--- @param[in] reset_n (std_logic)
---      Active-low synchronous reset.
---
--- @param[in] vnir_config (vnir_config_t)
---      VNIR configuration parameters
--- @param[out] config_done (std_logic)
---      Held low while cofiguring
--- @param[in] row_request (std_logic)
---      Request a row be recorded by theg subsystem
--- @param[out] is_imaging (std_logic)
---      Held low when it is ok to request a row, i.e. when the subsystem
---      is not currently taking an image
--- 
--- @param[out] row_available (std_logic)
---      Asserted when a row is ready to be read off of the row outputs
--- @param[out] row_1 (vnir_row_t)
---      440-480 nm row
--- @param[out] row_2 (vnir_row_t)
---      840-880 nm row
--- @param[out] row_3 (vnir_row_t)
---      620-670 nm row
---
--- @param[out] sensor_clock (std_logic)
---      Clock output to sensor
--- @param[out] sensor_reset (std_logic)
---      Reset sensor
--- @param[out] spi_clock (std_logic)
--- 		SPI output clock for data transfer synchronization
--- @param[in] spi_miso (std_logic)
--- 		SPI master-in, slave-out 
--- @param[out] spi_ss (std_logic)
--- 		active-high SPI slave-select line
--- @param[out] spi_mosi (std_logic)
--- 		SPI master-out, slave-in
--- @param[out] frame_request (std_logic)
---      Request frame from vnir sensor
--- @param[in] lvds_clock (std_logic)
---      Clock for LVDS inputs
--- @param[in] lvds_control (std_logic)
---      LVDS control signal
--- @param[in] lvds_n (unsigned[15])
---      LVDS input (together with lvds_p)
--- @param[in] lvds_p (unsigned[15])
---      LVDS input (together with lvds_n)
+
 entity vnir_subsystem is
     port (
         clock           : in std_logic;
         reset_n         : in std_logic;
-        vnir_config     : in vnir_config_t;
+
+        config          : in vnir_config_t;
         config_done     : out std_logic;
-        row_request     : in std_logic;
-        is_imaging      : out std_logic;
-        row_available   : out std_logic;
-        row_1           : out vnir_row_t;
-        row_2           : out vnir_row_t;
-        row_3           : out vnir_row_t;
+        
+        do_imaging      : in std_logic;
+
+        rows            : out vnir_rows_t;
+        rows_available  : out std_logic;
+        
         sensor_clock    : out std_logic;
         sensor_reset    : out std_logic;
-        spi_clock       : out std_logic;
-        spi_miso        : in std_logic;
-        spi_ss          : out std_logic;
-        spi_mosi        : out std_logic;
+        
+        spi_out         : out spi_from_master_t;
+        spi_in          : in spi_to_master_t;
+        
         frame_request   : out std_logic;
-        lvds_clock      : in std_logic;
-        lvds_control    : in std_logic;
-        lvds_n, lvds_p  : in unsigned (14 downto 0)
+        lvds            : in vnir_lvds_t
     );
 end entity vnir_subsystem;

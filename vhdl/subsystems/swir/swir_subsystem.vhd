@@ -30,12 +30,17 @@ entity swir_subsystem is
     port (
         clock           : in std_logic;
         reset_n         : in std_logic;
-        swir_config     : in swir_config_t;
+        
+        config          : in swir_config_t;
+        control         : out swir_control_t;
         config_done     : out std_logic;
-        row_request     : in std_logic;
-        is_imaging      : out std_logic;
+        
+        do_imaging      : in std_logic;
+
+        row             : out swir_row_t;
         row_available   : out std_logic;
-        row             : out swir_row_t
-        -- TODO: Add more here
+
+        sensor_clock    : out std_logic;
+        sensor_reset    : out std_logic
     );
 end entity swir_subsystem;

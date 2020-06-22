@@ -33,17 +33,22 @@ entity fpga_subsystem is
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
-        row_request         : out std_logic;
+        
         vnir_config         : out vnir_config_t;
         vnir_config_done    : in std_logic;
-        vnir_is_imaging     : in std_logic;
         swir_config         : out swir_config_t;
         swir_config_done    : in std_logic;
-        swir_is_imaging     : in std_logic;
-        timestamp           : out timestamp_t;
         ddr3_config         : out ddr3_config_t;
         ddr3_config_done    : in std_logic;
-        request_image       : in std_logic;
-        init_timestamp      : in timestamp_t
+
+        do_imaging          : out std_logic;
+        
+        timestamp           : out timestamp_t;
+        init_timestamp      : in timestamp_t;
+
+        image_request       : in std_logic;
+        image_time          : in unsigned
+
+        -- TODO: insert more here
     );
 end entity fpga_subsystem;

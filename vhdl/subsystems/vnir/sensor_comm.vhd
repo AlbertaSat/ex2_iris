@@ -196,14 +196,10 @@ begin
 	begin
 		if rising_edge(clock) then
 			if (reset_n = '0') then
-				-- Upload default register values on reset
-				state <= REPROGRAM;
-				is_transmitting <= '1';
+				state <= IDLE;
+				is_transmitting <= '0';
 				array_index := 0;
-				tx_data <= '1' & reg_data(array_index);
-			
 			else
-			
 				case state is
 					when IDLE =>
 					

@@ -27,6 +27,11 @@ package swir_types is
         some_element : std_logic;  -- TODO: add config values
     end record swir_config_t;
 
+    type swir_control_t is record
+        some_element : std_logic;  -- TODO: add control values
+    end record swir_control_t;
+
+
     constant swir_pixel_bits : integer := 12;  -- TODO: define this
     constant swir_row_width : integer := 512; -- TODO: define this
     subtype swir_pixel_t is unsigned(0 to swir_pixel_bits-1);
