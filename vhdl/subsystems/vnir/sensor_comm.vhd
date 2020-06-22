@@ -14,7 +14,7 @@
 --	
 --	
 -- @file sensor_comm.vhd
--- @author Campbell Rea
+-- @author Alexander Epp, Campbell Rea
 -- @date 2020-06-07
 ----------------------------------------------------------------
 
@@ -23,12 +23,25 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+
+package sensor_comm_types is
+	subtype sensor_comm_reg_entry_t is std_logic_vector (14 downto 0);
+	type sensor_comm_reg_t is array (integer range <>) of sensor_comm_reg_entry_t;
+end package sensor_comm_types;
+
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+use work.sensor_comm_types.all;
+
 -- @brief
 --	 Module for configuring registers within the VNIR sensor
 -- 
 -- @details
 --	 Sensor register values are originally contained within an
---	 array named reg_data of size num_reg by 15.  Within an 
+--	 array named reg_data of size vnir_spi_reg_capacity by 15.  Within an 
 --	 array entry, the first 7 bits represent the VNIR sensor 
 --	 register address while the last 8 bits represent the desired
 --	 register value.  Register values can be read from, and 
@@ -49,9 +62,6 @@ use ieee.numeric_std.all;
 --	 cannot be read from or written to reg_data until the 
 --	 process is completed.
 --
--- @param[in] num_reg
--- 		Number of registers contained within reg_data.
--- 
 -- @param[in] clock
 -- 		main input system clock
 -- @param[in] reset_n
@@ -79,7 +89,7 @@ use ieee.numeric_std.all;
 -- 		given by read_address on the output read_out.
 -- @param[in] read_address
 -- 		Specifies reg_data array address to be read. Range of 0 to
--- 		num_reg-1.
+-- 		vnir_spi_reg_capacity-1.
 -- @param[out] read_out
 -- 		Contains the read contents from reg_data during a read
 --		operation.  read_out remains unchanged until another read
@@ -104,10 +114,10 @@ use ieee.numeric_std.all;
 -- @param[out] mosi
 -- 		SPI master-out, slave-in
 entity sensor_comm is
-	generic(	
-		num_reg : integer	
+	generic (
+		num_reg : integer
 	);
-	port(	
+	port (	
 		clock			: in std_logic;
 		reset_n			: in std_logic;
 		transmit_cmd	: in std_logic;    
@@ -117,7 +127,9 @@ entity sensor_comm is
 		read_out		: out std_logic_vector (14 downto 0);
 		write_cmd		: in std_logic;
 		write_address	: in integer;
-		write_in		: in std_logic_vector (14 downto 0);	
+		write_in		: in std_logic_vector (14 downto 0);
+		reg_write_cmd   : in std_logic;
+		reg_write_in    : in sensor_comm_reg_t (0 to num_reg);	
 		sclk			: out std_logic;
 		miso			: in std_logic;
 		ss				: out std_logic;
@@ -129,8 +141,7 @@ end entity sensor_comm;
 architecture rtl of sensor_comm is
 
 	-- Internal array for sensor register data
-	type register_data_array is array (0 to num_reg-1) of std_logic_vector (14 downto 0);
-	signal reg_data : register_data_array;  -- first 7 bits are register address, last 8 bits is desired register data
+	signal reg_data : sensor_comm_reg_t (0 to num_reg);  -- first 7 bits are register address, last 8 bits is desired register data
 	
 	-- signal to store value of busy during previous clk_sys cycle (used in 'busy' signal edge finding)
 	signal busy_prev	: STD_LOGIC;	
@@ -145,15 +156,15 @@ architecture rtl of sensor_comm is
 	signal tx_data	:	std_logic_vector(15 downto 0);
 	signal busy		:	std_logic;
 	signal rx_data	:	std_logic_vector(15 downto 0);
-	signal ss_n		: std_logic_vector(0 downto 0);
+	signal ss_n		:   std_logic_vector(0 downto 0);
 	
 	
 	-- Add SPI master component
 	component spi_master is
-	  generic(
+	  generic (
 		slaves  : integer;  
-		d_width : integer); 
-	  port(
+		d_width : integer);
+	  port (
 		clock   : in     std_logic;                             
 		reset_n : in     std_logic;                             
 		enable  : in     std_logic;                             
@@ -179,8 +190,8 @@ begin
 	main_process : process (clock, reset_n)
 	
 		-- Variables for indexing through reg_data (updated immediately in simulation)
-		subtype t_array_index is integer range num_reg-1 downto 0;
-		variable array_index	: t_array_index := 0;
+		subtype array_index_t is integer range num_reg-1 downto 0;
+		variable array_index	: array_index_t := 0;
 		
 	begin
 		if rising_edge(clock) then
@@ -215,6 +226,11 @@ begin
 						-- Write data to specified array index
 						if (write_cmd = '1') then
 							reg_data(write_address) <= write_in;
+						end if;
+
+						-- Write to entire register at once
+						if (reg_write_cmd = '1') then
+							reg_data <= reg_write_in;
 						end if;
 					
 					-- Iterate through reg_data and transmit all contents via SPI

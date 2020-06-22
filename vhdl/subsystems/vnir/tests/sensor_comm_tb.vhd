@@ -22,6 +22,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+use work.sensor_comm_types.all;
 
 entity sensor_comm_tb is
 end entity;
@@ -40,6 +41,8 @@ architecture tests of sensor_comm_tb is
 	signal write_cmd		: std_logic := '0';
 	signal write_address	: integer := 0;
 	signal write_in			: std_logic_vector (14 downto 0);
+	signal reg_write_cmd    : std_logic;
+	signal reg_write_in     : sensor_comm_reg_t (0 to 3);
 	signal sclk				: std_logic;
 	signal miso				: std_logic;
 	signal mosi				: std_logic;
@@ -63,6 +66,8 @@ architecture tests of sensor_comm_tb is
 			write_cmd    	: in std_logic;
 			write_address	: in integer;
 			write_in       	: in std_logic_vector (14 downto 0);	
+			reg_write_cmd   : in std_logic;
+			reg_write_in    : in sensor_comm_reg_t (0 to 3);
 			sclk			: out std_logic;
 			miso			: in std_logic;
 			ss				: out std_logic;
@@ -175,6 +180,8 @@ begin
 			write_cmd		=> write_cmd,
 			write_address	=> write_address,
 			write_in		=> write_in,
+			reg_write_cmd   => reg_write_cmd,
+			reg_write_in	=> reg_write_in,
 			sclk			=> sclk,
 			miso			=> miso,
 			ss				=> ss,

@@ -30,9 +30,10 @@ package vnir_types is
     end record vnir_window_t;
 
     type vnir_config_t is record
-        window_1    : vnir_window_t;
-        window_2    : vnir_window_t;
-        window_3    : vnir_window_t;
+        start_config : std_logic;
+        window_1     : vnir_window_t;
+        window_2     : vnir_window_t;
+        window_3     : vnir_window_t;
         -- TODO: add other configuration parameters here, e.g. framerate.
     end record vnir_config_t;
 
@@ -40,4 +41,6 @@ package vnir_types is
     constant vnir_row_width  : integer := 2048;
     subtype vnir_pixel_t is unsigned(0 to vnir_pixel_bits-1);
     type vnir_row_t is array(0 to vnir_row_width-1) of vnir_pixel_t;
+
+    constant vnir_spi_num_reg : integer := 14;
 end package vnir_types;

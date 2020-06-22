@@ -23,6 +23,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+use work.sensor_comm_types.all;
 use work.vnir_types.all;
 
 -- @brief
@@ -97,12 +98,12 @@ entity vnir_subsystem is
         sensor_clock    : out std_logic;
         sensor_reset    : out std_logic;
         spi_clock       : out std_logic;
-        spi_miso        : out std_logic;
+        spi_miso        : in std_logic;
         spi_ss          : out std_logic;
         spi_mosi        : out std_logic;
         frame_request   : out std_logic;
         lvds_clock      : in std_logic;
-        lvds_control     : in std_logic;
-        lvds_n, pvds_p  : in unsigned (14 downto 0)
+        lvds_control    : in std_logic;
+        lvds_n, lvds_p  : in unsigned (14 downto 0)
     );
 end entity vnir_subsystem;
