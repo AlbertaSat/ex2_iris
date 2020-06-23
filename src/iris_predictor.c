@@ -34,15 +34,18 @@ as of 09/11/2011.
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
+/*Standard Lib Includes*/
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 
+/*File Includes*/
 #include "../inc/iris_utils.h"
 #include "../inc/iris_configs.h"
 #include "../inc/iris_predictor.h"
 #include "../inc/iris_entropy_encoder.h"
+#include "../payload_base/include/FreeRTOS.h"
 
 /// Computes the local sum for the given sample index
 int local_sum(input_feature_t input_params, predictor_config_t predictor_params,

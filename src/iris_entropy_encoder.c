@@ -38,9 +38,11 @@ as of 09/11/2011.
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+
 #include "../inc/iris_entropy_encoder.h"
 #include "../inc/iris_utils.h"
 #include "../inc/iris_predictor.h"
+#include "../payload_base/include/FreeRTOS.h"
 
 /******************************************************
 * Routines for the Sample Adaptive Encoder

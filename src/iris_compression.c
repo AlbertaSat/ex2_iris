@@ -1,13 +1,36 @@
+/*
+ * Copyright (C) 2015  University of Alberta
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/**
+ * @file iris_heuristic.c
+ * @author Luca Fossati (ESA), Scott Chu
+ * @date 2020-06-23
+ */
+
+/*Standard Lib Includes*/
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <time.h>
 
+/*File Includes*/
 #include "../inc/iris_predictor.h"
 #include "../inc/iris_entropy_encoder.h"
 #include "../inc/iris_utils.h"
 #include "../inc/iris_configs.h"
+#include "../payload_base/include/FreeRTOS.h"
 
 int compress()
 {       
@@ -146,7 +169,7 @@ int compress()
         return 0;
 }
 
-int main()
-{
-        compress();
-}
+// int main()
+// {
+//         compress();
+// }

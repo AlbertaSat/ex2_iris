@@ -18,14 +18,14 @@
  * @date 2020-05-28
  */
 
+/*Standard Lib Includes*/
+#include <stdio.h>
+#include <stdlib.h>
+
 /*File Includes*/
 #include "../inc/iris_heuristic.h"
 #include "iris_cloud_detection.c"
 #include "../payload_base/include/FreeRTOS.h"
-
-/*Standard Lib Includes*/
-#include <stdio.h>
-#include <stdlib.h>
 
 struct input_feature img_buffer[10]; //Temporary solution for storing image parameters, this will eventually be stored in a buffer with the images.
 
@@ -211,12 +211,12 @@ int heuristic_img(int imgnum)
         }
 }
 
-int main()
-{
-        //Generate 4x2048x2048 image
-        generate_img(2048);
+// int main()
+// {
+//         //Generate 4x2048x2048 image
+//         generate_img(2048);
 
-        //Run heuristic calculation on generated dummy image binary file.
-        printf("Heuristic value: %d", heuristic_img(0));
-        return 0;
-}
+//         //Run heuristic calculation on generated dummy image binary file.
+//         printf("Heuristic value: %d", heuristic_img(0));
+//         return 0;
+// }
