@@ -108,10 +108,10 @@ int heuristic_img(int imgnum)
         }
 
         //Allocate memory for seperate band arrays
-        float *b = malloc(img_buffer[imgnum].x_size * img_buffer[imgnum].y_size * sizeof(float));
-        float *r = malloc(img_buffer[imgnum].x_size * img_buffer[imgnum].y_size * sizeof(float));
-        float *nir = malloc(img_buffer[imgnum].x_size * img_buffer[imgnum].y_size * sizeof(float));
-        float *swir = malloc(img_buffer[imgnum].x_size * img_buffer[imgnum].y_size * sizeof(float));
+        float *b = pvPortMalloc(img_buffer[imgnum].x_size * img_buffer[imgnum].y_size * sizeof(float));
+        float *r = pvPortMalloc(img_buffer[imgnum].x_size * img_buffer[imgnum].y_size * sizeof(float));
+        float *nir = pvPortMalloc(img_buffer[imgnum].x_size * img_buffer[imgnum].y_size * sizeof(float));
+        float *swir = pvPortMalloc(img_buffer[imgnum].x_size * img_buffer[imgnum].y_size * sizeof(float));
         if (b == NULL || r == NULL || nir == NULL || swir == NULL){
                 printf("Unable to allocate memory for band array");
                 return 1;

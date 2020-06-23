@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2015  University of Alberta
  *
- * This program is free software; you can redistribute it and/or
+ * This program is vPortFree software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
+ * as published by the vPortFree Software Foundation; either version 2
  * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -32,7 +32,7 @@
 #include "../inc/iris_configs.h"
 #include "../payload_base/include/FreeRTOS.h"
 
-int compress()
+int img_compress()
 {       
         //Statistics
         double compressionStartTime = 0.0;
@@ -52,21 +52,16 @@ int compress()
         encoder_config_t encoder_params;
         predictor_config_t predictor_params;
         unsigned short int * residuals = NULL;
-        // samples_file[0] = '\x0';
-        // out_file[0] = '\x0';
-        // init_table_file[0] = '\x0';
-        // init_weight_file[0] = '\x0';
+        samples_file[0] = '\x0';
+        out_file[0] = '\x0';
+        init_table_file[0] = '\x0';
+        init_weight_file[0] = '\x0';
         memset(&input_params, 0, sizeof(input_feature_t));
         memset(&encoder_params, 0, sizeof(encoder_config_t));
         memset(&predictor_params, 0, sizeof(predictor_config_t));
         encoder_params.k = (unsigned int)-1;
         input_params.dyn_range = 16;
         encoder_params.encoding_method = BLOCK;
-
-        //File naming **TESTING, DELETE AFTER**
-        
-
-
 
         //Obtaining predictor params
         predictor_params.pred_bands = input_params.z_size; //Remove user_input_pred_bands?
@@ -79,11 +74,14 @@ int compress()
 
         //Column-oriented local sums are not recommended under full prediction mode.
         predictor_params.neighbour_sum = 0;
+
         //**Double check this after**
         //NOTE: Increasing the register size R reduces the chance of an overflow occurring in the calculation of a scaled predicted sample value.
         predictor_params.register_size = 32; 
+
         //Increasing the number of bits used to represent weight values provides increased resolution in the prediction calculation. This value is 4 <= W <= 19;
         predictor_params.weight_resolution = 4;
+        
         //**Double check this after**
         predictor_params.weight_interval = 16;
 
@@ -108,7 +106,7 @@ int compress()
         // unsigned int ref_interval;
 
         // *********************** here is the actual compression step *********************** //
-        residuals = (unsigned short int *)malloc(sizeof(unsigned short int)*input_params.x_size*input_params.y_size*input_params.z_size);
+        residuals = (unsigned short int *)pvPortMalloc(sizeof(unsigned short int)*input_params.x_size*input_params.y_size*input_params.z_size);
         if(residuals == NULL){
                 fprintf(stderr, "Error in allocating %lf kBytes for the residuals buffer\n\n", ((double)sizeof(unsigned short int)*input_params.x_size*input_params.y_size*input_params.z_size)/1024.0);
                 return -1;
@@ -145,17 +143,17 @@ int compress()
 
         //Finally I can deallocate everything
         if(encoder_params.k_init != NULL)
-                free(encoder_params.k_init);
+                vPortFree(encoder_params.k_init);
         if(predictor_params.weight_init_table != NULL){
                 int i = 0;
                 for(i = 0; i < input_params.z_size; i++){
                 if(predictor_params.weight_init_table[i] != NULL)
-                        free(predictor_params.weight_init_table[i]);
+                        vPortFree(predictor_params.weight_init_table[i]);
                 }
-                free(predictor_params.weight_init_table);
+                vPortFree(predictor_params.weight_init_table);
         }
         if(residuals != NULL)
-                free(residuals);
+                vPortFree(residuals);
 
         // *********************** end of the actual compression step *********************** //
 
@@ -169,7 +167,3 @@ int compress()
         return 0;
 }
 
-// int main()
-// {
-//         compress();
-// }
