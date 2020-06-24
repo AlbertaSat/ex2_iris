@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2015  University of Alberta
  *
- * This program is vPortFree software; you can redistribute it and/or
+ * This program is Free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * as published by the vPortFree Software Foundation; either version 2
+ * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -56,11 +56,11 @@ int img_compress()
         out_file[0] = '\x0';
         init_table_file[0] = '\x0';
         init_weight_file[0] = '\x0';
-        memset(&input_params, 0, sizeof(input_feature_t));
+        // memset(&input_params, 0, sizeof(input_feature_t));
         memset(&encoder_params, 0, sizeof(encoder_config_t));
         memset(&predictor_params, 0, sizeof(predictor_config_t));
         encoder_params.k = (unsigned int)-1;
-        input_params.dyn_range = 16;
+        // input_params.dyn_range = 16;
         encoder_params.encoding_method = BLOCK;
 
         //Obtaining predictor params
@@ -74,14 +74,10 @@ int img_compress()
 
         //Column-oriented local sums are not recommended under full prediction mode.
         predictor_params.neighbour_sum = 0;
-
-        //**Double check this after**
         //NOTE: Increasing the register size R reduces the chance of an overflow occurring in the calculation of a scaled predicted sample value.
         predictor_params.register_size = 32; 
-
-        //Increasing the number of bits used to represent weight values provides increased resolution in the prediction calculation. This value is 4 <= W <= 19;
+        //Increasing the number of bits used to represent weight values provides increased resolution in the prediction calculation. The range here is [4, 19];
         predictor_params.weight_resolution = 4;
-        
         //**Double check this after**
         predictor_params.weight_interval = 16;
 
@@ -91,19 +87,18 @@ int img_compress()
         // predictor_params.weight_init_resolution;
         // predictor_params.weight_init_table;
 
-        //Obtaining encoding params -> Default as 0 from previous memset
-        // unsigned int u_max;
-        // unsigned int y_star;
-        // unsigned int y_0;
-        // unsigned int k;
+        // These are user specified, we can change them later after we see compression results. This will work for now.
+        encoder_params.u_max = 18;
+        encoder_params.y_star = 6;
+        encoder_params.y_0 = 1;
+        encoder_params.k = 6;
+        
         // unsigned int * k_init;
-        // interleaving_t out_interleaving;
-        // unsigned int out_interleaving_depth;
-        // unsigned int out_wordsize;
-        // encoder_t encoding_method;
-        // unsigned char block_size;
-        // unsigned char restricted;
-        // unsigned int ref_interval;
+        encoder_params.out_interleaving = BSQ;
+        encoder_params.out_interleaving_depth = input_params.in_interleaving_depth;
+        // Value in range [1,8], 
+        encoder_params.out_wordsize = 8;
+
 
         // *********************** here is the actual compression step *********************** //
         residuals = (unsigned short int *)pvPortMalloc(sizeof(unsigned short int)*input_params.x_size*input_params.y_size*input_params.z_size);
@@ -167,3 +162,7 @@ int img_compress()
         return 0;
 }
 
+int main()
+{
+        img_compress();
+}

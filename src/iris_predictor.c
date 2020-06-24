@@ -8,7 +8,7 @@ must be, as a whole, under the terms of the European Space Agency Public License
 If You Distribute the Software and/or Modifications as Object Code, You must:
 (a)	provide in addition a copy of the Source Code of the Software and/or
 Modifications to each recipient; or
-(b)	make the Source Code of the Software and/or Modifications vPortFreely accessible by reasonable
+(b)	make the Source Code of the Software and/or Modifications Freely accessible by reasonable
 means for anyone who possesses the Object Code or received the Software and/or Modifications
 from You, and inform recipients how to obtain a copy of the Source Code.
 
@@ -536,7 +536,7 @@ int predict(input_feature_t input_params, predictor_config_t predictor_params, c
             }
         }
     }
-    // vPortFreeing allocated memory
+    // Freeing allocated memory
     if(samples != NULL){
         vPortFree(samples);
     }

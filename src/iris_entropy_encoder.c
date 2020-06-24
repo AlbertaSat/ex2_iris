@@ -90,7 +90,7 @@ int encode_pixel(unsigned int x, unsigned int y, unsigned int z, unsigned int * 
             counter[z]++;
         }
         else{
-            accumulator[z] = (accumulator[z] + residuals[curIndex] + 1)/2;
+            accumulator[z] = (accumulator[z] + residuals[curIndex] + 1)/2; 
             counter[z] = (counter[z] + 1)/2;
         }
     }
