@@ -1,5 +1,25 @@
-#ifndef INCLUDES_H
-#define INCLUDES_H
+/*
+ * Copyright (C) 2015  University of Alberta
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/**
+ * @file iris_heuristic.c
+ * @author Scott Chu
+ * @date 2020-05-28
+ */
+
+#ifndef IRIS_CONFIGS_H
+#define IRIS_CONFIGS_H
 
 #include "iris_utils.h"
 
@@ -14,13 +34,13 @@ typedef enum{SAMPLE, BLOCK} encoder_t;
 typedef struct input_feature{
     char signed_samples;
     unsigned char dyn_range;
+    unsigned char regular_input;
     unsigned int x_size;
     unsigned int y_size;
     unsigned int z_size;
     interleaving_t in_interleaving;
     unsigned int in_interleaving_depth;
     endianness_t byte_ordering;
-    unsigned char regular_input;
 } input_feature_t;
 
 ///Type representing the configuration of the predictor
