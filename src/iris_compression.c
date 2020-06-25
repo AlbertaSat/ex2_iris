@@ -56,11 +56,11 @@ int img_compress()
         out_file[0] = '\x0';
         init_table_file[0] = '\x0';
         init_weight_file[0] = '\x0';
-        // memset(&input_params, 0, sizeof(input_feature_t));
+        memset(&input_params, 0, sizeof(input_feature_t));
         memset(&encoder_params, 0, sizeof(encoder_config_t));
         memset(&predictor_params, 0, sizeof(predictor_config_t));
         encoder_params.k = (unsigned int)-1;
-        // input_params.dyn_range = 16;
+        input_params.dyn_range = 16;
         encoder_params.encoding_method = BLOCK;
 
         //Obtaining predictor params

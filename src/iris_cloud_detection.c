@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2015  University of Alberta
  *
@@ -16,7 +15,7 @@
 /**
  * @file iris_cloud_detection.c
  * @author Leo Gao
- * @date 2020-06-23
+ * @date ????-??-??
  */
 
 /*Standard Lib Includes*/

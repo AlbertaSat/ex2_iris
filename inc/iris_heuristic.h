@@ -27,8 +27,7 @@
 typedef enum{BSQ, BIP, BIL} interleaving_t;
 typedef enum{LITTLE, BIG} endianness_t;
 
-///Type representing the characteristics of the input data fed to
-///the algorithm
+// Struct that represents image metadata
 typedef struct input_feature{
     char signed_samples;
     unsigned char dyn_range;

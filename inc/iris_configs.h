@@ -13,9 +13,9 @@
  */
 
 /**
- * @file iris_heuristic.c
- * @author Scott Chu
- * @date 2020-05-28
+ * @file iris_configs.c
+ * @author Luca Fossati (ESA), Scott Chu
+ * @date 2020-06-23
  */
 
 #ifndef IRIS_CONFIGS_H
@@ -23,14 +23,14 @@
 
 #include "iris_utils.h"
 
+//Macro used to move from a matrix notation to a linear array, when the matrix is ordered according to the BSQ order
 #define MATRIX_BSQ_INDEX(matrix, input_params, x, y, z) matrix[input_params.x_size*((z)*input_params.y_size + (y)) + (x)]
 
 typedef enum{BSQ, BI} interleaving_t;
 typedef enum{LITTLE, BIG} endianness_t;
 typedef enum{SAMPLE, BLOCK} encoder_t;
 
-///Type representing the characteristics of the input data fed to
-///the algorithm
+//Type representing the characteristics of the input data fed to the algorithm
 typedef struct input_feature{
     char signed_samples;
     unsigned char dyn_range;
@@ -43,7 +43,7 @@ typedef struct input_feature{
     endianness_t byte_ordering;
 } input_feature_t;
 
-///Type representing the configuration of the predictor
+//Type representing the configuration of the predictor
 typedef struct predictor_config{
     unsigned char user_input_pred_bands;
     unsigned char pred_bands;
@@ -58,7 +58,7 @@ typedef struct predictor_config{
     int ** weight_init_table;
 } predictor_config_t;
 
-///Type representing the configuration of the encoder algorithm
+//Type representing the configuration of the encoder algorithm
 typedef struct encoder_config{
     unsigned int u_max;
     unsigned int y_star;
