@@ -32,7 +32,15 @@
 #include "../inc/iris_configs.h"
 #include "../payload_base/include/FreeRTOS.h"
 
-int img_compress()
+/**
+ * @brief
+ * 		Compresses raster file image using the CCSDS compression protocol written by the ESA.
+ * @param imgnum
+ * 		Designator for the image.
+ * @return
+ * 		Returns 1 if not sucessful.
+ */
+int img_compress(int imgnum)
 {       
         //Statistics
         double compressionStartTime = 0.0;
@@ -104,13 +112,13 @@ int img_compress()
         residuals = (unsigned short int *)pvPortMalloc(sizeof(unsigned short int)*input_params.x_size*input_params.y_size*input_params.z_size);
         if(residuals == NULL){
                 fprintf(stderr, "Error in allocating %lf kBytes for the residuals buffer\n\n", ((double)sizeof(unsigned short int)*input_params.x_size*input_params.y_size*input_params.z_size)/1024.0);
-                return -1;
+                return 1;
         }
 
         compressionStartTime = ((double)clock())/CLOCKS_PER_SEC;
         if(predict(input_params, predictor_params, samples_file, residuals) != 0){
                 fprintf(stderr, "\nError during the computation of the residuals (i.e. prediction)\n\n");
-                return -1;
+                return 1;
         }
         if(dump_residuals != 0){
                 // dumps the residuals as unsigned short int (16 bits each) in little endian format in
@@ -121,7 +129,7 @@ int img_compress()
                 sprintf(residuals_name, "residuals_%s.bip", out_file);
                 if((residuals_file = fopen(residuals_name, "w+b")) == NULL){
                 fprintf(stderr, "\nError in creating the file holding the residuals\n\n");
-                return -1;            
+                return 1;            
                 }
                 for(y = 0; y < input_params.y_size; y++){
                 for(x = 0; x < input_params.x_size; x++){
@@ -162,7 +170,3 @@ int img_compress()
         return 0;
 }
 
-int main()
-{
-        img_compress();
-}

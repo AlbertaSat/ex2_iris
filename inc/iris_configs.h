@@ -23,10 +23,13 @@
 
 #include "iris_utils.h"
 
+#define Z_PIXELS 4      //B, R, NIR, SWIR Bands
+#define Y_PIXELS 2048   //Y dimension of image are constant
+
 //Macro used to move from a matrix notation to a linear array, when the matrix is ordered according to the BSQ order
 #define MATRIX_BSQ_INDEX(matrix, input_params, x, y, z) matrix[input_params.x_size*((z)*input_params.y_size + (y)) + (x)]
 
-typedef enum{BSQ, BI} interleaving_t;
+typedef enum{BSQ, BIP, BIL} interleaving_t;
 typedef enum{LITTLE, BIG} endianness_t;
 typedef enum{SAMPLE, BLOCK} encoder_t;
 

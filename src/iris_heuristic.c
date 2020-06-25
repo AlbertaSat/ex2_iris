@@ -23,7 +23,7 @@
 #include <stdlib.h>
 
 /*File Includes*/
-#include "../inc/iris_heuristic.h"
+#include "../inc/iris_configs.h"
 #include "iris_cloud_detection.c"
 #include "../payload_base/include/FreeRTOS.h"
 
