@@ -25,13 +25,6 @@ use ieee.numeric_std.all;
 
 package vnir_types is
 
-    type vnir_lvds_t is record
-        clock   : std_logic;
-        control : std_logic;
-        lvds_n  : unsigned (14 downto 0);
-        lvds_p  : unsigned (14 downto 0);
-    end record vnir_lvds_t;
-
     type vnir_window_t is record
         lo  : integer range 0 to 2048-1;
         hi  : integer range 0 to 2048-1;
@@ -57,5 +50,14 @@ package vnir_types is
     end record vnir_rows_t;
 
     constant vnir_spi_num_reg : integer := 14;
+
+    type vnir_lvds_t is record
+        clock   : std_logic;
+        control : std_logic;
+        lvds_n  : unsigned (14 downto 0);
+        lvds_p  : unsigned (14 downto 0);
+    end record vnir_lvds_t;
+
+    type vnir_lvds_parallel_t is array(0 to 3) of vnir_pixel_t;
 
 end package vnir_types;
