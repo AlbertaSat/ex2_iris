@@ -24,7 +24,8 @@ use ieee.numeric_std.all;
 
 package swir_types is
     type swir_config_t is record
-        some_element : std_logic;  -- TODO: add config values
+        imaging_duration : integer;
+        -- TODO: add other configuration parameters here, e.g. framerate.
     end record swir_config_t;
 
     type swir_control_t is record

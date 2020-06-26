@@ -37,6 +37,7 @@ entity swir_subsystem is
         
         do_imaging      : in std_logic;
 
+        num_rows        : out integer;
         row             : out swir_row_t;
         row_available   : out std_logic;
 

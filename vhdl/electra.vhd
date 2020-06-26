@@ -64,6 +64,7 @@ architecture rtl of electra is
         config          : in vnir_config_t;
         config_done     : out std_logic;
         do_imaging      : in std_logic;
+        num_rows        : out integer;
         rows            : out vnir_rows_t;
         rows_available  : out std_logic;
         sensor_clock    : out std_logic;
@@ -83,6 +84,7 @@ architecture rtl of electra is
         control         : out swir_control_t;
         config_done     : out std_logic;
         do_imaging      : in std_logic;
+        num_rows        : out integer;
         row             : out swir_row_t;
         row_available   : out std_logic;
         sensor_clock    : out std_logic;
@@ -95,8 +97,10 @@ architecture rtl of electra is
         clock               : in std_logic;
         reset_n             : in std_logic;
         vnir_rows_available : in std_logic;
+        num_vnir_rows       : in integer;
         vnir_rows           : in vnir_rows_t;
         swir_row_available  : in std_logic;
+        num_swir_rows       : in integer;
         swir_row            : in swir_row_t;
         timestamp           : in timestamp_t;
         mpu_memory_change   : in std_logic;
@@ -120,6 +124,8 @@ architecture rtl of electra is
         swir_config_done    : in std_logic;
         sdram_config         : out sdram_config_t;
         sdram_config_done    : in std_logic;
+        num_vnir_rows       : in integer;
+        num_swir_rows       : in integer;
         do_imaging          : out std_logic;
         timestamp           : out timestamp_t;
         init_timestamp      : in timestamp_t;
@@ -148,6 +154,12 @@ architecture rtl of electra is
     signal vnir_spi : spi_t;
     signal vnir_frame_request : std_logic;
     signal vnir_lvds : vnir_lvds_t;
+
+    -- vnir <=> sdram, fpga
+    signal num_vnir_rows;
+
+    -- swir <=> sdram, fpga
+    signal num_swir_rows;
 
     -- fpga <=> swir
     signal swir_config : swir_config_t;
@@ -205,6 +217,7 @@ begin
         config => vnir_config,
         config_done => vnir_config_done,
         do_imaging => do_imaging,
+        num_rows => num_vnir_rows,
         rows => vnir_rows,
         rows_available => vnir_rows_available,
         sensor_clock => vnir_sensor_clock,
@@ -222,6 +235,7 @@ begin
         control => swir_control,
         config_done => swir_config_done,
         do_imaging => do_imaging,
+        num_rows => num_swir_rows,
         row => swir_row,
         row_available => swir_row_available,
         sensor_clock => swir_sensor_clock,
@@ -232,8 +246,10 @@ begin
         clock => clock,
         reset_n => reset_n,
         vnir_rows_available => vnir_rows_available,
+        num_vnir_rows => num_vnir_rows,
         vnir_rows => vnir_rows,
         swir_row_available => swir_row_available,
+        num_swir_rows => num_swir_rows,
         swir_row => swir_row,
         timestamp => timestamp,
         mpu_memory_change => mpu_memory_change,
@@ -255,6 +271,8 @@ begin
         swir_config_done => swir_config_done,
         sdram_config => sdram_config,
         sdram_config_done => sdram_config_done,
+        num_vnir_rows => num_vnir_rows,
+        num_swir_rows => num_swir_rows,
         do_imaging => do_imaging,
         timestamp => timestamp,
         init_timestamp => init_timestamp,

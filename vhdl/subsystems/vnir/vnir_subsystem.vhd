@@ -38,6 +38,7 @@ entity vnir_subsystem is
         
         do_imaging      : in std_logic;
 
+        num_rows        : out integer;
         rows            : out vnir_rows_t;
         rows_available  : out std_logic;
         
