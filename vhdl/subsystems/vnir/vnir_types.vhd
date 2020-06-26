@@ -38,10 +38,10 @@ package vnir_types is
     end record vnir_window_t;
 
     type vnir_config_t is record
-        start_config : std_logic;
-        window_1     : vnir_window_t;
-        window_2     : vnir_window_t;
-        window_3     : vnir_window_t;
+        start_config     : std_logic;
+        window_1         : vnir_window_t;
+        window_2         : vnir_window_t;
+        window_3         : vnir_window_t;
         imaging_duration : integer;
         -- TODO: add other configuration parameters here, e.g. framerate.
     end record vnir_config_t;

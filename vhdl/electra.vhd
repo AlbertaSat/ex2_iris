@@ -122,8 +122,8 @@ architecture rtl of electra is
         vnir_config_done    : in std_logic;
         swir_config         : out swir_config_t;
         swir_config_done    : in std_logic;
-        sdram_config         : out sdram_config_t;
-        sdram_config_done    : in std_logic;
+        sdram_config        : out sdram_config_t;
+        sdram_config_done   : in std_logic;
         num_vnir_rows       : in integer;
         num_swir_rows       : in integer;
         do_imaging          : out std_logic;
