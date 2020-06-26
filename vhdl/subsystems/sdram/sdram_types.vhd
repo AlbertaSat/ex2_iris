@@ -13,7 +13,7 @@
 --	 GNU General Public License for more details.
 --	
 --	
--- @file ddr3_types.vhd
+-- @file sdram_types.vhd
 -- @author Alexander Epp
 -- @date 2020-06-16
 ----------------------------------------------------------------
@@ -22,10 +22,10 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-package ddr3_types is
+package sdram_types is
     
 
-    type ddr3_config_t is record
+    type sdram_config_t is record
         some_element : std_logic;  -- TODO: add here
-    end record ddr3_config_t;
-end package ddr3_types;
+    end record sdram_config_t;
+end package sdram_types;

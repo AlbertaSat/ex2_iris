@@ -25,7 +25,7 @@ use ieee.numeric_std.all;
 
 use work.vnir_types.all;  -- Gives outputs to the VNIR subsystem
 use work.swir_types.all;  -- Gives outputs from SWIR subsystem
-use work.ddr3_types.all;  -- Gives outptu to DDR3 subsystem
+use work.sdram_types.all;  -- Gives outptu to sdram subsystem
 use work.fpga_types.all;  -- For timestamp_t
 
 
@@ -38,8 +38,8 @@ entity fpga_subsystem is
         vnir_config_done    : in std_logic;
         swir_config         : out swir_config_t;
         swir_config_done    : in std_logic;
-        ddr3_config         : out ddr3_config_t;
-        ddr3_config_done    : in std_logic;
+        sdram_config         : out sdram_config_t;
+        sdram_config_done    : in std_logic;
 
         do_imaging          : out std_logic;
         
@@ -47,7 +47,7 @@ entity fpga_subsystem is
         init_timestamp      : in timestamp_t;
 
         image_request       : in std_logic;
-        image_time          : in unsigned
+        imaging_duration    : in integer
 
         -- TODO: insert more here
     );

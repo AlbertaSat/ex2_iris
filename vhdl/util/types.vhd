@@ -13,7 +13,7 @@
 --	 GNU General Public License for more details.
 --	
 --	
--- @file ddr3_types.vhd
+-- @file sdram_types.vhd
 -- @author Alexander Epp
 -- @date 2020-06-22
 ----------------------------------------------------------------

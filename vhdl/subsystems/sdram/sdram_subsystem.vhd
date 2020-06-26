@@ -24,13 +24,13 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.avalonmm_types.all;
-use work.ddr3_types.all;
+use work.sdram_types.all;
 use work.vnir_types.all;
 use work.swir_types.all;
 use work.fpga_types.all;
 
 
-entity ddr3_subsystem is
+entity sdram_subsystem is
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
@@ -43,13 +43,13 @@ entity ddr3_subsystem is
         
         timestamp           : in timestamp_t;
         mpu_memory_change   : in std_logic;
-        ddr3_config         : in ddr3_config_t;
-        ddr3_config_done    : out std_logic;
-        ddr3_busy           : out std_logic;
-        ddr3_error          : out std_logic;
-        ddr3_full           : out std_logic;
+        sdram_config         : in sdram_config_t;
+        sdram_config_done    : out std_logic;
+        sdram_busy           : out std_logic;
+        sdram_error          : out std_logic;
+        sdram_full           : out std_logic;
         
-        ddr3_avalon_out     : out avalonmm_rw_from_master_t;
-        ddr3_avalon_in      : in avalonmm_rw_to_master_t
+        sdram_avalon_out     : out avalonmm_rw_from_master_t;
+        sdram_avalon_in      : in avalonmm_rw_to_master_t
     );
-end entity ddr3_subsystem;
+end entity sdram_subsystem;
