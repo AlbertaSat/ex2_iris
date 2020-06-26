@@ -41,8 +41,8 @@ entity fpga_subsystem is
         sdram_config         : out sdram_config_t;
         sdram_config_done    : in std_logic;
 
-        num_vnir_rows       : in integer;
-        num_swir_rows       : in integer;
+        vnir_num_rows       : in integer;
+        swir_num_rows       : in integer;
 
         do_imaging          : out std_logic;
         

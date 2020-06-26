@@ -36,11 +36,11 @@ entity sdram_subsystem is
         reset_n             : in std_logic;
 
         vnir_rows_available : in std_logic;
-        num_vnir_rows       : in integer;
+        vnir_num_rows       : in integer;
         vnir_rows           : in vnir_rows_t;
         
         swir_row_available  : in std_logic;
-        num_swir_rows       : in integer;
+        swir_num_rows       : in integer;
         swir_row            : in swir_row_t;
         
         timestamp           : in timestamp_t;
