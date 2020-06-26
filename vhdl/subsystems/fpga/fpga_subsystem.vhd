@@ -13,7 +13,7 @@
 --	 GNU General Public License for more details.
 --	
 --	
--- @file vnir_subsystem.vhd
+-- @file fpga_subsystem.vhd
 -- @author Alexander Epp
 -- @date 2020-06-16
 ----------------------------------------------------------------

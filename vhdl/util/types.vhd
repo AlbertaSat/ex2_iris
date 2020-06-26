@@ -13,7 +13,7 @@
 --	 GNU General Public License for more details.
 --	
 --	
--- @file sdram_types.vhd
+-- @file types.vhd
 -- @author Alexander Epp
 -- @date 2020-06-22
 ----------------------------------------------------------------
