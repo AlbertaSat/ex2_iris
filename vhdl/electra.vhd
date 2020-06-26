@@ -100,13 +100,12 @@ architecture rtl of electra is
         swir_row            : in swir_row_t;
         timestamp           : in timestamp_t;
         mpu_memory_change   : in std_logic;
-        sdram_config         : in sdram_config_t;
-        sdram_config_done    : out std_logic;
-        sdram_busy           : out std_logic;
-        sdram_error          : out std_logic;
-        sdram_full           : out std_logic;
-        sdram_avalon_out     : out avalonmm_rw_from_master_t;
-        sdram_avalon_in      : in avalonmm_rw_to_master_t
+        sdram_config        : in sdram_config_t;
+        sdram_config_done   : out std_logic;
+        sdram_busy          : out std_logic;
+        sdram_error         : out sdram_error_t;
+        sdram_avalon_out    : out avalonmm_rw_from_master_t;
+        sdram_avalon_in     : in avalonmm_rw_to_master_t
     );
     end component;
 
@@ -176,8 +175,7 @@ architecture rtl of electra is
     signal sdram_config : sdram_config_t;
     signal sdram_config_done : std_logic;
     signal sdram_busy : std_logic;
-    signal sdram_error : std_logic;
-    signal sdram_full : std_logic;
+    signal sdram_error : sdram_error_t;
 
     -- sdram <=> RAM
     signal sdram_avalon : avalonmm_rw_t;
@@ -253,7 +251,6 @@ begin
         sdram_config_done => sdram_config_done, 
         sdram_busy => sdram_busy,
         sdram_error => sdram_error,
-        sdram_full => sdram_full,
         sdram_avalon_out => sdram_avalon.from_master,
         sdram_avalon_in => sdram_avalon.to_master
     );

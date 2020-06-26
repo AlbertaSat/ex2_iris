@@ -43,8 +43,7 @@ entity sdram_subsystem is
         sdram_config        : in sdram_config_t;
         sdram_config_done   : out std_logic;
         sdram_busy          : out std_logic;
-        sdram_error         : out std_logic;
-        sdram_full          : out std_logic;
+        sdram_error         : out stdram_error_t;
         
         sdram_avalon_out    : out avalonmm_rw_from_master_t;
         sdram_avalon_in     : in avalonmm_rw_to_master_t
