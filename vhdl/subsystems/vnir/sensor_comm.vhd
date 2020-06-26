@@ -34,6 +34,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+use work.spi_types.all;
 use work.sensor_comm_types.all;
 
 -- @brief
@@ -105,14 +106,10 @@ use work.sensor_comm_types.all;
 -- 		Contains the std_logic_vector to be written to reg_data
 --		at the address given by write_index
 --
--- @param[out] sclk
--- 		SPI output clock for data transfer synchronization
--- @param[in] miso
--- 		SPI master-in, slave-out 
--- @param[out] ss
--- 		active-high SPI slave-select line
--- @param[out] mosi
--- 		SPI master-out, slave-in
+-- @param[out] spi_out
+-- 		SPI master output lines
+-- @param[in] spi_in
+-- 		SPI master input lines 
 entity sensor_comm is
 	generic (
 		num_reg : integer
@@ -130,10 +127,8 @@ entity sensor_comm is
 		write_in		: in std_logic_vector (14 downto 0);
 		reg_write_cmd   : in std_logic;
 		reg_write_in    : in sensor_comm_reg_t (0 to num_reg);	
-		sclk			: out std_logic;
-		miso			: in std_logic;
-		ss				: out std_logic;
-		mosi			: out std_logic
+		spi_out			: out spi_from_master_t;
+		spi_in			: in spi_to_master_t
 	);
 	
 end entity sensor_comm;
@@ -147,8 +142,8 @@ architecture rtl of sensor_comm is
 	signal busy_prev	: STD_LOGIC;	
 	
 	-- for main finite state machine (FSM) of module
-	type   t_state is (IDLE, REPROGRAM, FINISHING);
-	signal state : t_state;
+	type   state_t is (IDLE, REPROGRAM, FINISHING);
+	signal state : state_t;
 	
 	-- SPI controller signals
 	signal enable	:	std_logic;
@@ -271,7 +266,7 @@ begin
 	end process;
 	
 	-- Invert ss line to make is active-high as per the CMV2000 datasheet
-	ss <= not ss_n(0);
+	spi_out.slave_select <= not ss_n(0);
 	
 	
 	-- Instantiate SPI controller
@@ -289,10 +284,10 @@ begin
 			clk_div		=>	0,
 			addr		=>	0,
 			tx_data		=>	tx_data,
-			miso		=>	miso,
-			sclk		=>	sclk,
+			miso		=>	spi_in.data,
+			sclk		=>	spi_out.clock,
 			ss_n		=>	ss_n,
-			mosi		=>	mosi,
+			mosi		=>	spi_out.data,
 			busy		=>	busy,
 			rx_data		=>	rx_data
 		);
