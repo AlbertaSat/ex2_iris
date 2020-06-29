@@ -1,34 +1,43 @@
 ----------------------------------------------------------------
---	
---	 Copyright (C) 2015  University of Alberta
---	
---	 This program is free software; you can redistribute it and/or
---	 modify it under the terms of the GNU General Public License
---	 as published by the Free Software Foundation; either version 2
---	 of the License, or (at your option) any later version.
---	
---	 This program is distributed in the hope that it will be useful,
---	 but WITHOUT ANY WARRANTY; without even the implied warranty of
---	 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
---	 GNU General Public License for more details.
---	
---	
--- @file sensor_comm_v1_2.vhd
--- @author Campbell Rea
--- @date 2020-06-07
+-- Copyright 2020 University of Alberta
+
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+
+--     http://www.apache.org/licenses/LICENSE-2.0
+
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
 ----------------------------------------------------------------
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+
+package sensor_comm_types is
+	subtype sensor_comm_reg_entry_t is std_logic_vector (14 downto 0);
+	type sensor_comm_reg_t is array (integer range <>) of sensor_comm_reg_entry_t;
+end package sensor_comm_types;
 
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+use work.spi_types.all;
+use work.sensor_comm_types.all;
+
 -- @brief
 --	 Module for configuring registers within the VNIR sensor
 -- 
 -- @details
 --	 Sensor register values are originally contained within an
---	 array named reg_data of size num_reg by 15.  Within an 
+--	 array named reg_data of size vnir_spi_reg_capacity by 15.  Within an 
 --	 array entry, the first 7 bits represent the VNIR sensor 
 --	 register address while the last 8 bits represent the desired
 --	 register value.  Register values can be read from, and 
@@ -49,9 +58,6 @@ use ieee.numeric_std.all;
 --	 cannot be read from or written to reg_data until the 
 --	 process is completed.
 --
--- @param[in] num_reg
--- 		Number of registers contained within reg_data.
--- 
 -- @param[in] clock
 -- 		main input system clock
 -- @param[in] reset_n
@@ -79,7 +85,7 @@ use ieee.numeric_std.all;
 -- 		given by read_address on the output read_out.
 -- @param[in] read_address
 -- 		Specifies reg_data array address to be read. Range of 0 to
--- 		num_reg-1.
+-- 		vnir_spi_reg_capacity-1.
 -- @param[out] read_out
 -- 		Contains the read contents from reg_data during a read
 --		operation.  read_out remains unchanged until another read
@@ -95,19 +101,15 @@ use ieee.numeric_std.all;
 -- 		Contains the std_logic_vector to be written to reg_data
 --		at the address given by write_index
 --
--- @param[out] sclk
--- 		SPI output clock for data transfer synchronization
--- @param[in] miso
--- 		SPI master-in, slave-out 
--- @param[out] ss
--- 		active-high SPI slave-select line
--- @param[out] mosi
--- 		SPI master-out, slave-in
-entity sensor_comm_v1_2 is
-	generic(	
-		num_reg : integer	
+-- @param[out] spi_out
+-- 		SPI master output lines
+-- @param[in] spi_in
+-- 		SPI master input lines 
+entity sensor_comm is
+	generic (
+		num_reg : integer
 	);
-	port(	
+	port (	
 		clock			: in std_logic;
 		reset_n			: in std_logic;
 		transmit_cmd	: in std_logic;    
@@ -117,27 +119,26 @@ entity sensor_comm_v1_2 is
 		read_out		: out std_logic_vector (14 downto 0);
 		write_cmd		: in std_logic;
 		write_address	: in integer;
-		write_in		: in std_logic_vector (14 downto 0);	
-		sclk			: out std_logic;
-		miso			: in std_logic;
-		ss				: out std_logic;
-		mosi			: out std_logic
+		write_in		: in std_logic_vector (14 downto 0);
+		reg_write_cmd   : in std_logic;
+		reg_write_in    : in sensor_comm_reg_t (0 to num_reg);	
+		spi_out			: out spi_from_master_t;
+		spi_in			: in spi_to_master_t
 	);
 	
-end entity sensor_comm_v1_2;
+end entity sensor_comm;
 
-architecture rtl of sensor_comm_v1_2 is
+architecture rtl of sensor_comm is
 
 	-- Internal array for sensor register data
-	type register_data_array is array (0 to num_reg-1) of std_logic_vector (14 downto 0);
-	signal reg_data : register_data_array;  -- first 7 bits are register address, last 8 bits is desired register data
+	signal reg_data : sensor_comm_reg_t (0 to num_reg);  -- first 7 bits are register address, last 8 bits is desired register data
 	
 	-- signal to store value of busy during previous clk_sys cycle (used in 'busy' signal edge finding)
 	signal busy_prev	: STD_LOGIC;	
 	
 	-- for main finite state machine (FSM) of module
-	type   t_state is (IDLE, REPROGRAM, FINISHING);
-	signal state : t_state;
+	type   state_t is (IDLE, REPROGRAM, FINISHING);
+	signal state : state_t;
 	
 	-- SPI controller signals
 	signal enable	:	std_logic;
@@ -145,15 +146,15 @@ architecture rtl of sensor_comm_v1_2 is
 	signal tx_data	:	std_logic_vector(15 downto 0);
 	signal busy		:	std_logic;
 	signal rx_data	:	std_logic_vector(15 downto 0);
-	signal ss_n		: std_logic_vector(0 downto 0);
+	signal ss_n		:   std_logic_vector(0 downto 0);
 	
 	
 	-- Add SPI master component
 	component spi_master is
-	  generic(
+	  generic (
 		slaves  : integer;  
-		d_width : integer); 
-	  port(
+		d_width : integer);
+	  port (
 		clock   : in     std_logic;                             
 		reset_n : in     std_logic;                             
 		enable  : in     std_logic;                             
@@ -179,20 +180,16 @@ begin
 	main_process : process (clock, reset_n)
 	
 		-- Variables for indexing through reg_data (updated immediately in simulation)
-		subtype t_array_index is integer range num_reg-1 downto 0;
-		variable array_index	: t_array_index := 0;
+		subtype array_index_t is integer range num_reg-1 downto 0;
+		variable array_index	: array_index_t := 0;
 		
 	begin
 		if rising_edge(clock) then
 			if (reset_n = '0') then
-				-- Upload default register values on reset
-				state <= REPROGRAM;
-				is_transmitting <= '1';
+				state <= IDLE;
+				is_transmitting <= '0';
 				array_index := 0;
-				tx_data <= '1' & reg_data(array_index);
-			
 			else
-			
 				case state is
 					when IDLE =>
 					
@@ -215,6 +212,11 @@ begin
 						-- Write data to specified array index
 						if (write_cmd = '1') then
 							reg_data(write_address) <= write_in;
+						end if;
+
+						-- Write to entire register at once
+						if (reg_write_cmd = '1') then
+							reg_data <= reg_write_in;
 						end if;
 					
 					-- Iterate through reg_data and transmit all contents via SPI
@@ -259,7 +261,7 @@ begin
 	end process;
 	
 	-- Invert ss line to make is active-high as per the CMV2000 datasheet
-	ss <= not ss_n(0);
+	spi_out.slave_select <= not ss_n(0);
 	
 	
 	-- Instantiate SPI controller
@@ -277,10 +279,10 @@ begin
 			clk_div		=>	0,
 			addr		=>	0,
 			tx_data		=>	tx_data,
-			miso		=>	miso,
-			sclk		=>	sclk,
+			miso		=>	spi_in.data,
+			sclk		=>	spi_out.clock,
 			ss_n		=>	ss_n,
-			mosi		=>	mosi,
+			mosi		=>	spi_out.data,
 			busy		=>	busy,
 			rx_data		=>	rx_data
 		);

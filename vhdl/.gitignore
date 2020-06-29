@@ -1,0 +1,11 @@
+# Exclude ModelSim files
+_*
+
+# Exclude python files
+.idea/
+venv/
+*.pyc
+
+# PyCharm backup files
+*.bak
+
