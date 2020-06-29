@@ -39,7 +39,7 @@ package vnir_types is
         window_2         : vnir_window_t;
         window_3         : vnir_window_t;
         imaging_duration : integer;
-        -- TODO: add other configuration parameters here, e.g. framerate.
+        fps              : integer;
     end record vnir_config_t;
 
     constant vnir_pixel_bits : integer := 12;

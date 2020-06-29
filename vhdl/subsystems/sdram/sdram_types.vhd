@@ -20,8 +20,13 @@ use ieee.numeric_std.all;
 
 package sdram_types is
     type sdram_config_t is record
-        some_element : std_logic;  -- TODO: add here
+        memory_base : integer;
+        memory_bounds : integer;
     end record sdram_config_t;
+
+    type sdram_filled_addresses_t is record
+        todo : std_logic;
+    end record sdram_filled_addresses_t;
 
     type sdram_error_t is (SDRAM_NO_ERROR, SDRAM_FULL, SDRAM_MPU_CHECK_FAILED);
 end package sdram_types;

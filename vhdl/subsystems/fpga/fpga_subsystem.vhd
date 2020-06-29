@@ -26,26 +26,27 @@ use work.fpga_types.all;  -- For timestamp_t
 
 entity fpga_subsystem is
     port (
-        clock               : in std_logic;
-        reset_n             : in std_logic;
+        clock                    : in std_logic;
+        reset_n                  : in std_logic;
         
-        vnir_config         : out vnir_config_t;
-        vnir_config_done    : in std_logic;
-        swir_config         : out swir_config_t;
-        swir_config_done    : in std_logic;
-        sdram_config         : out sdram_config_t;
-        sdram_config_done    : in std_logic;
+        vnir_config              : out vnir_config_t;
+        vnir_config_done         : in std_logic;
+        swir_config              : out swir_config_t;
+        swir_config_done         : in std_logic;
+        sdram_config             : out sdram_config_t;
+        sdram_config_done        : in std_logic;
 
-        vnir_num_rows       : in integer;
-        swir_num_rows       : in integer;
+        vnir_num_rows            : in integer;
+        swir_num_rows            : in integer;
 
-        do_imaging          : out std_logic;
+        do_imaging               : out std_logic;
         
-        timestamp           : out timestamp_t;
-        init_timestamp      : in timestamp_t;
+        timestamp                : out timestamp_t;
+        init_timestamp           : in timestamp_t;
+        init_timestamp_available : in std_logic;
 
-        image_request       : in std_logic;
-        imaging_duration    : in integer
+        image_request            : in std_logic;
+        imaging_duration         : in integer
 
         -- TODO: insert more here
     );

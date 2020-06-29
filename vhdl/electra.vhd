@@ -99,9 +99,10 @@ architecture rtl of electra is
         swir_num_rows       : in integer;
         swir_row            : in swir_row_t;
         timestamp           : in timestamp_t;
-        mpu_memory_change   : in std_logic;
-        sdram_config        : in sdram_config_t;
-        sdram_config_done   : out std_logic;
+        mpu_memory_change   : in std_logic_vector;
+        config              : in sdram_config_t;
+        config_done         : out std_logic;
+        filled_addresses    : out sdram_filled_addresses_t;
         sdram_busy          : out std_logic;
         sdram_error         : out sdram_error_t;
         sdram_avalon_out    : out avalonmm_rw_from_master_t;
@@ -171,9 +172,10 @@ architecture rtl of electra is
 
     -- fpga <=> sdram
     signal timestamp : timestamp_t;
-    signal mpu_memory_change : std_logic;
+    signal mpu_memory_change : std_logic_vector;
     signal sdram_config : sdram_config_t;
     signal sdram_config_done : std_logic;
+    signal sdram_filled_addresses : sdram_filled_addresses_t;
     signal sdram_busy : std_logic;
     signal sdram_error : sdram_error_t;
 
@@ -247,8 +249,9 @@ begin
         swir_row => swir_row,
         timestamp => timestamp,
         mpu_memory_change => mpu_memory_change,
-        sdram_config => sdram_config,
-        sdram_config_done => sdram_config_done, 
+        config => sdram_config,
+        config_done => sdram_config_done, 
+        sdram_filled_addresses => sdram_filled_addresses,
         sdram_busy => sdram_busy,
         sdram_error => sdram_error,
         sdram_avalon_out => sdram_avalon.from_master,
