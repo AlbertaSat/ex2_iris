@@ -33,7 +33,8 @@ entity fpga_subsystem is
         vnir_config_done         : in std_logic;
         swir_config              : out swir_config_t;
         swir_config_done         : in std_logic;
-        sdram_config             : out sdram_config_t;
+        sdram_config_in          : in sdram_config_from_sdram_t;
+        sdram_config_out         : out sdram_config_to_sdram_t;
         sdram_config_done        : in std_logic;
 
         vnir_num_rows            : in integer;
@@ -43,11 +44,8 @@ entity fpga_subsystem is
         
         timestamp                : out timestamp_t;
         init_timestamp           : in timestamp_t;
-        init_timestamp_available : in std_logic;
 
         image_request            : in std_logic;
         imaging_duration         : in integer
-
-        -- TODO: insert more here
     );
 end entity fpga_subsystem;

@@ -24,9 +24,31 @@ package sdram_types is
         memory_bounds : integer;
     end record sdram_config_t;
 
-    type sdram_filled_addresses_t is record
-        todo : std_logic;
-    end record sdram_filled_addresses_t;
+    type sdram_address_list_t is array(0 to 10) of integer;  -- TODO: properly define this
 
     type sdram_error_t is (SDRAM_NO_ERROR, SDRAM_FULL, SDRAM_MPU_CHECK_FAILED);
+
+    type memory_range_t is record
+
+    type sdram_config_to_sdram_t is record
+        memory_base : integer;
+        memory_bounds : integer;
+    end record sdram_config_in_t;
+
+    type sdram_config_from_sdram_t is record
+        swir_base : integer;
+        swir_bounds : integer;
+        swir_temp_base : integer;
+        swir_temp_bounds : integer;
+        vnir_base : integer;
+        vnir_bounds : integer;
+        vnir_temp_base : integer;
+        vnir_temp_bounds : integer;
+    end record sdram_config_out_t;
+
+    type sdram_config is record
+        to_sdram : sdram_config_to_sdram_t;
+        from_sdram : sdram_config_from_sdram_t;
+    end record sdram_config;
+
 end package sdram_types;

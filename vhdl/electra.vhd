@@ -84,7 +84,8 @@ architecture rtl of electra is
         row             : out swir_row_t;
         row_available   : out std_logic;
         sensor_clock    : out std_logic;
-        sensor_reset    : out std_logic
+        sensor_reset    : out std_logic;
+        video           : in std_logic
     );
     end component;
 
@@ -99,10 +100,10 @@ architecture rtl of electra is
         swir_num_rows       : in integer;
         swir_row            : in swir_row_t;
         timestamp           : in timestamp_t;
-        mpu_memory_change   : in std_logic_vector;
-        config              : in sdram_config_t;
+        mpu_memory_change   : in sdram_address_list_t;
+        config_in           : in sdram_config_to_sdram_t;
+        config_out          : out sdram_config_from_sdram_t;
         config_done         : out std_logic;
-        filled_addresses    : out sdram_filled_addresses_t;
         sdram_busy          : out std_logic;
         sdram_error         : out sdram_error_t;
         sdram_avalon_out    : out avalonmm_rw_from_master_t;
@@ -118,7 +119,8 @@ architecture rtl of electra is
         vnir_config_done    : in std_logic;
         swir_config         : out swir_config_t;
         swir_config_done    : in std_logic;
-        sdram_config        : out sdram_config_t;
+        sdram_config_in     : in sdram_config_from_sdram_t;
+        sdram_config_out    : out sdram_config_to_sdram_t;
         sdram_config_done   : in std_logic;
         vnir_num_rows       : in integer;
         swir_num_rows       : in integer;
@@ -169,13 +171,13 @@ architecture rtl of electra is
     signal swir_sensor_clock : std_logic;
     signal swir_sensor_reset : std_logic;
     signal swir_control      : swir_control_t;
+    signal swir_video        : std_logic;
 
     -- fpga <=> sdram
     signal timestamp : timestamp_t;
-    signal mpu_memory_change : std_logic_vector;
+    signal mpu_memory_change : sdram_address_list_t;
     signal sdram_config : sdram_config_t;
     signal sdram_config_done : std_logic;
-    signal sdram_filled_addresses : sdram_filled_addresses_t;
     signal sdram_busy : std_logic;
     signal sdram_error : sdram_error_t;
 
@@ -235,7 +237,8 @@ begin
         row => swir_row,
         row_available => swir_row_available,
         sensor_clock => swir_sensor_clock,
-        sensor_reset => swir_sensor_reset
+        sensor_reset => swir_sensor_reset,
+        video => swir_video
     );
 
     sdram_subsystem_component : sdram_subsystem port map (
@@ -249,9 +252,9 @@ begin
         swir_row => swir_row,
         timestamp => timestamp,
         mpu_memory_change => mpu_memory_change,
-        config => sdram_config,
-        config_done => sdram_config_done, 
-        sdram_filled_addresses => sdram_filled_addresses,
+        config_in => sdram_config.to_sdram,
+        config_out => sdram_config.from_sdram,
+        config_done => sdram_config_done,
         sdram_busy => sdram_busy,
         sdram_error => sdram_error,
         sdram_avalon_out => sdram_avalon.from_master,
@@ -265,7 +268,8 @@ begin
         vnir_config_done => vnir_config_done,
         swir_config => swir_config,
         swir_config_done => swir_config_done,
-        sdram_config => sdram_config,
+        sdram_config_in => sdram_config.from_sdram,
+        sdram_config_out => sdram_config.to_sdram,
         sdram_config_done => sdram_config_done,
         vnir_num_rows => vnir_num_rows,
         swir_num_rows => swir_num_rows,

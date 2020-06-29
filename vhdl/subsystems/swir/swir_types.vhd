@@ -22,16 +22,15 @@ package swir_types is
     type swir_config_t is record
         start_config     : std_logic;
         imaging_duration : integer;
-        -- TODO: add other configuration parameters here, e.g. framerate.
+        fps              : integer;
     end record swir_config_t;
 
     type swir_control_t is record
-        some_element : std_logic;  -- TODO: add control values
+        volt_conv : std_logic;
     end record swir_control_t;
 
-
-    constant swir_pixel_bits : integer := 16;  -- TODO: define this
-    constant swir_row_width : integer := 512; -- TODO: define this
+    constant swir_pixel_bits : integer := 16;
+    constant swir_row_width : integer := 512;
     subtype swir_pixel_t is unsigned(0 to swir_pixel_bits-1);
     type swir_row_t is array(0 to swir_row_width-1) of swir_pixel_t;
 end package swir_types;

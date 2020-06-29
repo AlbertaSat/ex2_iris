@@ -35,9 +35,9 @@ package vnir_types is
 
     type vnir_config_t is record
         start_config     : std_logic;
-        window_1         : vnir_window_t;
-        window_2         : vnir_window_t;
-        window_3         : vnir_window_t;
+        window_blue      : vnir_window_t;
+        window_red       : vnir_window_t;
+        window_nir       : vnir_window_t;
         imaging_duration : integer;
         fps              : integer;
     end record vnir_config_t;
@@ -48,9 +48,9 @@ package vnir_types is
     type vnir_row_t is array(0 to vnir_row_width-1) of vnir_pixel_t;
 
     type vnir_rows_t is record
-        row_1 : vnir_row_t;
-        row_2 : vnir_row_t;
-        row_3 : vnir_row_t;
+        blue : vnir_row_t;
+        red  : vnir_row_t;
+        nir  : vnir_row_t;
     end record vnir_rows_t;
 
     constant vnir_spi_num_reg : integer := 14;

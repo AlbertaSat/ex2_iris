@@ -39,11 +39,11 @@ entity sdram_subsystem is
         swir_row            : in swir_row_t;
         
         timestamp           : in timestamp_t;
-        mpu_memory_change   : in std_logic_vector;
-        config              : in sdram_config_t;
+        mpu_memory_change   : in sdram_address_list_t;
+        config_in           : in sdram_config_to_sdram_t;
+        config_out          : out sdram_config_from_sdram_t;
         config_done         : out std_logic;
         
-        filled_addresses    : out sdram_filled_addresses_t;
         sdram_busy          : out std_logic;
         sdram_error         : out stdram_error_t;
         

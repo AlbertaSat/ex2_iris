@@ -37,6 +37,8 @@ entity swir_subsystem is
         row_available   : out std_logic;
 
         sensor_clock    : out std_logic;
-        sensor_reset    : out std_logic
+        sensor_reset    : out std_logic;
+
+        video           : in std_logic
     );
 end entity swir_subsystem;
