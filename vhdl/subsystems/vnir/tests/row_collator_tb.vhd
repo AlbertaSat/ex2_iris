@@ -21,10 +21,10 @@ use ieee.numeric_std.all;
 use work.spi_types.all;
 use work.vnir_types.all;
 
-entity collate_rows_tb is
-end entity;
+entity row_collator_tb is
+end entity row_collator_tb;
 
-architecture tests of collate_rows_tb is
+architecture tests of row_collator_tb is
 
 	constant clock_period	: time := 20 ns;
 
@@ -32,23 +32,19 @@ architecture tests of collate_rows_tb is
 	signal reset_n          : std_logic := '1';
 	signal pixels           : vnir_pixel_vector_t(0 to 4-1);
 	signal pixels_available	: std_logic := '0';
-	signal row_red          : vnir_row_t;
-	signal row_blue         : vnir_row_t;
-	signal row_nir          : vnir_row_t;
+	signal rows              : vnir_rows_t;
 	signal rows_available   : std_logic := '0';
 
-    component collate_rows is
+    component row_collator is
     port (
         clock            : in std_logic;
         reset_n          : in std_logic;
-        pixels_in        : in vnir_pixel_vector_t(0 to 4-1);
+        pixels           : in vnir_pixel_vector_t(0 to 4-1);
         pixels_available : in std_logic;
-        red              : out vnir_row_t;
-        blue             : out vnir_row_t;
-        nir              : out vnir_row_t;
+        rows             : out vnir_rows_t;
         rows_available   : out std_logic
     );
-    end component collate_rows;
+    end component row_collator;
 
     type vnir_row_window_t is array(0 to 9) of vnir_row_t;
     type data_t is array(0 to 2) of vnir_row_window_t;
@@ -140,23 +136,21 @@ begin
         pixels_available <= '0';
         wait until rising_edge(clock);
         assert rows_available = '1' report "********************* Rows not available";
-        assert row_red = averages(0) report "********************* Red row incorrect";
-        assert row_blue = averages(1) report "********************* Blue row incorrect";
-        assert row_nir = averages(2) report "********************* NIR row incorrect";
+        assert rows.red = averages(0) report "********************* Red row incorrect";
+        assert rows.blue = averages(1) report "********************* Blue row incorrect";
+        assert rows.nir = averages(2) report "********************* NIR row incorrect";
 
         report "Finished running tests.";
 
         wait;
     end process test;
 
-    collate_rows_component : collate_rows port map (
+    row_collator_component : row_collator port map (
         clock => clock,
         reset_n => reset_n,
         pixels => pixels,
         pixels_available => pixels_available,
-        row_red => row_red,
-        row_blue => row_blue,
-        row_nir => row_nir,
+        rows => rows,
         rows_available => rows_available
     );
 

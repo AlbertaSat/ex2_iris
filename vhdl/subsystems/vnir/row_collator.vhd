@@ -20,21 +20,19 @@ use ieee.numeric_std.all;
 use work.vnir_types.all;
 
 
-entity collate_rows is
+entity row_collator is
 port (
     clock            : in std_logic;
     reset_n          : in std_logic;
     pixels           : in vnir_pixel_vector_t(0 to 4-1);
     pixels_available : in std_logic;
-    red              : out vnir_row_t;
-    blue             : out vnir_row_t;
-    nir              : out vnir_row_t;
+    rows             : out vnir_rows_t;
     rows_available   : out std_logic
 );
-end;
+end entity row_collator;
 
 
-architecture rtl of collate_rows is
+architecture rtl of row_collator is
     constant pixels_per_row : integer := 512;  -- 2048 / 4
 
     -- Assumes the maximum window width is 125 pixels.
@@ -115,29 +113,29 @@ begin
                 when IDLE =>
                     state <= DECODING_RED;
                     reset(counters, sum_row);
-                    increment_sum(lvds, sum_row, counters);
+                    increment_sum(pixels, sum_row, counters);
                     increment_counters(counters, rows_per_window);
                 when DECODING_RED =>
-                    increment_sum(lvds, sum_row, counters);
+                    increment_sum(pixels, sum_row, counters);
                     increment_counters(counters, rows_per_window);
                     if (counters.pixel = 0 and counters.row = 0) then
-                        sum_to_average(sum_row, rows_per_window, red);
+                        sum_to_average(sum_row, rows_per_window, rows.red);
                         reset(counters, sum_row);
                         state <= DECODING_BLUE;
                     end if;
                 when DECODING_BLUE =>
-                    increment_sum(lvds, sum_row, counters);
+                    increment_sum(pixels, sum_row, counters);
                     increment_counters(counters, rows_per_window);
                     if (counters.pixel = 0 and counters.row = 0) then
-                        sum_to_average(sum_row, rows_per_window, blue);
+                        sum_to_average(sum_row, rows_per_window, rows.blue);
                         reset(counters, sum_row);
                         state <= DECODING_NIR;
                     end if;
                 when DECODING_NIR =>
-                    increment_sum(lvds, sum_row, counters);
+                    increment_sum(pixels, sum_row, counters);
                     increment_counters(counters, rows_per_window);
                     if (counters.pixel = 0 and counters.row = 0) then
-                        sum_to_average(sum_row, rows_per_window, nir);
+                        sum_to_average(sum_row, rows_per_window, rows.nir);
                         reset(counters, sum_row);
                         state <= IDLE;
                         rows_available <= '1';
