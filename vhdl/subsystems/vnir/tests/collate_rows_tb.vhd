@@ -28,25 +28,25 @@ architecture tests of collate_rows_tb is
 
 	constant clock_period	: time := 20 ns;
 
-	signal clock			: std_logic := '0';
-	signal reset_n			: std_logic := '1';
-	signal lvds		        : vnir_lvds_parallel_t;
-	signal lvds_available	: std_logic := '0';
-	signal row_1			: vnir_row_t;
-	signal row_2		    : vnir_row_t;
-	signal row_3			: vnir_row_t;
-	signal rows_available	: std_logic := '0';
+	signal clock            : std_logic := '0';
+	signal reset_n          : std_logic := '1';
+	signal pixels           : vnir_pixel_vector_t(0 to 4-1);
+	signal pixels_available	: std_logic := '0';
+	signal row_red          : vnir_row_t;
+	signal row_blue         : vnir_row_t;
+	signal row_nir          : vnir_row_t;
+	signal rows_available   : std_logic := '0';
 
     component collate_rows is
     port (
-        clock           : in std_logic;
-        reset_n         : in std_logic;
-        lvds            : in vnir_lvds_parallel_t;
-        lvds_available  : in std_logic;
-        row_1           : out vnir_row_t;
-        row_2           : out vnir_row_t;
-        row_3           : out vnir_row_t;
-        rows_available  : out std_logic
+        clock            : in std_logic;
+        reset_n          : in std_logic;
+        pixels_in        : in vnir_pixel_vector_t(0 to 4-1);
+        pixels_available : in std_logic;
+        red              : out vnir_row_t;
+        blue             : out vnir_row_t;
+        nir              : out vnir_row_t;
+        rows_available   : out std_logic
     );
     end component collate_rows;
 
@@ -126,23 +126,23 @@ begin
         for color in 0 to 2 loop
             for row in 0 to window_size-1 loop
                 for fragment in 0 to fragment_size-1 loop
-                    lvds_available <= '1';
-                    lvds(0) <= slice_data(data, color, row, fragment);
-                    lvds(1) <= slice_data(data, color, row, fragment + fragment_size);
-                    lvds(2) <= slice_data(data, color, row, fragment + fragment_size * 2);
-                    lvds(3) <= slice_data(data, color, row, fragment + fragment_size * 3);
+                    pixels_available <= '1';
+                    pixels(0) <= slice_data(data, color, row, fragment);
+                    pixels(1) <= slice_data(data, color, row, fragment + fragment_size);
+                    pixels(2) <= slice_data(data, color, row, fragment + fragment_size * 2);
+                    pixels(3) <= slice_data(data, color, row, fragment + fragment_size * 3);
                     wait until rising_edge(clock);
                 end loop;
             end loop;
         end loop;
         report "Uploading finished";
 
-        lvds_available <= '0';
+        pixels_available <= '0';
         wait until rising_edge(clock);
         assert rows_available = '1' report "********************* Rows not available";
-        assert row_1 = averages(0) report "********************* Row 1 incorrect";
-        assert row_2 = averages(1) report "********************* Row 2 incorrect";
-        assert row_3 = averages(2) report "********************* Row 3 incorrect";
+        assert row_red = averages(0) report "********************* Red row incorrect";
+        assert row_blue = averages(1) report "********************* Blue row incorrect";
+        assert row_nir = averages(2) report "********************* NIR row incorrect";
 
         report "Finished running tests.";
 
@@ -152,11 +152,11 @@ begin
     collate_rows_component : collate_rows port map (
         clock => clock,
         reset_n => reset_n,
-        lvds => lvds,
-        lvds_available => lvds_available,
-        row_1 => row_1,
-        row_2 => row_2,
-        row_3 => row_3,
+        pixels => pixels,
+        pixels_available => pixels_available,
+        row_red => row_red,
+        row_blue => row_blue,
+        row_nir => row_nir,
         rows_available => rows_available
     );
 

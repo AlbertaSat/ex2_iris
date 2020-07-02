@@ -62,6 +62,11 @@ package vnir_types is
         lvds_p  : unsigned (14 downto 0);
     end record vnir_lvds_t;
 
-    type vnir_lvds_parallel_t is array(0 to 3) of vnir_pixel_t;
+    type vnir_pixel_vector_t is array(integer range <>) of vnir_pixel_t;
+
+    type vnir_sensor_data_t is record
+        control : vnir_pixel_t;
+        data : vnir_pixel_vector_t(0 to 3-1);
+    end record vnir_sensor_data_t;
 
 end package vnir_types;
