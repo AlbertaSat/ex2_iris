@@ -76,15 +76,15 @@ architecture rtl of vnir_subsystem is
 
     component image_requester is
     port (
-        clock                   : in std_logic;
-        reset_n                 : in std_logic;
-        config                  : in vnir_config_t;
-        start_config            : in std_logic;
-        do_imaging              : in std_logic;
-        num_frames              : out integer;
-        num_frames_remaining    : out integer;
-        sensor_clock            : in std_logic;
-        frame_request           : out std_logic
+        clock           : in std_logic;
+        reset_n         : in std_logic;
+        config          : in vnir_config_t;
+        start_config    : in std_logic;
+        num_frames      : out integer;
+        do_imaging      : in std_logic;
+        imaging_done    : out std_logic;
+        sensor_clock    : in std_logic;
+        frame_request   : out std_logic
     );
     end component image_requester;
 
@@ -102,7 +102,7 @@ architecture rtl of vnir_subsystem is
     type state_t is (IDLE, SENSOR_CONFIGURING, LVDS_ALIGNING, IMAGING);
     signal state : state_t;
 
-    signal num_frames_remaining : integer;
+    signal imaging_done : std_logic;
     signal sensor_clock_signal : std_logic;
     signal start_sensor_config : std_logic;
     signal sensor_config_done : std_logic;
@@ -140,7 +140,7 @@ begin
     --                     state <= IDLE;
     --                 end if;
     --             when IMAGING =>
-    --                 if num_frames_remaining = 0 then
+    --                 if imaging_done = '1' then
     --                     state <= IDLE;
     --                 end if;
     --             end case;
@@ -168,9 +168,9 @@ begin
         reset_n => reset_n,
         config => config,
         start_config => start_sensor_config,
-        do_imaging => do_imaging,
         num_frames => num_rows,
-        num_frames_remaining => num_frames_remaining,
+        do_imaging => do_imaging,
+        imaging_done => imaging_done,
         sensor_clock => sensor_clock_signal,
         frame_request => frame_request
     );
