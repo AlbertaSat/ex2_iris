@@ -1,21 +1,17 @@
 ----------------------------------------------------------------
---	
---	 Copyright (C) 2015  University of Alberta
---	
---	 This program is free software; you can redistribute it and/or
---	 modify it under the terms of the GNU General Public License
---	 as published by the Free Software Foundation; either version 2
---	 of the License, or (at your option) any later version.
---	
---	 This program is distributed in the hope that it will be useful,
---	 but WITHOUT ANY WARRANTY; without even the implied warranty of
---	 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
---	 GNU General Public License for more details.
---	
---	
--- @file vnir_subsystem.vhd
--- @author Alexander Epp
--- @date 2020-06-16
+-- Copyright 2020 University of Alberta
+
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+
+--     http://www.apache.org/licenses/LICENSE-2.0
+
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
 ----------------------------------------------------------------
 
 library ieee;
@@ -64,6 +60,7 @@ architecture rtl of electra is
         config          : in vnir_config_t;
         config_done     : out std_logic;
         do_imaging      : in std_logic;
+        num_rows        : out integer;
         rows            : out vnir_rows_t;
         rows_available  : out std_logic;
         sensor_clock    : out std_logic;
@@ -83,10 +80,12 @@ architecture rtl of electra is
         control         : out swir_control_t;
         config_done     : out std_logic;
         do_imaging      : in std_logic;
+        num_rows        : out integer;
         row             : out swir_row_t;
         row_available   : out std_logic;
         sensor_clock    : out std_logic;
-        sensor_reset    : out std_logic
+        sensor_reset    : out std_logic;
+        video           : in std_logic
     );
     end component;
 
@@ -95,18 +94,20 @@ architecture rtl of electra is
         clock               : in std_logic;
         reset_n             : in std_logic;
         vnir_rows_available : in std_logic;
+        vnir_num_rows       : in integer;
         vnir_rows           : in vnir_rows_t;
         swir_row_available  : in std_logic;
+        swir_num_rows       : in integer;
         swir_row            : in swir_row_t;
         timestamp           : in timestamp_t;
-        mpu_memory_change   : in std_logic;
-        sdram_config         : in sdram_config_t;
-        sdram_config_done    : out std_logic;
-        sdram_busy           : out std_logic;
-        sdram_error          : out std_logic;
-        sdram_full           : out std_logic;
-        sdram_avalon_out     : out avalonmm_rw_from_master_t;
-        sdram_avalon_in      : in avalonmm_rw_to_master_t
+        mpu_memory_change   : in sdram_address_list_t;
+        config_in           : in sdram_config_to_sdram_t;
+        config_out          : out sdram_config_from_sdram_t;
+        config_done         : out std_logic;
+        sdram_busy          : out std_logic;
+        sdram_error         : out sdram_error_t;
+        sdram_avalon_out    : out avalonmm_rw_from_master_t;
+        sdram_avalon_in     : in avalonmm_rw_to_master_t
     );
     end component;
 
@@ -118,8 +119,11 @@ architecture rtl of electra is
         vnir_config_done    : in std_logic;
         swir_config         : out swir_config_t;
         swir_config_done    : in std_logic;
-        sdram_config         : out sdram_config_t;
-        sdram_config_done    : in std_logic;
+        sdram_config_in     : in sdram_config_from_sdram_t;
+        sdram_config_out    : out sdram_config_to_sdram_t;
+        sdram_config_done   : in std_logic;
+        vnir_num_rows       : in integer;
+        swir_num_rows       : in integer;
         do_imaging          : out std_logic;
         timestamp           : out timestamp_t;
         init_timestamp      : in timestamp_t;
@@ -149,6 +153,12 @@ architecture rtl of electra is
     signal vnir_frame_request : std_logic;
     signal vnir_lvds : vnir_lvds_t;
 
+    -- vnir <=> sdram, fpga
+    signal vnir_num_rows : integer;
+
+    -- swir <=> sdram, fpga
+    signal swir_num_rows : integer;
+
     -- fpga <=> swir
     signal swir_config : swir_config_t;
     signal swir_config_done : std_logic;
@@ -161,15 +171,15 @@ architecture rtl of electra is
     signal swir_sensor_clock : std_logic;
     signal swir_sensor_reset : std_logic;
     signal swir_control      : swir_control_t;
+    signal swir_video        : std_logic;
 
     -- fpga <=> sdram
     signal timestamp : timestamp_t;
-    signal mpu_memory_change : std_logic;
+    signal mpu_memory_change : sdram_address_list_t;
     signal sdram_config : sdram_config_t;
     signal sdram_config_done : std_logic;
     signal sdram_busy : std_logic;
-    signal sdram_error : std_logic;
-    signal sdram_full : std_logic;
+    signal sdram_error : sdram_error_t;
 
     -- sdram <=> RAM
     signal sdram_avalon : avalonmm_rw_t;
@@ -205,6 +215,7 @@ begin
         config => vnir_config,
         config_done => vnir_config_done,
         do_imaging => do_imaging,
+        num_rows => vnir_num_rows,
         rows => vnir_rows,
         rows_available => vnir_rows_available,
         sensor_clock => vnir_sensor_clock,
@@ -222,26 +233,30 @@ begin
         control => swir_control,
         config_done => swir_config_done,
         do_imaging => do_imaging,
+        num_rows => swir_num_rows,
         row => swir_row,
         row_available => swir_row_available,
         sensor_clock => swir_sensor_clock,
-        sensor_reset => swir_sensor_reset
+        sensor_reset => swir_sensor_reset,
+        video => swir_video
     );
 
     sdram_subsystem_component : sdram_subsystem port map (
         clock => clock,
         reset_n => reset_n,
         vnir_rows_available => vnir_rows_available,
+        vnir_num_rows => vnir_num_rows,
         vnir_rows => vnir_rows,
         swir_row_available => swir_row_available,
+        swir_num_rows => swir_num_rows,
         swir_row => swir_row,
         timestamp => timestamp,
         mpu_memory_change => mpu_memory_change,
-        sdram_config => sdram_config,
-        sdram_config_done => sdram_config_done,
+        config_in => sdram_config.to_sdram,
+        config_out => sdram_config.from_sdram,
+        config_done => sdram_config_done,
         sdram_busy => sdram_busy,
         sdram_error => sdram_error,
-        sdram_full => sdram_full,
         sdram_avalon_out => sdram_avalon.from_master,
         sdram_avalon_in => sdram_avalon.to_master
     );
@@ -253,8 +268,11 @@ begin
         vnir_config_done => vnir_config_done,
         swir_config => swir_config,
         swir_config_done => swir_config_done,
-        sdram_config => sdram_config,
+        sdram_config_in => sdram_config.from_sdram,
+        sdram_config_out => sdram_config.to_sdram,
         sdram_config_done => sdram_config_done,
+        vnir_num_rows => vnir_num_rows,
+        swir_num_rows => swir_num_rows,
         do_imaging => do_imaging,
         timestamp => timestamp,
         init_timestamp => init_timestamp,

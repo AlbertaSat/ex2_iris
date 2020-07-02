@@ -1,23 +1,18 @@
 ----------------------------------------------------------------
---	
---	 Copyright (C) 2015  University of Alberta
---	
---	 This program is free software; you can redistribute it and/or
---	 modify it under the terms of the GNU General Public License
---	 as published by the Free Software Foundation; either version 2
---	 of the License, or (at your option) any later version.
---	
---	 This program is distributed in the hope that it will be useful,
---	 but WITHOUT ANY WARRANTY; without even the implied warranty of
---	 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
---	 GNU General Public License for more details.
---	
---	
--- @file vnir_subsystem.vhd
--- @author Alexander Epp
--- @date 2020-06-16
-----------------------------------------------------------------
+-- Copyright 2020 University of Alberta
 
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+
+--     http://www.apache.org/licenses/LICENSE-2.0
+
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+----------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -36,20 +31,23 @@ entity sdram_subsystem is
         reset_n             : in std_logic;
 
         vnir_rows_available : in std_logic;
+        vnir_num_rows       : in integer;
         vnir_rows           : in vnir_rows_t;
         
         swir_row_available  : in std_logic;
+        swir_num_rows       : in integer;
         swir_row            : in swir_row_t;
         
         timestamp           : in timestamp_t;
-        mpu_memory_change   : in std_logic;
-        sdram_config         : in sdram_config_t;
-        sdram_config_done    : out std_logic;
-        sdram_busy           : out std_logic;
-        sdram_error          : out std_logic;
-        sdram_full           : out std_logic;
+        mpu_memory_change   : in sdram_address_list_t;
+        config_in           : in sdram_config_to_sdram_t;
+        config_out          : out sdram_config_from_sdram_t;
+        config_done         : out std_logic;
         
-        sdram_avalon_out     : out avalonmm_rw_from_master_t;
-        sdram_avalon_in      : in avalonmm_rw_to_master_t
+        sdram_busy          : out std_logic;
+        sdram_error         : out stdram_error_t;
+        
+        sdram_avalon_out    : out avalonmm_rw_from_master_t;
+        sdram_avalon_in     : in avalonmm_rw_to_master_t
     );
 end entity sdram_subsystem;
