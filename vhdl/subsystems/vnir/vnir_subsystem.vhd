@@ -50,16 +50,6 @@ end entity vnir_subsystem;
 
 architecture rtl of vnir_subsystem is
 
-    component cmd_cross_clock is
-    port (
-        reset_n : in std_logic;
-        i_clock : in std_logic;
-        i       : in std_logic;
-        o_clock : in std_logic;
-        o       : out std_logic
-    );
-    end component cmd_cross_clock;
-
     component sensor_clock_gen is
     port (
         refclk          : in  std_logic;
@@ -81,13 +71,14 @@ architecture rtl of vnir_subsystem is
 
     component sensor_configurer is
     port (	
-        clock			: in std_logic;
-        reset_n			: in std_logic;
+        clock           : in std_logic;
+        reset_n         : in std_logic;
         config          : in vnir_config_t;
         start_config    : in std_logic;
         config_done     : out std_logic;	
-        spi_out			: out spi_from_master_t;
-        spi_in			: in spi_to_master_t
+        spi_out         : out spi_from_master_t;
+        spi_in          : in spi_to_master_t;
+        sensor_reset    : out std_logic
     );
     end component sensor_configurer;
 
@@ -149,14 +140,6 @@ architecture rtl of vnir_subsystem is
     signal locking_done : std_logic;
 begin
 
-    sensor_reset_cmd : cmd_cross_clock port map (
-        reset_n => '1',
-        i_clock => clock,
-        i => reset_n,
-        o_clock => sensor_clock_signal,
-        o => sensor_reset
-    );
-
     start_locking <= config.start_config;
     start_sensor_config <= locking_done;
     start_align <= sensor_config_done;
@@ -184,7 +167,8 @@ begin
         start_config => start_sensor_config,
         config_done => sensor_config_done,
         spi_out => spi_out,
-        spi_in => spi_in
+        spi_in => spi_in,
+        sensor_reset => sensor_reset
     );
     
     image_requester_component : image_requester generic map (

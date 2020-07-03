@@ -22,18 +22,20 @@ use ieee.numeric_std.all;
 use work.vnir_types.all;
 use work.spi_types.all;
 
+-- TODO: reset sensor
 -- TODO: Should probably have config delays here
 
 
 entity sensor_configurer is
 port (	
-    clock			: in std_logic;
-    reset_n			: in std_logic;
+    clock           : in std_logic;
+    reset_n         : in std_logic;
     config          : in vnir_config_t;
     start_config    : in std_logic;
     config_done     : out std_logic;	
-    spi_out			: out spi_from_master_t;
-    spi_in			: in spi_to_master_t
+    spi_out         : out spi_from_master_t;
+    spi_in          : in spi_to_master_t;
+    sensor_reset    : out std_logic
 );
 end entity sensor_configurer;
 
