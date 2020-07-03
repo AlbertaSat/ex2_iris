@@ -75,6 +75,9 @@ architecture rtl of vnir_subsystem is
     end component lvds_decoder_12;
 
     component image_requester is
+    generic (
+        clocks_per_sec  : integer
+    );
     port (
         clock           : in std_logic;
         reset_n         : in std_logic;
@@ -101,6 +104,7 @@ architecture rtl of vnir_subsystem is
 
     type state_t is (IDLE, SENSOR_CONFIGURING, LVDS_ALIGNING, IMAGING);
     signal state : state_t;
+    constant clocks_per_sec : integer := 50000000;  -- TODO: set this to its actual value
 
     signal imaging_done : std_logic;
     signal sensor_clock_signal : std_logic;
@@ -188,8 +192,9 @@ begin
         spi_in => spi_in
     );
     
-    -- TODO: Should this output the sensor clock?
-    image_requester_component : image_requester port map (
+    image_requester_component : image_requester generic map (
+        clocks_per_sec => clocks_per_sec
+    ) port map (
         clock => clock,
         reset_n => reset_n,
         config => config,
