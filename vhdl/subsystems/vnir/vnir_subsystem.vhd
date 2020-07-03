@@ -114,6 +114,9 @@ architecture rtl of vnir_subsystem is
     signal control : vnir_pixel_t;
     signal pixels_available : std_logic;
 
+    signal start_locking : std_logic;
+    signal sensor_clock_locked : std_logic;
+    signal locking_done : std_logic;
 begin
 
     -- TODO: drive sensor_clock at 40 MHz
@@ -147,10 +150,33 @@ begin
     --         end if;
     --     end if;
     -- end process main_process;
+    sensor_reset_cmd : cmd_cross_clock port map (
+        reset_n => '1',
+        i_clock => clock,
+        i => reset_n,
+        o_clock => sensor_clock_signal,
+        o => sensor_reset
+    );
 
-    start_sensor_config <= config.start_config;
+    start_locking <= config.start_config;
+    start_sensor_config <= locking_done;
     start_align <= sensor_config_done;
     config_done <= align_done;
+
+    sensor_clock_gen_component : sensor_clock_gen port map (
+        refclk => clock,
+        rst => start_locking,
+        outclk_0 => sensor_clock_signal,
+        locked => sensor_clock_locked
+    );
+
+    delay_until_locked : delay_until port map (
+        clock => clock,
+        reset_n => reset_n,
+        condition => sensor_clock_locked,
+        start => start_locking,
+        done => locking_done
+    );
 
     sensor_configurer_component : sensor_configurer port map (
         clock => clock,
