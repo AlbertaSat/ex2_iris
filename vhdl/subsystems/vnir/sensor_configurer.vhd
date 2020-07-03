@@ -156,6 +156,7 @@ begin
                 when TRANSMIT_FINISH =>
                     if spi_busy = '0' then
                         state <= IDLE;
+                        config_done <= '1';
                     end if;
                 end case;
             end if;
