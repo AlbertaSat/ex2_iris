@@ -115,7 +115,7 @@ architecture rtl of vnir_subsystem is
     port (
         clock            : in std_logic;
         reset_n          : in std_logic;
-        pixels           : in vnir_pixel_vector_t(0 to 4-1);
+        pixels           : in vnir_pixel_vector_t(0 to vnir_lvds_data_width-1);
         pixels_available : in std_logic;
         rows             : out vnir_rows_t;
         rows_available   : out std_logic
@@ -130,9 +130,9 @@ architecture rtl of vnir_subsystem is
     signal sensor_config_done : std_logic;
     signal start_align : std_logic;
     signal align_done : std_logic;
-    signal parallel_lvds : vnir_pixel_vector_t(0 to 5-1);
+    signal parallel_lvds : vnir_pixel_vector_t(0 to vnir_lvds_data_width);
     signal parallel_lvds_available : std_logic;
-    signal pixels : vnir_pixel_vector_t(0 to 4-1);
+    signal pixels : vnir_pixel_vector_t(0 to vnir_lvds_data_width-1);
     signal control : vnir_pixel_t;
     signal pixels_available : std_logic;
     signal start_locking : std_logic;
@@ -196,9 +196,10 @@ begin
         data_available => parallel_lvds_available
     );
 
-    control <= parallel_lvds(4);
+    control <= parallel_lvds(parallel_lvds'right);
     pixels_available <= parallel_lvds_available and control(0);
-    pixels <= parallel_lvds(0 to 3) when pixels_available = '1' else pixels;
+    pixels <= parallel_lvds(0 to parallel_lvds'length-1) when pixels_available = '1'
+              else pixels;
     
     row_collator_component : row_collator port map (
         clock => clock,
