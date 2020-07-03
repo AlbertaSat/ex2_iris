@@ -1,4 +1,5 @@
-
+library ieee;
+use ieee.std_logic_1164.all;
 
 entity cmd_cross_clock is
 port (
@@ -16,7 +17,7 @@ begin
         variable trigger : std_logic;
     begin
         if reset_n = '0' then
-            trigger = '0';
+            trigger := '0';
         else
             if rising_edge(i_clock) and i = '1' then
                 trigger := '1';
