@@ -21,10 +21,13 @@ use work.vnir_types.all;
 
 
 entity row_collator is
+generic (
+    sum_pixel_bits : integer := 19  -- ceil(log2(125 * (2 ^ 12 - 1) + 1))
+);
 port (
     clock            : in std_logic;
     reset_n          : in std_logic;
-    pixels           : in vnir_pixel_vector_t(0 to 4-1);
+    pixels           : in vnir_pixel_vector_t(0 to vnir_lvds_data_width-1);
     pixels_available : in std_logic;
     rows             : out vnir_rows_t;
     rows_available   : out std_logic
@@ -33,10 +36,8 @@ end entity row_collator;
 
 
 architecture rtl of row_collator is
-    constant pixels_per_row : integer := 512;  -- 2048 / 4
+    constant pixels_per_row : integer := vnir_row_width / vnir_lvds_data_width;
 
-    -- Assumes the maximum window width is 125 pixels.
-    constant sum_pixel_bits : integer := 19;  -- ceil(log2(125 * (2 ^ 12 - 1) + 1))
     subtype sum_pixel_t is unsigned(0 to sum_pixel_bits-1);
     type sum_row_t is array(0 to vnir_row_width-1) of sum_pixel_t;  
     type state_t is (IDLE, DECODING_RED, DECODING_BLUE, DECODING_NIR);
@@ -58,15 +59,14 @@ architecture rtl of row_collator is
     end procedure reset;
    
     procedure increment_sum (
-        signal pixels : in vnir_pixel_vector_t(0 to 4-1);
+        signal pixels : in vnir_pixel_vector_t(0 to vnir_lvds_data_width-1);
         variable sum_row : inout sum_row_t;
         variable counters : in counters_t
     ) is
     begin
-        sum_row(counters.pixel + pixels_per_row * 0) := sum_row(counters.pixel + pixels_per_row * 0) + pixels(0);
-        sum_row(counters.pixel + pixels_per_row * 1) := sum_row(counters.pixel + pixels_per_row * 1) + pixels(1);
-        sum_row(counters.pixel + pixels_per_row * 2) := sum_row(counters.pixel + pixels_per_row * 2) + pixels(2);
-        sum_row(counters.pixel + pixels_per_row * 3) := sum_row(counters.pixel + pixels_per_row * 3) + pixels(3);
+        for i in 0 to vnir_lvds_data_width-1 loop
+            sum_row(counters.pixel + pixels_per_row * i) := sum_row(counters.pixel + pixels_per_row * i) + pixels(i);
+        end loop;
     end procedure increment_sum;
 
     procedure increment_counters (
@@ -91,9 +91,9 @@ architecture rtl of row_collator is
     ) is
         variable t : sum_pixel_t;
     begin
-        for i in 0 to 2048-1 loop
+        for i in 0 to vnir_row_width-1 loop
             t := sum_row(i) / rows_per_window;
-            row(i) <= t(7 to 19-1);
+            row(i) <= t(sum_pixel_bits-vnir_pixel_bits to sum_pixel_bits-1);
         end loop;
     end procedure sum_to_average;
 
