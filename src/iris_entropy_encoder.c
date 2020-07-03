@@ -125,12 +125,12 @@ int encode_sampleadaptive(input_feature_t input_params, encoder_config_t encoder
     unsigned int * counter = NULL;
     unsigned int * accumulator = NULL;
 
-    counter = (unsigned int *)pvPortMalloc(sizeof(unsigned int)*input_params.z_size);
+    counter = (unsigned int *)malloc(sizeof(unsigned int)*input_params.z_size);
     if(counter == NULL){
         fprintf(stderr, "Error in the allocation of the counter statistic\n\n");
         return -1;
     }
-    accumulator = (unsigned int *)pvPortMalloc(sizeof(unsigned int)*input_params.z_size);
+    accumulator = (unsigned int *)malloc(sizeof(unsigned int)*input_params.z_size);
     if(accumulator == NULL){
         fprintf(stderr, "Error in the allocation of the accumulator statistic\n\n");
         return -1;
@@ -174,8 +174,8 @@ int encode_sampleadaptive(input_feature_t input_params, encoder_config_t encoder
         }
     }
 
-    vPortFree(counter);
-    vPortFree(accumulator);
+    free(counter);
+    free(accumulator);
 
     return 0;
 }
@@ -421,7 +421,7 @@ int encode_block(input_feature_t input_params, encoder_config_t encoder_params, 
     int num_zero_blocks = 0;
     int reference_samples = 0;
     unsigned short int * block_samples = NULL;
-    if((block_samples = (unsigned short int *)pvPortMalloc(encoder_params.block_size*sizeof(unsigned short int))) == NULL){
+    if((block_samples = (unsigned short int *)malloc(encoder_params.block_size*sizeof(unsigned short int))) == NULL){
         fprintf(stderr, "Error in allocating space to hold the block");
         return -1;
     }
@@ -505,7 +505,7 @@ int encode_block(input_feature_t input_params, encoder_config_t encoder_params, 
         }
     }
     if(block_samples != NULL){
-        vPortFree(block_samples);
+        free(block_samples);
     }
 
     return 0;
@@ -686,7 +686,7 @@ int encode(input_feature_t input_params, encoder_config_t encoder_params, predic
 
     // Note how the compressed stream shall never be greater than the original size of the
     // residuals
-    compressed_stream = (unsigned char *)pvPortMalloc(((input_params.dyn_range + 7)/8)*input_params.x_size*input_params.y_size*input_params.z_size);
+    compressed_stream = (unsigned char *)malloc(((input_params.dyn_range + 7)/8)*input_params.x_size*input_params.y_size*input_params.z_size);
     if(compressed_stream == NULL){
         fprintf(stderr, "Error in the allocation of the compressed stream\n\n");
         return -1;
@@ -726,7 +726,9 @@ int encode(input_feature_t input_params, encoder_config_t encoder_params, predic
     }
     fclose(outFile);
 
-    if(compressed_stream != NULL)
-        vPortFree(compressed_stream);
-    return written_bytes;
+    // if(compressed_stream != NULL){
+    //     free(compressed_stream);
+    // }
+
+    return written_bytes; 
 }

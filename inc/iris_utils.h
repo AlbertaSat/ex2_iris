@@ -30,7 +30,7 @@ predictor
 
 #ifndef UTILS_H
 #define UTILS_H
-#include "iris_configs.h"
+
 #define MIN(x, y) ((x) < (y) ? x : y)
 
 #ifdef WIN32
@@ -42,8 +42,9 @@ predictor
 //Macro used to move from a matrix notation to a linear array, when the matrix
 //is ordered according to the BSQ order
 //#define MATRIX_BSQ_INDEX(matrix, input_params, x, y, z) matrix[(z)*input_params.x_size*input_params.y_size + (y)*input_params.x_size + (x)]
+#include "iris_configs.h"
 
-#define MATRIX_BSQ_INDEX(matrix, input_params, x, y, z) matrix[input_params.x_size*((z)*input_params.y_size + (y)) + (x)]
+// #define MATRIX_BSQ_INDEX(matrix, input_params, x, y, z) matrix[input_params.x_size*((z)*input_params.y_size + (y)) + (x)]
 
 ///Given the name of the file containing the Accumulator Initiation Value table
 ///it parses the file and reads the content into the table array which must

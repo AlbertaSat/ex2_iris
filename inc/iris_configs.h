@@ -21,7 +21,7 @@
 #ifndef IRIS_CONFIGS_H
 #define IRIS_CONFIGS_H
 
-#include "iris_utils.h"
+// #include "iris_utils.h"
 
 #define Z_PIXELS 4      //B, R, NIR, SWIR Bands
 #define Y_PIXELS 2048   //Y dimension of image are constant

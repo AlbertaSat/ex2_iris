@@ -151,21 +151,21 @@ int compute_local_differences(input_feature_t input_params, predictor_config_t p
 
     // First I have to allocate the memory to hold the result
     if(predictor_params.full != 0)
-        *local_differences = (int **)pvPortMalloc(sizeof(int)*4);
+        *local_differences = (int **)malloc(sizeof(int)*4);
     else
-        *local_differences = (int **)pvPortMalloc(sizeof(int));
+        *local_differences = (int **)malloc(sizeof(int));
     if(*local_differences == NULL){
         fprintf(stderr, "Error in allocating memory for building the local differences matrices\n");
         return -1;
     }
-    if(((*local_differences)[0] = (int *)pvPortMalloc(sizeof(int)*input_params.x_size*input_params.y_size*input_params.z_size)) == NULL){
+    if(((*local_differences)[0] = (int *)malloc(sizeof(int)*input_params.x_size*input_params.y_size*input_params.z_size)) == NULL){
         fprintf(stderr, "Error in allocating %d bytes for holding the local differences matrix\n", sizeof(int)*input_params.x_size*input_params.y_size*input_params.z_size);
         return -1;
     }
     if(predictor_params.full != 0){
         int i = 0;
         for(i = 1; i < 4; i++){
-            if(((*local_differences)[i] = (int *)pvPortMalloc(sizeof(int)*input_params.x_size*input_params.y_size*input_params.z_size)) == NULL){
+            if(((*local_differences)[i] = (int *)malloc(sizeof(int)*input_params.x_size*input_params.y_size*input_params.z_size)) == NULL){
                 fprintf(stderr, "Error in allocating %d bytes for holding the local differences matrix %d\n", sizeof(int)*input_params.x_size*input_params.y_size*input_params.z_size, i);
                 return -1;
             }
@@ -475,7 +475,7 @@ int predict(input_feature_t input_params, predictor_config_t predictor_params, c
     int weights_len = predictor_params.pred_bands + (predictor_params.full != 0 ? 3 : 0);
 
     // Parse the input image, loading it into memory and appropriately converting it
-    samples = (unsigned short int *)pvPortMalloc(sizeof(unsigned short int)*input_params.x_size*input_params.y_size*input_params.z_size);
+    samples = (unsigned short int *)malloc(sizeof(unsigned short int)*input_params.x_size*input_params.y_size*input_params.z_size);
     if(samples == NULL){
         fprintf(stderr, "Error in allocating %lf kBytes for the input image buffer\n\n", ((double)sizeof(unsigned short int)*input_params.x_size*input_params.y_size*input_params.z_size)/1024.0);
         return -1;
@@ -493,7 +493,7 @@ int predict(input_feature_t input_params, predictor_config_t predictor_params, c
     }
 #endif
 
-    weights = (int *)pvPortMalloc(sizeof(int)*weights_len);
+    weights = (int *)malloc(sizeof(int)*weights_len);
     if(weights == NULL){
         fprintf(stderr, "Error in allocating the weights vector\n\n");
         return -1;
@@ -538,10 +538,10 @@ int predict(input_feature_t input_params, predictor_config_t predictor_params, c
     }
     // Freeing allocated memory
     if(samples != NULL){
-        vPortFree(samples);
+        free(samples);
     }
     if(weights != NULL){
-        vPortFree(weights);
+        free(weights);
     }
 
 #ifndef NO_COMPUTE_LOCAL
@@ -550,15 +550,15 @@ int predict(input_feature_t input_params, predictor_config_t predictor_params, c
             int i = 0;
             for(i = 0; i < 4; i++){
                 if(local_differences[i] != NULL){
-                    vPortFree(local_differences[i]);
+                    free(local_differences[i]);
                 }
             }
         }else{
             if(local_differences[0] != NULL){
-                vPortFree(local_differences[0]);
+                free(local_differences[0]);
             }
         }
-        vPortFree(local_differences);
+        free(local_differences);
     }
 #endif
 
