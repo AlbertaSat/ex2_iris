@@ -23,32 +23,61 @@ use work.vnir_types.all;
 
 
 entity vnir_subsystem is
-    port (
-        clock           : in std_logic;
-        reset_n         : in std_logic;
+port (
+    clock           : in std_logic;
+    reset_n         : in std_logic;
 
-        config          : in vnir_config_t;
-        config_done     : out std_logic;
-        
-        do_imaging      : in std_logic;
+    config          : in vnir_config_t;
+    config_done     : out std_logic;
+    
+    do_imaging      : in std_logic;
 
-        num_rows        : out integer;
-        rows            : out vnir_rows_t;
-        rows_available  : out std_logic;
-        
-        sensor_clock    : out std_logic;
-        sensor_reset    : out std_logic;
-        
-        spi_out         : out spi_from_master_t;
-        spi_in          : in spi_to_master_t;
-        
-        frame_request   : out std_logic;
-        lvds            : in vnir_lvds_t
-    );
+    num_rows        : out integer;
+    rows            : out vnir_rows_t;
+    rows_available  : out std_logic;
+    
+    sensor_clock    : out std_logic;
+    sensor_reset    : out std_logic;
+    
+    spi_out         : out spi_from_master_t;
+    spi_in          : in spi_to_master_t;
+    
+    frame_request   : out std_logic;
+    lvds            : in vnir_lvds_t
+);
 end entity vnir_subsystem;
 
 
 architecture rtl of vnir_subsystem is
+
+    component cmd_cross_clock is
+    port (
+        reset_n : in std_logic;
+        i_clock : in std_logic;
+        i       : in std_logic;
+        o_clock : in std_logic;
+        o       : out std_logic
+    );
+    end component cmd_cross_clock;
+
+    component sensor_clock_gen is
+    port (
+        refclk          : in  std_logic;
+        rst             : in  std_logic;
+        outclk_0        : out std_logic;
+        locked          : out std_logic
+    );
+    end component sensor_clock_gen;
+
+    component delay_until is
+    port (
+        clock           : in std_logic;
+        reset_n         : in std_logic;
+        condition       : in std_logic;
+        start           : in std_logic;
+        done            : out std_logic
+    );
+    end component delay_until;
 
     component sensor_configurer is
     port (	
@@ -64,13 +93,13 @@ architecture rtl of vnir_subsystem is
 
     component lvds_decoder_12 is
     port (
-        clock          : in std_logic;
-        reset_n        : in std_logic;
-        start_align    : in std_logic;
-        align_done     : out std_logic;
-        lvds_in        : in vnir_lvds_t;
-        parallel_out   : out vnir_pixel_vector_t(0 to 5-1);
-        data_available : out std_logic
+        clock           : in std_logic;
+        reset_n         : in std_logic;
+        start_align     : in std_logic;
+        align_done      : out std_logic;
+        lvds_in         : in vnir_lvds_t;
+        parallel_out    : out vnir_pixel_vector_t(0 to 5-1);
+        data_available  : out std_logic
     );
     end component lvds_decoder_12;
 
@@ -102,8 +131,6 @@ architecture rtl of vnir_subsystem is
     );
     end component row_collator;
 
-    type state_t is (IDLE, SENSOR_CONFIGURING, LVDS_ALIGNING, IMAGING);
-    signal state : state_t;
     constant clocks_per_sec : integer := 50000000;  -- TODO: set this to its actual value
 
     signal imaging_done : std_logic;
@@ -117,43 +144,11 @@ architecture rtl of vnir_subsystem is
     signal pixels : vnir_pixel_vector_t(0 to 4-1);
     signal control : vnir_pixel_t;
     signal pixels_available : std_logic;
-
     signal start_locking : std_logic;
     signal sensor_clock_locked : std_logic;
     signal locking_done : std_logic;
 begin
 
-    -- TODO: drive sensor_clock at 40 MHz
-
-    -- main_process : process (clock, reset_n)
-    -- begin
-    --     if rising_edge(clock) then
-    --         if (reset_n = '0') then
-    --             state <= IDLE;
-    --         else
-    --             case state is
-    --             when IDLE =>
-    --                 if do_imaging = '1' then
-    --                     state <= IMAGING;
-    --                 elsif start_sensor_config = '1' then
-    --                     state <= SENSOR_CONFIGURING;
-    --                 end if;
-    --             when SENSOR_CONFIGURING =>
-    --                 if sensor_config_done = '1' then
-    --                     state <= LVDS_ALIGNING;
-    --                 end if;
-    --             when LVDS_ALIGNING =>
-    --                 if align_done = '1' then
-    --                     state <= IDLE;
-    --                 end if;
-    --             when IMAGING =>
-    --                 if imaging_done = '1' then
-    --                     state <= IDLE;
-    --                 end if;
-    --             end case;
-    --         end if;
-    --     end if;
-    -- end process main_process;
     sensor_reset_cmd : cmd_cross_clock port map (
         reset_n => '1',
         i_clock => clock,
