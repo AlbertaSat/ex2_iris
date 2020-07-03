@@ -27,13 +27,16 @@ use work.fpga_types.all;
 
 entity sdram_subsystem is
     port (
+        --Control signals
         clock               : in std_logic;
         reset_n             : in std_logic;
 
+        --VNIR row signals
         vnir_rows_available : in std_logic;
         vnir_num_rows       : in integer;
         vnir_rows           : in vnir_rows_t;
         
+        --SWIR row signals
         swir_row_available  : in std_logic;
         swir_num_rows       : in integer;
         swir_row            : in swir_row_t;
