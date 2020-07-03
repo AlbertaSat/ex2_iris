@@ -81,7 +81,7 @@ begin
                     if start_config = '1' then
                         frames_remaining := calc_num_frames(config);
                         fps := config.fps;
-                        accum_fps := 0;
+                        accum_fps := clocks_per_sec;  -- Take first frame immediately
                         num_frames <= frames_remaining;
                     elsif do_imaging = '1' then
                         state := IMAGING;
