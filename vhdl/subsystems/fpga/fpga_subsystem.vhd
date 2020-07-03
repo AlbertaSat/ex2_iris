@@ -49,3 +49,7 @@ entity fpga_subsystem is
         imaging_duration         : in integer
     );
 end entity fpga_subsystem;
+
+architecture rtl of fpga_subsystem is
+begin
+end architecture rtl;

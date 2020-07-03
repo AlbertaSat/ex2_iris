@@ -21,10 +21,10 @@ use ieee.numeric_std.all;
 package avalonmm_types is
 
     type avalonmm_write_from_master_t is record
-        address     : std_logic_vector(29 downto 0);
+        address     : std_logic_vector(28 downto 0);
         burst_count : std_logic_vector(7 downto 0);
-        write_data  : std_logic_vector(31 downto 0);
-        byte_enable : std_logic_vector(3 downto 0);
+        write_data  : std_logic_vector(63 downto 0);
+        byte_enable : std_logic_vector(7 downto 0);
         write_cmd   : std_logic;
     end record avalonmm_write_from_master_t;
 
@@ -33,14 +33,14 @@ package avalonmm_types is
     end record avalonmm_write_to_master_t;
 
     type avalonmm_read_from_master_t is record
-        address     : std_logic_vector(29 downto 0);
+        address     : std_logic_vector(28 downto 0);
         burst_count : std_logic_vector(7 downto 0);
         read_cmd    : std_logic;
     end record avalonmm_read_from_master_t;
 
     type avalonmm_read_to_master_t is record
         wait_request    : std_logic;
-        read_data       : std_logic_vector(31 downto 0);
+        read_data       : std_logic_vector(63 downto 0);
         read_data_valid : std_logic;
     end record avalonmm_read_to_master_t;
 

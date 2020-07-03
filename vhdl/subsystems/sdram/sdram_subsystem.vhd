@@ -51,3 +51,7 @@ entity sdram_subsystem is
         sdram_avalon_in     : in avalonmm_rw_to_master_t
     );
 end entity sdram_subsystem;
+
+architecture rtl of sdram_subsystem is
+begin
+end architecture rtl;

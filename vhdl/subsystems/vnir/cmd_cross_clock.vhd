@@ -13,19 +13,9 @@ end entity cmd_cross_clock;
 
 architecture rtl of cmd_cross_clock is
 begin
-    process (i, i_clock, o_clock)
-        variable trigger : std_logic;
-    begin
-        if reset_n = '0' then
-            trigger := '0';
-        else
-            if rising_edge(i_clock) and i = '1' then
-                trigger := '1';
-            end if;
-            if rising_edge(o_clock) then
-                o <= trigger;
-                trigger := '0';
-            end if;
-        end if;
-    end process;
+    
+    -- TODO: this needs a proper implementation,
+    --       probably using a dual-clock FIFO
+    o <= i;
+    
 end architecture rtl;
