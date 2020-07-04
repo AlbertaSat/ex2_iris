@@ -21,27 +21,20 @@ use ieee.numeric_std.all;
 
 package vnir_types is
 
-    constant vnir_pixel_bits : integer := 12;
+    constant vnir_pixel_bits : integer := 10;
     constant vnir_row_width  : integer := 2048;
+    constant vnir_spi_num_reg : integer := 14;
+    constant vnir_lvds_data_width : integer := 16;
+    
     subtype vnir_pixel_t is unsigned(0 to vnir_pixel_bits-1);
-    type vnir_row_t is array(0 to vnir_row_width-1) of vnir_pixel_t;
+    type vnir_pixel_vector_t is array(integer range <>) of vnir_pixel_t;
+    subtype vnir_row_t is vnir_pixel_vector_t(0 to vnir_row_width-1);
 
     type vnir_rows_t is record
         blue : vnir_row_t;
         red  : vnir_row_t;
         nir  : vnir_row_t;
     end record vnir_rows_t;
-
-    constant vnir_spi_num_reg : integer := 14;
-
-    constant vnir_lvds_data_width : integer := 4;
-    type vnir_lvds_t is record
-        clock   : std_logic;
-        control : std_logic;
-        data  : std_logic_vector (0 to vnir_lvds_data_width-1);
-    end record vnir_lvds_t;
-
-    type vnir_pixel_vector_t is array(integer range <>) of vnir_pixel_t;
 
     type vnir_window_t is record
         lo  : integer range 0 to vnir_row_width-1;
@@ -56,5 +49,16 @@ package vnir_types is
         imaging_duration : integer;
         fps              : integer;
     end record vnir_config_t;
+
+    type vnir_lvds_t is record
+        clock   : std_logic;
+        control : std_logic;
+        data  : std_logic_vector (0 to vnir_lvds_data_width-1);
+    end record vnir_lvds_t;
+
+    type vnir_parallel_lvds_t is record
+        control : vnir_pixel_t;
+        data : vnir_pixel_vector_t (0 to vnir_lvds_data_width-1);
+    end record vnir_parallel_lvds_t;
 
 end package vnir_types;

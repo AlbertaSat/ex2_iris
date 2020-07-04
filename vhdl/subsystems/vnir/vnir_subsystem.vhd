@@ -82,17 +82,17 @@ architecture rtl of vnir_subsystem is
     );
     end component sensor_configurer;
 
-    component lvds_decoder_12 is
+    component lvds_decoder is
     port (
         clock           : in std_logic;
         reset_n         : in std_logic;
         start_align     : in std_logic;
         align_done      : out std_logic;
         lvds_in         : in vnir_lvds_t;
-        parallel_out    : out vnir_pixel_vector_t(0 to 5-1);
+        parallel_out    : out vnir_parallel_lvds_t;
         data_available  : out std_logic
     );
-    end component lvds_decoder_12;
+    end component lvds_decoder;
 
     component image_requester is
     generic (
@@ -130,10 +130,9 @@ architecture rtl of vnir_subsystem is
     signal sensor_config_done : std_logic;
     signal start_align : std_logic;
     signal align_done : std_logic;
-    signal parallel_lvds : vnir_pixel_vector_t(0 to vnir_lvds_data_width);
+    signal parallel_lvds : vnir_parallel_lvds_t;
     signal parallel_lvds_available : std_logic;
     signal pixels : vnir_pixel_vector_t(0 to vnir_lvds_data_width-1);
-    signal control : vnir_pixel_t;
     signal pixels_available : std_logic;
     signal start_locking : std_logic;
     signal sensor_clock_locked : std_logic;
@@ -186,7 +185,7 @@ begin
     );
 
     -- TODO: Completely specify this and confirm with Campbell
-    lvds_decoder_component : lvds_decoder_12 port map (
+    lvds_decoder_component : lvds_decoder port map (
         clock => clock,
         reset_n => reset_n,
         start_align => start_align,
@@ -196,10 +195,8 @@ begin
         data_available => parallel_lvds_available
     );
 
-    control <= parallel_lvds(parallel_lvds'right);
-    pixels_available <= parallel_lvds_available and control(0);
-    pixels <= parallel_lvds(0 to parallel_lvds'length-1) when pixels_available = '1'
-              else pixels;
+    pixels_available <= parallel_lvds_available and parallel_lvds.control(0);  -- TODO: can fail before alignment
+    pixels <= parallel_lvds.data when pixels_available = '1' else pixels;
     
     row_collator_component : row_collator port map (
         clock => clock,
@@ -211,5 +208,16 @@ begin
     );
 
     sensor_clock <= sensor_clock_signal;
+
+    debug : process (clock) is
+        variable frame : vnir_pixel_t;
+    begin
+        if rising_edge(clock) then
+            if pixels_available = '1' then
+                frame := pixels(0);
+                report "Recieved frame: " & integer'image(to_integer(frame));
+            end if;
+        end if;
+    end process debug;
 
 end architecture rtl;
