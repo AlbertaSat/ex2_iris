@@ -92,13 +92,23 @@ architecture rtl of lvds_decoder is
     signal control               : vnir_pixel_t;
     
     signal reset                 : std_logic;
-    signal rdack                 : std_logic;
+    signal rdreq                 : std_logic;
     signal q_out                 : std_logic_vector (bit_width*n_channels-1 downto 0);
     signal rdempty               : std_logic;
+    signal rdempty_n             : std_logic;
 
     signal start_align_rx_outclock : std_logic;
     signal align_done_rx_outclock  : std_logic;
 
+    component single_delay is
+    port (
+        clock   : in std_logic;
+        reset_n : in std_logic;
+        i       : in std_logic;
+        o       : out std_logic
+    );
+    end component single_delay;
+    
     component cmd_cross_clock is
     port (
         reset_n : in std_logic;
@@ -174,7 +184,7 @@ begin
     );
 
     reset <= not reset_n;
-    rdack <= not rdempty;
+    rdreq <= not rdempty;
     
     fifo : lvds_decoder_fifo generic map (
         n_channels => n_channels,
@@ -183,15 +193,23 @@ begin
         aclr => reset,
         data => rx_out,
         rdclk => clock,
-        rdreq => rdack,
+        rdreq => rdreq,
         wrclk => rx_outclock,
         wrreq => '1',
         q => q_out,
         rdempty => rdempty,
-        wrfull => open
+        wrfull => open  -- TODO: if this is ever high, throw an exception or something
     );
     
-    data_available <= not rdempty;
+    rdempty_n <= not rdempty;
+    
+    data_available_delay : single_delay port map (
+        clock => clock,
+        reset_n => reset_n,
+        i => rdempty_n,
+        o => data_available
+    );
+
     control <= unsigned(q_out(bit_width-1 downto 0));
     parallel_out.control <= control;
     group_outputs : for channel in 1 to n_channels-1 generate

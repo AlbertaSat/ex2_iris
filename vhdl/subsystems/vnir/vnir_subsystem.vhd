@@ -123,7 +123,7 @@ architecture rtl of vnir_subsystem is
     end component row_collator;
 
     constant clocks_per_sec : integer := 50000000;  -- TODO: set this to its actual value
-
+    
     signal imaging_done : std_logic;
     signal sensor_clock_signal : std_logic;
     signal start_sensor_config : std_logic;
@@ -208,16 +208,5 @@ begin
     );
 
     sensor_clock <= sensor_clock_signal;
-
-    debug : process (clock) is
-        variable frame : vnir_pixel_t;
-    begin
-        if rising_edge(clock) then
-            if pixels_available = '1' then
-                frame := pixels(0);
-                report "Recieved frame: " & integer'image(to_integer(frame));
-            end if;
-        end if;
-    end process debug;
 
 end architecture rtl;
