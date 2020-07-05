@@ -16,7 +16,11 @@ begin
     process (clock)
     begin
         if rising_edge(clock) then
-            o <= i;
+            if reset_n = '0' then
+                o <= '0';
+            else
+                o <= i;
+            end if;
         end if;
     end process;
 
