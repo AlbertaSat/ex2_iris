@@ -43,10 +43,10 @@ if __name__ == '__main__':
     np.random.seed(0)
 
     DIM = (3, 10, 2048)
-    BITS = 12
+    BITS = 10
 
     data = np.random.randint(0, 2**BITS, DIM)
-    print(f'constant data : data_t := {uarray3d_to_vhdl(data)};')
+    print(f'constant data : data_t := {uarray3d_to_vhdl(data, BITS)};')
 
     averages = np.floor(np.mean(data, axis=1)).astype(int)
-    print(f'constant averages : averages_t := {uarray2d_to_vhdl(averages)};')
+    print(f'constant averages : averages_t := {uarray2d_to_vhdl(averages, BITS)};')
