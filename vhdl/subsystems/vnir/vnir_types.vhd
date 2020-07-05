@@ -23,7 +23,6 @@ package vnir_types is
 
     constant vnir_pixel_bits : integer := 10;
     constant vnir_row_width  : integer := 2048;
-    constant vnir_spi_num_reg : integer := 14;
     constant vnir_lvds_data_width : integer := 16;
     
     subtype vnir_pixel_t is unsigned(0 to vnir_pixel_bits-1);
