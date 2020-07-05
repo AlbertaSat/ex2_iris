@@ -28,7 +28,7 @@ port (
     clock           : in std_logic;
     reset_n         : in std_logic;
     config          : in vnir_config_t;
-    start_config    : in std_logic;
+    read_config     : in std_logic;
     num_frames      : out integer;
     do_imaging      : in std_logic;
     imaging_done    : out std_logic;
@@ -58,8 +58,8 @@ architecture rtl of image_requester is
 
 begin
 
-    process (clock)
-        type state_t is (IDLE, IMAGING);
+    process
+        type state_t is (RESET, IDLE, IMAGING);
         variable state : state_t;
 
         variable frames_remaining : integer;
@@ -67,40 +67,43 @@ begin
         variable fps : integer;
         variable accum_fps : integer;  -- accum * fps
     begin
-        if rising_edge(clock) then
-            frame_request_trigger <= '0';
-            imaging_done <= '0';
+        wait until rising_edge(clock);
 
-            if reset_n = '0' then
-                num_frames <= 0;
-                frames_remaining := 0;
-                state := IDLE;
-            else
-                case state is
-                when IDLE =>
-                    if start_config = '1' then
-                        frames_remaining := calc_num_frames(config);
-                        fps := config.fps;
-                        accum_fps := clocks_per_sec;  -- Take first frame immediately
-                        num_frames <= frames_remaining;
-                    elsif do_imaging = '1' then
-                        state := IMAGING;
-                    end if;
-                when IMAGING =>
-                    if frames_remaining = 0 then
-                        state := IDLE;
-                        imaging_done <= '1';
-                    else
-                        if accum_fps >= clocks_per_sec then           -- if accum >= clocks_per_frame then
-                            accum_fps := accum_fps - clocks_per_sec;  --     accum -= clocks_per_frame
-                            frame_request_trigger <= '1';
-                            frames_remaining := frames_remaining - 1;
-                        end if;
-                        accum_fps := accum_fps + fps;                 -- accum += 1
-                    end if;
-                end case;
-            end if;
+        frame_request_trigger <= '0';
+        imaging_done <= '0';
+
+        if reset_n = '0' then
+            state := RESET;
         end if;
+
+        case state is
+        when RESET =>
+            num_frames <= 0;
+            frames_remaining := 0;
+            state := IDLE;
+        when IDLE =>
+            if read_config = '1' then
+                frames_remaining := calc_num_frames(config);
+                fps := config.fps;
+                accum_fps := clocks_per_sec;  -- Take first frame immediately
+                num_frames <= frames_remaining;
+            end if;
+            if do_imaging = '1' then
+                state := IMAGING;
+            end if;
+        when IMAGING =>
+            if frames_remaining = 0 then
+                state := IDLE;
+                imaging_done <= '1';
+            else
+                if accum_fps >= clocks_per_sec then           -- if accum >= clocks_per_frame then
+                    accum_fps := accum_fps - clocks_per_sec;  --     accum -= clocks_per_frame
+                    frame_request_trigger <= '1';
+                    frames_remaining := frames_remaining - 1;
+                end if;
+                accum_fps := accum_fps + fps;                 -- accum += 1
+            end if;
+        end case;
     end process;
 
     u0 : cmd_cross_clock port map (

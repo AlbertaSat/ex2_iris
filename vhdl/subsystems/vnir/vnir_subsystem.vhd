@@ -102,7 +102,7 @@ architecture rtl of vnir_subsystem is
         clock           : in std_logic;
         reset_n         : in std_logic;
         config          : in vnir_config_t;
-        start_config    : in std_logic;
+        read_config     : in std_logic;
         num_frames      : out integer;
         do_imaging      : in std_logic;
         imaging_done    : out std_logic;
@@ -115,6 +115,8 @@ architecture rtl of vnir_subsystem is
     port (
         clock            : in std_logic;
         reset_n          : in std_logic;
+        config           : in vnir_config_t;
+        read_config      : in std_logic;
         pixels           : in vnir_pixel_vector_t(0 to vnir_lvds_data_width-1);
         pixels_available : in std_logic;
         rows             : out vnir_rows_t;
@@ -124,6 +126,7 @@ architecture rtl of vnir_subsystem is
 
     constant clocks_per_sec : integer := 50000000;  -- TODO: set this to its actual value
     
+    signal config_reg : vnir_config_t;
     signal imaging_done : std_logic;
     signal sensor_clock_signal : std_logic;
     signal start_sensor_config : std_logic;
@@ -139,10 +142,50 @@ architecture rtl of vnir_subsystem is
     signal locking_done : std_logic;
 begin
 
-    start_locking <= config.start_config;
+    sm : process
+        type state_t is (RESET, IDLE, CONFIGURING, IMAGING);
+        variable state : state_t;
+    begin
+        wait until rising_edge(clock);
+        
+        start_locking <= '0';
+        config_done <= '0';
+        pixels_available <= '0';
+
+        if reset_n = '0' then
+            state := RESET;
+        end if;
+
+        case state is
+        when RESET =>
+            state := IDLE;
+        when IDLE =>
+            if config.start_config = '1' then
+                config_reg <= config;
+                start_locking <= '1';
+                state := CONFIGURING;
+            elsif do_imaging = '1' then
+                -- TODO: might want to start the image_requester here instead of it starting independently
+                state := IMAGING;
+            end if;
+        when CONFIGURING =>
+            if align_done = '1' then
+                config_done <= '1';
+                state := IDLE;
+            end if;
+        when IMAGING =>
+            if parallel_lvds_available = '1' and parallel_lvds.control(0) = '1' then
+                pixels_available <= '1';
+                pixels <= parallel_lvds.data;
+            end if;
+            if imaging_done = '1' then -- TODO: might want to make sure row_collator is finished
+                state := IDLE; 
+            end if;
+        end case;
+    end process sm;
+
     start_sensor_config <= locking_done;
     start_align <= sensor_config_done;
-    config_done <= align_done;
 
     sensor_clock_gen_component : sensor_clock_gen port map (
         refclk => clock,
@@ -162,7 +205,7 @@ begin
     sensor_configurer_component : sensor_configurer port map (
         clock => clock,
         reset_n => reset_n,
-        config => config,
+        config => config_reg,
         start_config => start_sensor_config,
         config_done => sensor_config_done,
         spi_out => spi_out,
@@ -175,16 +218,15 @@ begin
     ) port map (
         clock => clock,
         reset_n => reset_n,
-        config => config,
-        start_config => start_sensor_config,
+        config => config_reg,
+        read_config => start_sensor_config,
         num_frames => num_rows,
-        do_imaging => do_imaging,
+        do_imaging => do_imaging,  -- TODO: might want to use a registered input here
         imaging_done => imaging_done,
         sensor_clock => sensor_clock_signal,
         frame_request => frame_request
     );
 
-    -- TODO: Completely specify this and confirm with Campbell
     lvds_decoder_component : lvds_decoder port map (
         clock => clock,
         reset_n => reset_n,
@@ -195,12 +237,11 @@ begin
         data_available => parallel_lvds_available
     );
 
-    pixels_available <= parallel_lvds_available and parallel_lvds.control(0);  -- TODO: can fail before alignment
-    pixels <= parallel_lvds.data when pixels_available = '1' else pixels;
-    
     row_collator_component : row_collator port map (
         clock => clock,
         reset_n => reset_n,
+        config => config,
+        read_config => start_sensor_config,
         pixels => pixels,
         pixels_available => pixels_available,
         rows => rows,
@@ -208,5 +249,16 @@ begin
     );
 
     sensor_clock <= sensor_clock_signal;
+
+    debug : process (clock) is
+        variable chunk : vnir_pixel_t;
+    begin
+        if rising_edge(clock) then
+            if pixels_available = '1' then
+                chunk := pixels(0);
+                report "Recieved chunk: " & integer'image(to_integer(chunk));
+            end if;
+        end if;
+    end process debug;
 
 end architecture rtl;

@@ -27,6 +27,8 @@ generic (
 port (
     clock            : in std_logic;
     reset_n          : in std_logic;
+    config           : in vnir_config_t;
+    read_config      : in std_logic;
     pixels           : in vnir_pixel_vector_t(0 to vnir_lvds_data_width-1);
     pixels_available : in std_logic;
     rows             : out vnir_rows_t;
@@ -40,8 +42,6 @@ architecture rtl of row_collator is
 
     subtype sum_pixel_t is unsigned(0 to sum_pixel_bits-1);
     type sum_row_t is array(0 to vnir_row_width-1) of sum_pixel_t;  
-    type state_t is (IDLE, DECODING_RED, DECODING_BLUE, DECODING_NIR);
-    signal state : state_t;
 
     type counters_t is record
         pixel : integer;
@@ -99,49 +99,74 @@ architecture rtl of row_collator is
 
 begin
 
-    main_process : process (clock)
+    main_process : process
+        type state_t is (RESET, IDLE, DECODING_RED, DECODING_BLUE, DECODING_NIR);
+        variable state : state_t;
+
         variable counters : counters_t;
         variable sum_row : sum_row_t;
-        variable rows_per_window : integer := 10; -- TODO: set from config
+
+        type window_sizes_t is record
+            red : integer;
+            blue : integer;
+            nir : integer;
+        end record window_sizes_t;
+        variable window_sizes : window_sizes_t;
     begin
-        if rising_edge(clock) then
-            rows_available <= '0';
-            if (reset_n = '0') then
-                state <= IDLE;
-            elsif (pixels_available = '1') then
-                case state is
-                when IDLE =>
-                    state <= DECODING_RED;
-                    reset(counters, sum_row);
-                    increment_sum(pixels, sum_row, counters);
-                    increment_counters(counters, rows_per_window);
-                when DECODING_RED =>
-                    increment_sum(pixels, sum_row, counters);
-                    increment_counters(counters, rows_per_window);
-                    if (counters.pixel = 0 and counters.row = 0) then
-                        sum_to_average(sum_row, rows_per_window, rows.red);
-                        reset(counters, sum_row);
-                        state <= DECODING_BLUE;
-                    end if;
-                when DECODING_BLUE =>
-                    increment_sum(pixels, sum_row, counters);
-                    increment_counters(counters, rows_per_window);
-                    if (counters.pixel = 0 and counters.row = 0) then
-                        sum_to_average(sum_row, rows_per_window, rows.blue);
-                        reset(counters, sum_row);
-                        state <= DECODING_NIR;
-                    end if;
-                when DECODING_NIR =>
-                    increment_sum(pixels, sum_row, counters);
-                    increment_counters(counters, rows_per_window);
-                    if (counters.pixel = 0 and counters.row = 0) then
-                        sum_to_average(sum_row, rows_per_window, rows.nir);
-                        reset(counters, sum_row);
-                        state <= IDLE;
-                        rows_available <= '1';
-                    end if;
-                end case;
-            end if;
+        wait until rising_edge(clock);
+
+        rows_available <= '0';
+
+        if reset_n = '0' then
+            state := RESET;
         end if;
+
+        case state is
+        when RESET =>
+            state := IDLE;
+        when IDLE =>
+            if read_config = '1' then
+                window_sizes.red := config.window_red.hi - config.window_red.lo + 1;
+                window_sizes.blue := config.window_blue.hi - config.window_blue.lo + 1;
+                window_sizes.nir := config.window_nir.hi - config.window_nir.lo + 1;
+            end if;
+            if pixels_available = '1' then
+                state := DECODING_RED;
+                reset(counters, sum_row);
+                increment_sum(pixels, sum_row, counters);
+                increment_counters(counters, window_sizes.red);
+            end if;
+        when DECODING_RED =>
+            if pixels_available = '1' then
+                increment_sum(pixels, sum_row, counters);
+                increment_counters(counters, window_sizes.red);
+                if (counters.pixel = 0 and counters.row = 0) then
+                    sum_to_average(sum_row, window_sizes.red, rows.red);
+                    reset(counters, sum_row);
+                    state := DECODING_BLUE;
+                end if;
+            end if;
+        when DECODING_BLUE =>
+            if pixels_available = '1' then
+                increment_sum(pixels, sum_row, counters);
+                increment_counters(counters, window_sizes.blue);
+                if (counters.pixel = 0 and counters.row = 0) then
+                    sum_to_average(sum_row, window_sizes.blue, rows.blue);
+                    reset(counters, sum_row);
+                    state := DECODING_NIR;
+                end if;
+            end if;
+        when DECODING_NIR =>
+            if pixels_available = '1' then
+                increment_sum(pixels, sum_row, counters);
+                increment_counters(counters, window_sizes.nir);
+                if (counters.pixel = 0 and counters.row = 0) then
+                    sum_to_average(sum_row, window_sizes.nir, rows.nir);
+                    reset(counters, sum_row);
+                    state := IDLE;
+                    rows_available <= '1';
+                end if;
+            end if;
+        end case;
     end process;
 end architecture rtl;

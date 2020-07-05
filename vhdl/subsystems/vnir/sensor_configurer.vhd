@@ -69,8 +69,6 @@ architecture rtl of sensor_configurer is
     constant reg_data_size : integer := 14;
     type reg_t is array (reg_data_size-1 downto 0) of logic15_t;
 
-    type state_t is (IDLE, TRANSMIT, TRANSMIT_FINISH);
-
     pure function total_rows (config : vnir_config_t) return integer is
     begin
         return config.window_red.hi - config.window_red.lo +
@@ -119,55 +117,58 @@ architecture rtl of sensor_configurer is
     signal spi_tx_data : std_logic_vector(15 downto 0);
     signal spi_busy : std_logic;
     signal spi_ss_n : std_logic_vector(0 downto 0);
-
-    signal state : state_t;
+    
     signal reg_data : reg_t;
 begin
 
-    main_process : process (clock)
+    main_process : process
+        type state_t is (RESET, IDLE, TRANSMIT, TRANSMIT_FINISH);
+        variable state : state_t;
+
         variable i : integer;
         variable spi_busy_prev : std_logic;
-	begin
-		if rising_edge(clock) then
-            config_done <= '0';
-            spi_enable <= '0';
-            spi_cont <= '0';
-            
-            if (reset_n = '0') then
-				state <= IDLE;
-            else
-				case state is
-                when IDLE =>
-                    if start_config = '1' then
-                        state <= TRANSMIT;
-                        translate_config_to_reg(config, reg_data);
-                        i := 0;
-                        spi_tx_data <= '1' & reg_data(i);
-                    end if;
-                when TRANSMIT =>
-                    spi_enable <= '1';
-                    spi_cont <= '1';
-                    if (spi_busy = '1' and spi_busy_prev = '0') then
-                        if (i = reg_data_size - 1) then
-                            state <= TRANSMIT_FINISH;
-                        else
-                            i := i + 1;
-                            spi_tx_data <= '1' & reg_data(i);
-                        end if;
-                    end if;
-                when TRANSMIT_FINISH =>
-                    if spi_busy = '0' then
-                        state <= IDLE;
-                        config_done <= '1';
-                    end if;
-                end case;
-            end if;
-
-            spi_busy_prev := spi_busy;
+    begin
+        wait until rising_edge(clock);
+        config_done <= '0';
+        spi_enable <= '0';
+        spi_cont <= '0';
+        if (reset_n = '0') then
+            state := RESET;
         end if;
+
+        case state is
+        when RESET =>
+            state := IDLE;
+        when IDLE =>
+            if start_config = '1' then
+                state := TRANSMIT;
+                translate_config_to_reg(config, reg_data);
+                i := 0;
+                spi_tx_data <= '1' & reg_data(i);
+            end if;
+        when TRANSMIT =>
+            spi_enable <= '1';
+            spi_cont <= '1';
+            if (spi_busy = '1' and spi_busy_prev = '0') then
+                if (i = reg_data_size - 1) then
+                    state := TRANSMIT_FINISH;
+                else
+                    i := i + 1;
+                    spi_tx_data <= '1' & reg_data(i);
+                end if;
+            end if;
+        when TRANSMIT_FINISH =>
+            if spi_busy = '0' then
+                state := IDLE;
+                config_done <= '1';
+            end if;
+        end case;
+        
+        spi_busy_prev := spi_busy;
+
     end process main_process;
 
-    -- Invert ss line to make is active-high as per the CMV2000 datasheet
+    -- Invert ss line to make it active-high as per the CMV2000 datasheet
     spi_out.slave_select <= not spi_ss_n(0);
     
     spi_controller : spi_master generic map(

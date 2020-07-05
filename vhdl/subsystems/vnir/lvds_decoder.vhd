@@ -95,7 +95,6 @@ architecture rtl of lvds_decoder is
     signal rdreq                 : std_logic;
     signal q_out                 : std_logic_vector (bit_width*n_channels-1 downto 0);
     signal rdempty               : std_logic;
-    signal rdempty_n             : std_logic;
 
     signal start_align_rx_outclock : std_logic;
     signal align_done_rx_outclock  : std_logic;
@@ -167,6 +166,7 @@ architecture rtl of lvds_decoder is
 
 begin
 
+    -- TODO: should register this input
     rx_in(0) <= lvds_in.control;
     flatten_inputs : for channel in 1 to n_channels-1 generate
         rx_in(channel) <= lvds_in.data(channel-1);
@@ -184,7 +184,6 @@ begin
     );
 
     reset <= not reset_n;
-    rdreq <= not rdempty;
     
     fifo : lvds_decoder_fifo generic map (
         n_channels => n_channels,
@@ -201,15 +200,16 @@ begin
         wrfull => open  -- TODO: if this is ever high, throw an exception or something
     );
     
-    rdempty_n <= not rdempty;
-    
+    rdreq <= not rdempty;
+    -- Data is available one clock after the read request
     data_available_delay : single_delay port map (
         clock => clock,
         reset_n => reset_n,
-        i => rdempty_n,
+        i => rdreq,
         o => data_available
     );
 
+    -- TODO: should really register this output
     control <= unsigned(q_out(bit_width-1 downto 0));
     parallel_out.control <= control;
     group_outputs : for channel in 1 to n_channels-1 generate
@@ -234,42 +234,46 @@ begin
         o => align_done
     );
 
-    align_process : process (rx_outclock)
-        type state_t is (READOUT, ALIGN_HIGH, ALIGN_LOW, ALIGN_WAIT);
+    align_process : process
+        type state_t is (RESET, READOUT, ALIGN_HIGH, ALIGN_LOW, ALIGN_WAIT);
         variable state : state_t;
         variable offset : integer;
     begin
-        if rising_edge(rx_outclock) then
-            align_done_rx_outclock <= '0';
-            rx_channel_data_align <= (others => '0');
 
-            if reset_n = '0' then
-                state := READOUT;
-            else
-                case state is
-                when READOUT =>
-                    if start_align_rx_outclock = '1' then
-                        state := ALIGN_HIGH;
-                        offset := calc_align_offset(control, control_target);
-                    end if;
-                when ALIGN_HIGH =>
-                    rx_channel_data_align <= (others => '1');
-                    state := ALIGN_LOW;
-                when ALIGN_LOW =>
-                    offset := offset - 1;
-                    if offset = 0 then
-                        state := ALIGN_WAIT;
-                    else
-                        state := ALIGN_HIGH;
-                    end if;
-                when ALIGN_WAIT =>
-                    if control = control_target then
-                        align_done_rx_outclock <= '1';
-                        state := READOUT;
-                    end if;
-                end case;
-            end if;
+        wait until rising_edge(rx_outclock);
+
+        align_done_rx_outclock <= '0';
+        rx_channel_data_align <= (others => '0');
+
+        if reset_n = '0' then
+            state := RESET;
         end if;
+
+        case state is
+        when RESET =>
+            state := READOUT;
+        when READOUT =>
+            if start_align_rx_outclock = '1' then
+                state := ALIGN_HIGH;
+                offset := calc_align_offset(control, control_target);
+            end if;
+        when ALIGN_HIGH =>
+            rx_channel_data_align <= (others => '1');
+            state := ALIGN_LOW;
+        when ALIGN_LOW =>
+            offset := offset - 1;
+            if offset = 0 then
+                state := ALIGN_WAIT;
+            else
+                state := ALIGN_HIGH;
+            end if;
+        when ALIGN_WAIT =>
+            if control = control_target then
+                align_done_rx_outclock <= '1';
+                state := READOUT;
+            end if;
+        end case;
+
     end process align_process;
 
 end architecture rtl;
