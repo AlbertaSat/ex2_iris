@@ -71,9 +71,9 @@ architecture rtl of sensor_configurer is
 
     pure function total_rows (config : vnir_config_t) return integer is
     begin
-        return config.window_red.hi - config.window_red.lo +
-                config.window_blue.hi - config.window_blue.lo +
-                config.window_nir.hi - config.window_nir.lo;
+        return config.window_red.hi - config.window_red.lo + 1
+             + config.window_blue.hi - config.window_blue.lo + 1
+             + config.window_nir.hi - config.window_nir.lo + 1;
     end function total_rows;
 
     procedure reg_insert_int16 (
@@ -103,12 +103,12 @@ architecture rtl of sensor_configurer is
         constant window_nir_size_address   : integer := 23;
     begin
         reg_insert_int16(total_rows(config), window_total_size_address, reg_data, 0);
-        reg_insert_int16(config.window_red.lo, window_red_start_address, reg_data, 2);
+        reg_insert_int16(config.window_red.lo,  window_red_start_address,  reg_data, 2);
         reg_insert_int16(config.window_blue.lo, window_blue_start_address, reg_data, 4);
-        reg_insert_int16(config.window_nir.lo, window_nir_start_address, reg_data, 6);
-        reg_insert_int16(config.window_red.hi - config.window_red.lo, window_red_size_address, reg_data, 8);
-        reg_insert_int16(config.window_blue.hi - config.window_blue.lo, window_blue_size_address, reg_data, 10);
-        reg_insert_int16(config.window_nir.hi - config.window_nir.lo, window_nir_size_address, reg_data, 12);
+        reg_insert_int16(config.window_nir.lo,  window_nir_start_address,  reg_data, 6);
+        reg_insert_int16(config.window_red.hi  - config.window_red.lo + 1,  window_red_size_address,  reg_data, 8);
+        reg_insert_int16(config.window_blue.hi - config.window_blue.lo + 1, window_blue_size_address, reg_data, 10);
+        reg_insert_int16(config.window_nir.hi  - config.window_nir.lo + 1,  window_nir_size_address,  reg_data, 12);
         assert reg_data_size = 14;
     end procedure translate_config_to_reg;
 
