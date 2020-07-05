@@ -91,13 +91,13 @@ architecture rtl of lvds_decoder is
 
     signal control               : vnir_pixel_t;
     
-    signal reset                 : std_logic;
     signal rdreq                 : std_logic;
     signal q_out                 : std_logic_vector (bit_width*n_channels-1 downto 0);
     signal rdempty               : std_logic;
+    signal wrfull                : std_logic;
 
-    signal start_align_rx_outclock : std_logic;
-    signal align_done_rx_outclock  : std_logic;
+    signal start_align_rx_outclock : std_logic;  -- start_align signal in the rx_outclock domain
+    signal align_done_rx_outclock  : std_logic;  -- align_done signal in the rx_outclock domain
 
     component single_delay is
     port (
@@ -162,7 +162,7 @@ architecture rtl of lvds_decoder is
         end loop;
 
         return 0;  -- TODO: trigger some kind of error if we get here
-    end;
+    end function calc_align_offset;
 
 begin
 
@@ -182,22 +182,20 @@ begin
         rx_out => rx_out,
         rx_outclock => rx_outclock
     );
-
-    reset <= not reset_n;
     
     fifo : lvds_decoder_fifo generic map (
         n_channels => n_channels,
         bit_width => bit_width
     ) port map (
-        aclr => reset,
+        aclr => not reset_n,
         data => rx_out,
         rdclk => clock,
         rdreq => rdreq,
         wrclk => rx_outclock,
-        wrreq => '1',
+        wrreq => not wrfull,
         q => q_out,
         rdempty => rdempty,
-        wrfull => open  -- TODO: if this is ever high, throw an exception or something
+        wrfull => wrfull  -- TODO: if this is ever high, throw an exception or something
     );
     
     rdreq <= not rdempty;
@@ -268,7 +266,7 @@ begin
                 state := ALIGN_HIGH;
             end if;
         when ALIGN_WAIT =>
-            if control = control_target then
+            if control = control_target then  -- TODO: might fail due to unset outputs
                 align_done_rx_outclock <= '1';
                 state := READOUT;
             end if;

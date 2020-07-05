@@ -38,64 +38,71 @@ end entity row_collator;
 
 
 architecture rtl of row_collator is
-    constant pixels_per_row : integer := vnir_row_width / vnir_lvds_data_width;
-
     subtype sum_pixel_t is unsigned(0 to sum_pixel_bits-1);
     type sum_row_t is array(0 to vnir_row_width-1) of sum_pixel_t;  
 
+    pure function "/" (lhs : sum_row_t; rhs: integer) return sum_row_t is
+        variable result : sum_row_t;
+    begin
+        for i in lhs'range loop
+            result(i) := lhs(i) / rhs;
+        end loop;
+        return result;
+    end function "/";
+
+    procedure fill (row : inout sum_row_t; x : in std_logic) is
+    begin
+        row := (others => (others => x));
+    end procedure fill;
+
+    procedure add (
+        sum_row : inout sum_row_t;
+        pixels : in vnir_pixel_vector_t;
+        offset : in integer;
+        stride : in integer
+    ) is
+    begin
+        for i in pixels'range loop
+            sum_row(offset + stride * i) := sum_row(offset + stride * i) + pixels(i);
+        end loop;
+    end procedure add;
+
+    pure function to_vnir_row (sum_row : sum_row_t) return vnir_row_t is
+        variable row : vnir_row_t;
+        variable sum_row_i : sum_pixel_t;
+    begin
+        for i in sum_row'range loop
+            sum_row_i := sum_row(i);
+            row(i) := sum_row_i(sum_pixel_bits-vnir_pixel_bits to sum_pixel_bits-1);
+        end loop;
+        return row;
+    end function to_vnir_row;
+
     type counters_t is record
-        pixel : integer;
-        row 	: integer; 
+        chunk : integer;
+        row   : integer; 
     end record counters_t;
 
-    procedure reset (
-        variable counters : inout counters_t;
-        variable sum_row : inout sum_row_t
-    ) is
+    procedure restart (counters : inout counters_t) is
     begin
-        counters.pixel := 0;
-        counters.row := 0;
-        sum_row := (others => (others => '0'));
-    end procedure reset;
-   
-    procedure increment_sum (
-        signal pixels : in vnir_pixel_vector_t(0 to vnir_lvds_data_width-1);
-        variable sum_row : inout sum_row_t;
-        variable counters : in counters_t
-    ) is
-    begin
-        for i in 0 to vnir_lvds_data_width-1 loop
-            sum_row(counters.pixel + pixels_per_row * i) := sum_row(counters.pixel + pixels_per_row * i) + pixels(i);
-        end loop;
-    end procedure increment_sum;
+        counters := (others => 0);
+    end procedure restart;
 
-    procedure increment_counters (
-        variable counters : inout counters_t;
-        variable rows_per_window : in integer
+    procedure increment(
+        counters : inout counters_t;
+        max_chunks : in integer;
+        max_rows : in integer
     ) is
     begin
-        counters.pixel := counters.pixel + 1;
-        if (counters.pixel = pixels_per_row) then
-            counters.pixel := 0;
+        counters.chunk := counters.chunk + 1;
+        if (counters.chunk = max_chunks) then
+            counters.chunk := 0;
             counters.row := counters.row + 1;
         end if;
-        if (counters.row = rows_per_window) then
+        if (counters.row = max_rows) then
             counters.row := 0;
         end if;
-    end procedure increment_counters;
-
-    procedure sum_to_average (
-        variable sum_row : in sum_row_t;
-        variable rows_per_window : in integer;
-        signal row : out vnir_row_t
-    ) is
-        variable t : sum_pixel_t;
-    begin
-        for i in 0 to vnir_row_width-1 loop
-            t := sum_row(i) / rows_per_window;
-            row(i) <= t(sum_pixel_bits-vnir_pixel_bits to sum_pixel_bits-1);
-        end loop;
-    end procedure sum_to_average;
+    end procedure increment;
 
 begin
 
@@ -112,6 +119,8 @@ begin
             nir : integer;
         end record window_sizes_t;
         variable window_sizes : window_sizes_t;
+
+        constant chunks_per_row : integer := vnir_row_width / vnir_lvds_data_width;
     begin
         wait until rising_edge(clock);
 
@@ -132,37 +141,41 @@ begin
             end if;
             if pixels_available = '1' then
                 state := DECODING_RED;
-                reset(counters, sum_row);
-                increment_sum(pixels, sum_row, counters);
-                increment_counters(counters, window_sizes.red);
+                fill(sum_row, '0');
+                restart(counters);
+                add(sum_row, pixels, counters.chunk, chunks_per_row);
+                increment(counters, chunks_per_row, window_sizes.red);
             end if;
         when DECODING_RED =>
             if pixels_available = '1' then
-                increment_sum(pixels, sum_row, counters);
-                increment_counters(counters, window_sizes.red);
-                if (counters.pixel = 0 and counters.row = 0) then
-                    sum_to_average(sum_row, window_sizes.red, rows.red);
-                    reset(counters, sum_row);
+                add(sum_row, pixels, counters.chunk, chunks_per_row);
+                increment(counters, chunks_per_row, window_sizes.red);
+                if (counters.chunk = 0 and counters.row = 0) then
+                    rows.red <= to_vnir_row(sum_row / window_sizes.red);
+                    fill(sum_row, '0');
+                    restart(counters);
                     state := DECODING_BLUE;
                 end if;
             end if;
         when DECODING_BLUE =>
             if pixels_available = '1' then
-                increment_sum(pixels, sum_row, counters);
-                increment_counters(counters, window_sizes.blue);
-                if (counters.pixel = 0 and counters.row = 0) then
-                    sum_to_average(sum_row, window_sizes.blue, rows.blue);
-                    reset(counters, sum_row);
+                add(sum_row, pixels, counters.chunk, chunks_per_row);
+                increment(counters, chunks_per_row, window_sizes.red);
+                if (counters.chunk = 0 and counters.row = 0) then
+                    rows.blue <= to_vnir_row(sum_row / window_sizes.blue);
+                    fill(sum_row, '0');
+                    restart(counters);
                     state := DECODING_NIR;
                 end if;
             end if;
         when DECODING_NIR =>
             if pixels_available = '1' then
-                increment_sum(pixels, sum_row, counters);
-                increment_counters(counters, window_sizes.nir);
-                if (counters.pixel = 0 and counters.row = 0) then
-                    sum_to_average(sum_row, window_sizes.nir, rows.nir);
-                    reset(counters, sum_row);
+                add(sum_row, pixels, counters.chunk, chunks_per_row);
+                increment(counters, chunks_per_row, window_sizes.nir);
+                if (counters.chunk = 0 and counters.row = 0) then
+                    rows.nir <= to_vnir_row(sum_row / window_sizes.nir);
+                    fill(sum_row, '0');
+                    restart(counters);
                     state := IDLE;
                     rows_available <= '1';
                 end if;

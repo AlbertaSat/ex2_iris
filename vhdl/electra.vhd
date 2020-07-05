@@ -326,4 +326,4 @@ begin
         image_request => image_request,
         imaging_duration => imaging_duration
     );
-end;
+end architecture rtl;

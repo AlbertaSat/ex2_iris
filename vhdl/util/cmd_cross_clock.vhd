@@ -26,28 +26,23 @@ architecture rtl of cmd_cross_clock is
     );
     end component;
 
-    signal reset : std_logic;
-    signal data : std_logic_vector(0 downto 0);
-    signal rdack : std_logic;
-    signal q : std_logic_vector(0 downto 0);
+    signal q : std_logic;
     signal rdempty : std_logic;
+    signal wrfull : std_logic;
 begin
     
-    reset <= not reset_n;
-    data(0) <= i;
-    o <= q(0) and not rdempty;
-    rdack <= not rdempty;
+    o <= q and not rdempty;
 
     cmd_fifo : fifo_1 port map (
-        aclr => reset,
-        data => data,
+        aclr => not reset_n,
+        data(0) => i,
         rdclk => o_clock,
-        rdreq => rdack,
+        rdreq => not rdempty,
         wrclk => i_clock,
-        wrreq => i,
-        q => q,
+        wrreq => i and not wrfull,
+        q(0) => q,
         rdempty => rdempty,
-        wrfull => open
+        wrfull => wrfull  -- TODO: if this is ever high, raise an error or something
     );
     
 end architecture rtl;

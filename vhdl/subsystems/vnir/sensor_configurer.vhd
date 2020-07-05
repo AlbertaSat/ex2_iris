@@ -74,7 +74,7 @@ architecture rtl of sensor_configurer is
         return config.window_red.hi - config.window_red.lo +
                 config.window_blue.hi - config.window_blue.lo +
                 config.window_nir.hi - config.window_nir.lo;
-    end;
+    end function total_rows;
 
     procedure reg_insert_int16 (
         constant i16         : in    integer;

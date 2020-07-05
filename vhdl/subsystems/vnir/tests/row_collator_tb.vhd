@@ -25,9 +25,6 @@ entity row_collator_tb is
 end entity row_collator_tb;
 
 architecture tests of row_collator_tb is
-
-	constant clock_period	: time := 20 ns;
-
 	signal clock            : std_logic := '0';
 	signal reset_n          : std_logic := '1';
     signal config           : vnir_config_t;
@@ -50,9 +47,11 @@ architecture tests of row_collator_tb is
     );
     end component row_collator;
 
-    type vnir_row_window_t is array(0 to 9) of vnir_row_t;
-    type data_t is array(0 to 2) of vnir_row_window_t;
-    type averages_t is array(0 to 2) of vnir_row_t;
+    constant n_colours : integer := 3;
+    constant window_size : integer := 10;  -- Matches row_collator_tb_datagen.py
+    type vnir_row_window_t is array(0 to window_size-1) of vnir_row_t;
+    type data_t is array(0 to n_colours-1) of vnir_row_window_t;
+    type averages_t is array(0 to n_colours-1) of vnir_row_t;
     
     constant data : data_t := (
         0 => (
@@ -105,12 +104,13 @@ architecture tests of row_collator_tb is
         data_color := data(color);
         data_color_row := data_color(row);
         return data_color_row(pixel);
-    end;
+    end function slice_data;
 
 begin
 
 	-- Generate main clock signal
-	clock_gen : process
+    clock_gen : process
+        constant clock_period : time := 20 ns;
 	begin
 		wait for clock_period / 2;
 		clock <= not clock;
@@ -118,7 +118,6 @@ begin
     
 
     test : process
-        constant window_size : integer := 10;  -- Matches row_collator_tb_datagen.py
         constant fragment_size : integer := vnir_row_width / vnir_lvds_data_width;
     begin
         reset_n <= '0';
@@ -133,7 +132,7 @@ begin
         read_config <= '0';
 
         report "Uploading started";
-        for color in 0 to 2 loop
+        for color in 0 to n_colours-1 loop
             for row in 0 to window_size-1 loop
                 for fragment in 0 to fragment_size-1 loop
                     pixels_available <= '1';

@@ -52,24 +52,23 @@ architecture rtl of image_requester is
     pure function calc_num_frames(config : vnir_config_t) return integer is
     begin
         return config.fps * config.imaging_duration / 1000;
-    end;
+    end function calc_num_frames;
 
-    signal frame_request_trigger : std_logic;
+    signal frame_request_main_clock : std_logic;  -- Frame request, main clock domain
 
 begin
 
-    process
+    fsm : process
         type state_t is (RESET, IDLE, IMAGING);
         variable state : state_t;
 
         variable frames_remaining : integer;
-        variable delay : integer;
         variable fps : integer;
         variable accum_fps : integer;  -- accum * fps
     begin
         wait until rising_edge(clock);
 
-        frame_request_trigger <= '0';
+        frame_request_main_clock <= '0';
         imaging_done <= '0';
 
         if reset_n = '0' then
@@ -79,7 +78,6 @@ begin
         case state is
         when RESET =>
             num_frames <= 0;
-            frames_remaining := 0;
             state := IDLE;
         when IDLE =>
             if read_config = '1' then
@@ -98,18 +96,19 @@ begin
             else
                 if accum_fps >= clocks_per_sec then           -- if accum >= clocks_per_frame then
                     accum_fps := accum_fps - clocks_per_sec;  --     accum -= clocks_per_frame
-                    frame_request_trigger <= '1';
+                    frame_request_main_clock <= '1';
                     frames_remaining := frames_remaining - 1;
                 end if;
                 accum_fps := accum_fps + fps;                 -- accum += 1
             end if;
         end case;
-    end process;
+    end process fsm;
 
-    u0 : cmd_cross_clock port map (
+    -- Translate frame request to sensor clock domain
+    frame_request_clock_bridge : cmd_cross_clock port map (
         reset_n => reset_n,
         i_clock => clock,
-        i => frame_request_trigger,
+        i => frame_request_main_clock,
         o_clock => sensor_clock,
         o => frame_request
     );
