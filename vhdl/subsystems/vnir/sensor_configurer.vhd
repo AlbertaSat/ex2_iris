@@ -69,31 +69,31 @@ architecture rtl of sensor_configurer is
     constant reg_data_size : integer := 14;
     type reg_t is array (reg_data_size-1 downto 0) of logic15_t;
 
+    pure function size(window : vnir_window_t) return integer is
+    begin
+        return window.hi - window.lo + 1;
+    end function size;
+
     pure function total_rows (config : vnir_config_t) return integer is
     begin
-        return config.window_red.hi - config.window_red.lo + 1
-             + config.window_blue.hi - config.window_blue.lo + 1
-             + config.window_nir.hi - config.window_nir.lo + 1;
+        return size(config.window_red) + size(config.window_blue) + size(config.window_nir);
     end function total_rows;
 
-    procedure reg_insert_int16 (
-        constant i16         : in    integer;
-        constant spi_address : in    integer;
-        signal   reg         : inout reg_t;
-        constant reg_address : in    integer
+    procedure insert_i16 (
+        reg         : inout reg_t;
+        where       : in integer;
+        i16         : in    integer;
+        spi_address : in    integer
     ) is
         variable l16 : std_logic_vector(15 downto 0);
     begin
         -- TODO: make sure this works properly with endian-ness, bit order, etc.
         l16 := std_logic_vector(to_unsigned(i16, 16));
-        reg(reg_address)     <= std_logic_vector(to_unsigned(spi_address,     7)) & l16(7 downto 0);
-        reg(reg_address + 1) <= std_logic_vector(to_unsigned(spi_address + 1, 7)) & l16(15 downto 8);
-    end procedure reg_insert_int16;
+        reg(where)     := std_logic_vector(to_unsigned(spi_address,     7)) & l16(7 downto 0);
+        reg(where + 1) := std_logic_vector(to_unsigned(spi_address + 1, 7)) & l16(15 downto 8);
+    end procedure insert_i16;
 
-    procedure translate_config_to_reg (
-        signal config   : in    vnir_config_t;
-        signal reg_data : inout reg_t
-    ) is
+    pure function config_to_reg (config : vnir_config_t) return reg_t is
         constant window_total_size_address : integer := 1;
         constant window_red_start_address  : integer := 3;
         constant window_blue_start_address : integer := 5;
@@ -101,24 +101,24 @@ architecture rtl of sensor_configurer is
         constant window_red_size_address   : integer := 19;
         constant window_blue_size_address  : integer := 21;
         constant window_nir_size_address   : integer := 23;
+        variable reg_data : reg_t;
     begin
-        reg_insert_int16(total_rows(config), window_total_size_address, reg_data, 0);
-        reg_insert_int16(config.window_red.lo,  window_red_start_address,  reg_data, 2);
-        reg_insert_int16(config.window_blue.lo, window_blue_start_address, reg_data, 4);
-        reg_insert_int16(config.window_nir.lo,  window_nir_start_address,  reg_data, 6);
-        reg_insert_int16(config.window_red.hi  - config.window_red.lo + 1,  window_red_size_address,  reg_data, 8);
-        reg_insert_int16(config.window_blue.hi - config.window_blue.lo + 1, window_blue_size_address, reg_data, 10);
-        reg_insert_int16(config.window_nir.hi  - config.window_nir.lo + 1,  window_nir_size_address,  reg_data, 12);
+        insert_i16(reg_data, 0, total_rows(config), window_total_size_address);
+        insert_i16(reg_data, 2, config.window_red.lo, window_red_start_address);
+        insert_i16(reg_data, 4, config.window_blue.lo, window_blue_start_address);
+        insert_i16(reg_data, 6, config.window_nir.lo, window_nir_start_address);
+        insert_i16(reg_data, 8, size(config.window_red), window_red_size_address);
+        insert_i16(reg_data, 10, size(config.window_blue), window_blue_size_address);
+        insert_i16(reg_data, 12, size(config.window_nir), window_nir_size_address);
         assert reg_data_size = 14;
-    end procedure translate_config_to_reg;
+        return reg_data;
+    end function config_to_reg;
 
     signal spi_enable : std_logic;
     signal spi_cont : std_logic;
     signal spi_tx_data : std_logic_vector(15 downto 0);
     signal spi_busy : std_logic;
-    signal spi_ss_n : std_logic_vector(0 downto 0);
-    
-    signal reg_data : reg_t;
+    signal spi_ss_n : std_logic;
 begin
 
     main_process : process
@@ -127,6 +127,8 @@ begin
 
         variable i : integer;
         variable spi_busy_prev : std_logic;
+
+        variable reg_data : reg_t;
     begin
         wait until rising_edge(clock);
         config_done <= '0';
@@ -142,7 +144,7 @@ begin
         when IDLE =>
             if start_config = '1' then
                 state := TRANSMIT;
-                translate_config_to_reg(config, reg_data);
+                reg_data := config_to_reg(config);
                 i := 0;
                 spi_tx_data <= '1' & reg_data(i);
             end if;
@@ -169,27 +171,27 @@ begin
     end process main_process;
 
     -- Invert ss line to make it active-high as per the CMV2000 datasheet
-    spi_out.slave_select <= not spi_ss_n(0);
+    spi_out.slave_select <= not spi_ss_n;
     
     spi_controller : spi_master generic map(
-        slaves		=>	1,
-        d_width		=>	16
+        slaves      =>	1,
+        d_width     =>	16
     ) port map(
-        clock		=>	clock,
-        reset_n		=>	reset_n,
-        enable		=>	spi_enable,
-        cpol		=>	'0',		-- chosen based on CMV2000 datasheet
-        cpha		=>	'0',		-- ^
-        cont		=>	spi_cont,
-        clk_div		=>	0,
-        addr		=>	0,
-        tx_data		=>	spi_tx_data,
-        miso		=>	spi_in.data,
-        sclk		=>	spi_out.clock,
-        ss_n		=>	spi_ss_n,
-        mosi		=>	spi_out.data,
-        busy		=>	spi_busy,
-        rx_data		=>	open
+        clock       =>	clock,
+        reset_n     =>	reset_n,
+        enable      =>	spi_enable,
+        cpol        =>	'0',        -- chosen based on CMV2000 datasheet
+        cpha        =>	'0',        -- ^
+        cont        =>	spi_cont,
+        clk_div     =>	0,
+        addr        =>	0,
+        tx_data     =>	spi_tx_data,
+        miso        =>	spi_in.data,
+        sclk        =>	spi_out.clock,
+        ss_n(0)     =>	spi_ss_n,
+        mosi        =>	spi_out.data,
+        busy        =>	spi_busy,
+        rx_data     =>	open
     );
 
 end rtl;
