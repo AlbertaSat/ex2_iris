@@ -28,6 +28,16 @@ use work.fpga_types.all;
 entity electra is
 port (
     clock                    : in std_logic;
+
+    -- vnir <=> sensor
+    vnir_sensor_clock        : out std_logic;
+    vnir_sensor_reset        : out std_logic;
+    vnir_spi_out             : out spi_from_master_t;
+    vnir_spi_in              : in spi_to_master_t;
+    vnir_frame_request       : out std_logic;
+    vnir_lvds                : in vnir_lvds_t;
+    
+    -- From QSys
     memory_mem_a             : out   std_logic_vector(12 downto 0);
     memory_mem_ba            : out   std_logic_vector(2 downto 0);
     memory_mem_ck            : out   std_logic;
@@ -177,13 +187,6 @@ architecture rtl of electra is
     -- vnir <=> sdram
     signal vnir_rows : vnir_rows_t;
     signal vnir_rows_available : std_logic;
-    
-    -- vnir <=> sensor
-    signal vnir_sensor_clock : std_logic;
-    signal vnir_sensor_reset : std_logic;
-    signal vnir_spi : spi_t;
-    signal vnir_frame_request : std_logic;
-    signal vnir_lvds : vnir_lvds_t;
 
     -- vnir <=> sdram, fpga
     signal vnir_num_rows : integer;
@@ -267,8 +270,8 @@ begin
         rows_available => vnir_rows_available,
         sensor_clock => vnir_sensor_clock,
         sensor_reset => vnir_sensor_reset,
-        spi_out => vnir_spi.from_master,
-        spi_in => vnir_spi.to_master,
+        spi_out => vnir_spi_out,
+        spi_in => vnir_spi_in,
         frame_request => vnir_frame_request,
         lvds => vnir_lvds
     );
@@ -326,4 +329,5 @@ begin
         image_request => image_request,
         imaging_duration => imaging_duration
     );
+
 end architecture rtl;
