@@ -39,20 +39,21 @@ entity memory_map is
         --Image Config signals
         number_swir_rows    : in integer range 0 to integer'high;
         number_vnir_rows    : in integer range 0 to integer'high;
-        
+
         --Ouput image row address config
         next_row_type       : in sdram_next_row_fed;
         row_address         : out integer range 0 to integer'high;
 
         --Read data to be read from sdram due to mpu interaction
         sdram_error         : out sdram_error_t;
-        read_data           : in std_logic; --TODO: Define wtf this is
+        read_data           : in avalonmm_read_to_master_t;
+        read_config         : in avalonmm_read_from_master_t;
     );
 end entity memory_map;
 
 architecture rtl of memory_map is
     --FSM signals
-    type t_state is (init, idle, row_assign, mpu_check);
+    type t_state is (init, idle, imaging_config, row_assign, mpu_check);
     signal state : t_state;
 
 
@@ -129,15 +130,19 @@ begin
                 
                 when idle =>
                     --Idle state is really only for monitoring signals that change the state of the memory map
-                    if (mpu_mem_change /= 0) then
+                    if (read_config.read_cmd /= '0') then
                         state <= mpu_check;
-                    elsif (next_row_type /= NO_ROW)
-                        state <= row_assign;
+                    elsif (number_vnir_rows /= 0 or number_swir_rows /= 0)
+                        state <= imaging_config;
                     end if;
 
                 when mpu_check =>
                     --TODO: Figure out how to read the incoming data from the SDRAM
                     state <= idle;
+                
+                when imaging_config =>
+                    --TODO: Figure out how the addressing works
+                    state <= row_assign;
                 
                 when row_assign =>
                     --TODO: Figure how to time this
