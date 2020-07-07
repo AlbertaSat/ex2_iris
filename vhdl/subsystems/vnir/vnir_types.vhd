@@ -25,9 +25,9 @@ package vnir_types is
     constant vnir_row_width  : integer := 2048;
     constant vnir_lvds_data_width : integer := 16;
     
-    subtype vnir_pixel_t is unsigned(0 to vnir_pixel_bits-1);
+    subtype vnir_pixel_t is unsigned(vnir_pixel_bits-1 downto 0);
     type vnir_pixel_vector_t is array(integer range <>) of vnir_pixel_t;
-    subtype vnir_row_t is vnir_pixel_vector_t(0 to vnir_row_width-1);
+    subtype vnir_row_t is vnir_pixel_vector_t(vnir_row_width-1 downto 0);
 
     type vnir_rows_t is record
         blue : vnir_row_t;
@@ -50,14 +50,30 @@ package vnir_types is
     end record vnir_config_t;
 
     type vnir_lvds_t is record
-        clock   : std_logic;
-        control : std_logic;
-        data  : std_logic_vector (0 to vnir_lvds_data_width-1);
+        clock     : std_logic;
+        control   : std_logic;
+        data      : std_logic_vector (vnir_lvds_data_width-1 downto 0);
     end record vnir_lvds_t;
 
     type vnir_parallel_lvds_t is record
         control : vnir_pixel_t;
-        data : vnir_pixel_vector_t (0 to vnir_lvds_data_width-1);
+        data : vnir_pixel_vector_t (vnir_lvds_data_width-1 downto 0);
     end record vnir_parallel_lvds_t;
 
+    pure function size(window : vnir_window_t) return integer;
+    pure function total_rows (config : vnir_config_t) return integer;
+
 end package vnir_types;
+
+
+package body vnir_types is
+    pure function size(window : vnir_window_t) return integer is
+    begin
+        return window.hi - window.lo + 1;
+    end function size;
+
+    pure function total_rows (config : vnir_config_t) return integer is
+    begin
+        return size(config.window_red) + size(config.window_blue) + size(config.window_nir);
+    end function total_rows;
+end package body vnir_types;

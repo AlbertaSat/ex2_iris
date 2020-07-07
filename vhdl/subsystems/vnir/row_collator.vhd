@@ -19,17 +19,16 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.vnir_types.all;
 
-
 entity row_collator is
 generic (
-    sum_pixel_bits : integer := 19  -- ceil(log2(125 * (2 ^ 12 - 1) + 1))
+    sum_bits : integer := 19  -- ceil(log2(125 * (2 ^ 12 - 1) + 1))
 );
 port (
     clock            : in std_logic;
     reset_n          : in std_logic;
     config           : in vnir_config_t;
     read_config      : in std_logic;
-    pixels           : in vnir_pixel_vector_t(0 to vnir_lvds_data_width-1);
+    pixels           : in vnir_pixel_vector_t(vnir_lvds_data_width-1 downto 0);
     pixels_available : in std_logic;
     rows             : out vnir_rows_t;
     rows_available   : out std_logic
@@ -38,11 +37,12 @@ end entity row_collator;
 
 
 architecture rtl of row_collator is
-    subtype sum_pixel_t is unsigned(0 to sum_pixel_bits-1);
-    type sum_row_t is array(0 to vnir_row_width-1) of sum_pixel_t;  
-
-    pure function "/" (lhs : sum_row_t; rhs: integer) return sum_row_t is
-        variable result : sum_row_t;
+    subtype sum_scalar_t is unsigned(sum_bits-1 downto 0);
+    type sum_vector_t is array(integer range <>) of sum_scalar_t;
+    subtype sum_row_t is sum_vector_t(vnir_row_width-1 downto 0);
+    
+    pure function "/" (lhs : sum_vector_t; rhs: integer) return sum_vector_t is
+        variable result : sum_vector_t(lhs'range);
     begin
         for i in lhs'range loop
             result(i) := lhs(i) / rhs;
@@ -50,32 +50,35 @@ architecture rtl of row_collator is
         return result;
     end function "/";
 
-    procedure fill (row : inout sum_row_t; x : in std_logic) is
+    procedure fill (vec : inout sum_vector_t; x : in std_logic) is
     begin
-        row := (others => (others => x));
+        vec := (vec'range => (vec(vec'low)'range => x));
     end procedure fill;
 
     procedure add (
-        sum_row : inout sum_row_t;
-        pixels : in vnir_pixel_vector_t;
-        offset : in integer;
-        stride : in integer
+        vec : inout sum_vector_t;
+        to_add : in vnir_pixel_vector_t;
+        offset : in integer := 0;
+        stride : in integer := 1
     ) is
     begin
-        for i in pixels'range loop
-            sum_row(offset + stride * i) := sum_row(offset + stride * i) + pixels(i);
+        for i in to_add'range loop
+            vec(offset + stride * i) := vec(offset + stride * i) + to_add(i);
         end loop;
     end procedure add;
 
-    pure function to_vnir_row (sum_row : sum_row_t) return vnir_row_t is
-        variable row : vnir_row_t;
-        variable sum_row_i : sum_pixel_t;
+    pure function to_vnir_pixel(i : sum_scalar_t) return vnir_pixel_t is
     begin
-        for i in sum_row'range loop
-            sum_row_i := sum_row(i);
-            row(i) := sum_row_i(sum_pixel_bits-vnir_pixel_bits to sum_pixel_bits-1);
+        return i(vnir_pixel_bits-1 downto 0);
+    end function to_vnir_pixel;
+
+    pure function to_vnir_row (row : sum_row_t) return vnir_row_t is
+        variable vnir_row : vnir_row_t;
+    begin
+        for i in row'range loop
+            vnir_row(i) := to_vnir_pixel(row(i));
         end loop;
-        return row;
+        return vnir_row;
     end function to_vnir_row;
 
     type counters_t is record
@@ -120,6 +123,15 @@ begin
         end record window_sizes_t;
         variable window_sizes : window_sizes_t;
 
+        pure function get_window_sizes(config : vnir_config_t) return window_sizes_t is
+        begin
+            return (
+                red => size(config.window_red),
+                blue => size(config.window_blue),
+                nir => size(config.window_nir)
+            );
+        end function get_window_sizes;
+
         constant chunks_per_row : integer := vnir_row_width / vnir_lvds_data_width;
     begin
         wait until rising_edge(clock);
@@ -135,9 +147,7 @@ begin
             state := IDLE;
         when IDLE =>
             if read_config = '1' then
-                window_sizes.red := config.window_red.hi - config.window_red.lo + 1;
-                window_sizes.blue := config.window_blue.hi - config.window_blue.lo + 1;
-                window_sizes.nir := config.window_nir.hi - config.window_nir.lo + 1;
+                window_sizes := get_window_sizes(config);
             end if;
             if pixels_available = '1' then
                 state := DECODING_RED;
@@ -182,4 +192,5 @@ begin
             end if;
         end case;
     end process;
+
 end architecture rtl;
