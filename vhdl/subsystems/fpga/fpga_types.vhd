@@ -19,5 +19,5 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 package fpga_types is
-    subtype timestamp_t is unsigned(0 to 64);  -- TODO: define this
+    subtype timestamp_t is unsigned(63 downto 0);  -- TODO: define this
 end package fpga_types;
