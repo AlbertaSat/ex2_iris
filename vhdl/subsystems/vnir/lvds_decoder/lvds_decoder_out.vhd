@@ -76,7 +76,7 @@ begin
         if state = ALIGNED then
             if data_in_available = '1' then
                 data_out_available <= '1';
-                parallel_out.control <= unsigned(get(from_fifo, 1));
+                parallel_out.control <= to_vnir_control(get(from_fifo, 1));
                 for channel in 2 to n_fifo_channels-1 loop
                     parallel_out.data(channel-2) <= unsigned(get(from_fifo, channel));
                 end loop;

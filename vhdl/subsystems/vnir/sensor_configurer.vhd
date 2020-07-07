@@ -69,19 +69,9 @@ architecture rtl of sensor_configurer is
     constant reg_data_size : integer := 14;
     type reg_t is array (reg_data_size-1 downto 0) of logic15_t;
 
-    pure function size(window : vnir_window_t) return integer is
-    begin
-        return window.hi - window.lo + 1;
-    end function size;
-
-    pure function total_rows (config : vnir_config_t) return integer is
-    begin
-        return size(config.window_red) + size(config.window_blue) + size(config.window_nir);
-    end function total_rows;
-
     procedure insert_i16 (
         reg         : inout reg_t;
-        where       : in integer;
+        where       : in    integer;
         i16         : in    integer;
         spi_address : in    integer
     ) is
@@ -110,7 +100,7 @@ architecture rtl of sensor_configurer is
         insert_i16(reg_data, 8, size(config.window_red), window_red_size_address);
         insert_i16(reg_data, 10, size(config.window_blue), window_blue_size_address);
         insert_i16(reg_data, 12, size(config.window_nir), window_nir_size_address);
-        assert reg_data_size = 14;
+        assert reg_data_size = 14 severity failure;
         return reg_data;
     end function config_to_reg;
 

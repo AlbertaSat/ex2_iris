@@ -24,40 +24,32 @@ use work.vnir_types.all;
 
 entity vnir_subsystem is
 port (
-    clock           : in std_logic;
-    reset_n         : in std_logic;
+    clock               : in std_logic;
+    reset_n             : in std_logic;
 
-    config          : in vnir_config_t;
-    config_done     : out std_logic;
-    
-    do_imaging      : in std_logic;
+    sensor_clock        : in std_logic;
+    sensor_clock_locked : in std_logic;
+    sensor_reset        : out std_logic;
 
-    num_rows        : out integer;
-    rows            : out vnir_rows_t;
-    rows_available  : out std_logic;
+    config              : in vnir_config_t;
+    config_done         : out std_logic;
     
-    sensor_clock    : out std_logic;
-    sensor_reset    : out std_logic;
+    do_imaging          : in std_logic;
+
+    num_rows            : out integer;
+    rows                : out vnir_rows_t;
+    rows_available      : out std_logic;
     
-    spi_out         : out spi_from_master_t;
-    spi_in          : in spi_to_master_t;
+    spi_out             : out spi_from_master_t;
+    spi_in              : in spi_to_master_t;
     
-    frame_request   : out std_logic;
-    lvds            : in vnir_lvds_t
+    frame_request       : out std_logic;
+    lvds                : in vnir_lvds_t
 );
 end entity vnir_subsystem;
 
 
 architecture rtl of vnir_subsystem is
-
-    component sensor_clock_gen is
-    port (
-        refclk          : in  std_logic;
-        rst             : in  std_logic;
-        outclk_0        : out std_logic;
-        locked          : out std_logic
-    );
-    end component sensor_clock_gen;
 
     component delay_until is
     port (
@@ -117,7 +109,7 @@ architecture rtl of vnir_subsystem is
         reset_n          : in std_logic;
         config           : in vnir_config_t;
         read_config      : in std_logic;
-        pixels           : in vnir_pixel_vector_t(0 to vnir_lvds_data_width-1);
+        pixels           : in vnir_pixel_vector_t(vnir_lvds_data_width-1 downto 0);
         pixels_available : in std_logic;
         rows             : out vnir_rows_t;
         rows_available   : out std_logic
@@ -125,21 +117,20 @@ architecture rtl of vnir_subsystem is
     end component row_collator;
 
     constant clocks_per_sec : integer := 50000000;  -- TODO: set this to its actual value
-    
+
     signal config_reg : vnir_config_t;
     signal imaging_done : std_logic;
-    signal sensor_clock_signal : std_logic;
     signal start_sensor_config : std_logic;
     signal sensor_config_done : std_logic;
     signal start_align : std_logic;
     signal align_done : std_logic;
     signal parallel_lvds : vnir_parallel_lvds_t;
     signal parallel_lvds_available : std_logic;
-    signal pixels : vnir_pixel_vector_t(0 to vnir_lvds_data_width-1);
+    signal pixels : vnir_pixel_vector_t(vnir_lvds_data_width-1 downto 0);
     signal pixels_available : std_logic;
     signal start_locking : std_logic;
-    signal sensor_clock_locked : std_logic;
     signal locking_done : std_logic;
+
 begin
 
     sm : process
@@ -174,7 +165,7 @@ begin
                 state := IDLE;
             end if;
         when IMAGING =>
-            if parallel_lvds_available = '1' and parallel_lvds.control(0) = '1' then
+            if parallel_lvds_available = '1' and parallel_lvds.control.dval = '1' then
                 pixels_available <= '1';
                 pixels <= parallel_lvds.data;
             end if;
@@ -186,13 +177,6 @@ begin
 
     start_sensor_config <= locking_done;
     start_align <= sensor_config_done;
-
-    sensor_clock_gen_component : sensor_clock_gen port map (
-        refclk => clock,
-        rst => start_locking,
-        outclk_0 => sensor_clock_signal,
-        locked => sensor_clock_locked
-    );
 
     delay_until_locked : delay_until port map (
         clock => clock,
@@ -223,7 +207,7 @@ begin
         num_frames => num_rows,
         do_imaging => do_imaging,  -- TODO: might want to use a registered input here
         imaging_done => imaging_done,
-        sensor_clock => sensor_clock_signal,
+        sensor_clock => sensor_clock,
         frame_request => frame_request
     );
 
@@ -247,8 +231,6 @@ begin
         rows => rows,
         rows_available => rows_available
     );
-
-    sensor_clock <= sensor_clock_signal;
 
     debug : process (clock) is
         variable chunk : vnir_pixel_t;

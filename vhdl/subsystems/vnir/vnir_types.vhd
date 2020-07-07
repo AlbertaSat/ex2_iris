@@ -55,13 +55,25 @@ package vnir_types is
         data      : std_logic_vector (vnir_lvds_data_width-1 downto 0);
     end record vnir_lvds_t;
 
+    type vnir_control_t is record
+        dval : std_logic;
+        lval : std_logic;
+        fval : std_logic;
+        slot : std_logic;
+        row : std_logic;
+        fot : std_logic;
+        inte1 : std_logic;
+        inte2 : std_logic;
+    end record vnir_control_t;
+    
     type vnir_parallel_lvds_t is record
-        control : vnir_pixel_t;
+        control : vnir_control_t;
         data : vnir_pixel_vector_t (vnir_lvds_data_width-1 downto 0);
     end record vnir_parallel_lvds_t;
 
     pure function size(window : vnir_window_t) return integer;
     pure function total_rows (config : vnir_config_t) return integer;
+    pure function to_vnir_control (ctrl_bits : std_logic_vector) return vnir_control_t;
 
 end package vnir_types;
 
@@ -76,4 +88,19 @@ package body vnir_types is
     begin
         return size(config.window_red) + size(config.window_blue) + size(config.window_nir);
     end function total_rows;
+
+    pure function to_vnir_control (ctrl_bits : std_logic_vector) return vnir_control_t is
+    begin
+        return (
+            dval => ctrl_bits(ctrl_bits'left-0),
+            lval => ctrl_bits(ctrl_bits'left-1),
+            fval => ctrl_bits(ctrl_bits'left-2),
+            slot => ctrl_bits(ctrl_bits'left-3),
+            row => ctrl_bits(ctrl_bits'left-4),
+            fot => ctrl_bits(ctrl_bits'left-5),
+            inte1 => ctrl_bits(ctrl_bits'left-6),
+            inte2 => ctrl_bits(ctrl_bits'left-7)
+        );
+    end function to_vnir_control;
+
 end package body vnir_types;
