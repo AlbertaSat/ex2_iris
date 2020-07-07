@@ -50,7 +50,7 @@ package sdram_types is
         to_sdram : sdram_config_to_sdram_t;
         from_sdram : sdram_config_from_sdram_t;
     end record sdram_config;
-
-    subtype sdram_header is std_logic_vector (0 to 160)
+    
+    subtype sdram_header is std_logic_vector (159 downto 0)
 
 end package sdram_types;
