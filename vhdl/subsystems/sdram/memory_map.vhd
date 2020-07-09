@@ -29,12 +29,13 @@ entity memory_map is
     port (
         --Control signals
         clock               : in std_logic;
-        reset               : in std_logic;
+        reset_n             : in std_logic;
 
         --SDRAM config signals to and from the FPGA
         config              : in sdram_config_to_sdram_t;
-        config_done         : out std_logic;
         filled_addresses    : out sdram_config_from_sdram_t;
+        start_config        : in std_logic;
+        config_done         : out std_logic;
 
         --Image Config signals
         number_swir_rows    : in integer range 0 to integer'high;
@@ -56,35 +57,32 @@ architecture rtl of memory_map is
     type t_state is (init, idle, imaging_config, row_assign, mpu_check);
     signal state : t_state;
 
-
-    --Signals defining the VHDL internal partitions in the memory
-    variable vnir_min       : integer;
-    variable vnir_max       : integer;
-
-    variable swir_min       : integer;
-    variable swir_max       : integer;
-
-    variable vnir_temp_min  : integer;
-    variable vnir_temp_max  : integer;
-
-    variable swir_temp_min  : integer;
-    variable swir_temp_max  : integer;
-
-    --Variables representing the part of each partition that is currently filled with data
-    subtype locs is array (1 downto 0) of integer;
-
-    variable vnir_locs      : locs;
-    variable swir_locs      : locs;
-    variable vnir_temp_locs : locs;
-    variable swir_temp_locs : locs;
-
 begin
 
     --The main process for everything
     main_process : process (clock, reset) is
+        --Signals defining the VHDL internal partitions in the memory
+        variable vnir_min       : integer;
+        variable vnir_max       : integer;
 
+        variable swir_min       : integer;
+        variable swir_max       : integer;
+
+        variable vnir_temp_min  : integer;
+        variable vnir_temp_max  : integer;
+
+        variable swir_temp_min  : integer;
+        variable swir_temp_max  : integer;
+
+        --Variables representing the part of each partition that is currently filled with data
+        subtype locs is array (1 downto 0) of integer;
+
+        variable vnir_locs      : locs;
+        variable swir_locs      : locs;
+        variable vnir_temp_locs : locs;
+        variable swir_temp_locs : locs;
     begin
-        if (reset = '1') then
+        if (reset_n = '0') then
             --If reset is asserted, initializing and writing all maps to 0
             state <= init;
 
