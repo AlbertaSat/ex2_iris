@@ -20,7 +20,7 @@ use ieee.numeric_std.all;
 use work.fpga_types.all;
 
 package sdram_types is
-    subtype sdram_address_block_t is array(0 to 1) of integer;
+    type sdram_address_block_t is array (0 to 1) of integer;
 
     type sdram_error_t is (SDRAM_NO_ERROR, SDRAM_FULL, SDRAM_MPU_CHECK_FAILED);
 
@@ -29,7 +29,7 @@ package sdram_types is
     type sdram_config_to_sdram_t is record
         memory_base     : integer;
         memory_bounds   : integer;
-    end record sdram_config_in_t;
+    end record sdram_config_to_sdram_t;
 
     type sdram_config_from_sdram_t is record
         swir_base           : integer;
@@ -40,19 +40,19 @@ package sdram_types is
         vnir_bounds         : integer;
         vnir_temp_base      : integer;
         vnir_temp_bounds    : integer;
-    end record sdram_config_out_t;
+    end record sdram_config_from_sdram_t;
     
     type sdram_header_t is record
         timestamp        : timestamp_t;
         user_defined     : std_logic_vector (7 downto 0);
-        x_size           : integer range 0 to 2^16 - 1;
-        y_size           : integer range 0 to 2^16 - 1;
-        z_size           : integer range 0 to 2^16 - 1;
+        x_size           : integer range 0 to 2**16 - 1;
+        y_size           : integer range 0 to 2**16 - 1;
+        z_size           : integer range 0 to 2**16 - 1;
         sample_type      : std_logic;
         reserved_1       : std_logic_vector (1 downto 0);
         dyna_range       : integer;
         sample_encode    : std_logic;
-        interleave_depth : std_logic (15 downto 0);
+        interleave_depth : std_logic_vector (15 downto 0);
         reserved_2       : std_logic_vector (1 downto 0);
         output_word      : integer;
         entropy_coder    : std_logic;
