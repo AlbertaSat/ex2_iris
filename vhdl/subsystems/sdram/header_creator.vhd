@@ -50,23 +50,24 @@ end entity header_creator;
 architecture rtl of header_creator is
     -- A function to turn a header record into a std_logic_vector for output
     function sdram_header_to_vec(header : sdram_header_t) return std_logic_vector is
-	variable buffer_vec : std_logic_vector (159 downto 0);
+	    variable buffer_vec : std_logic_vector (159 downto 0);
     begin
         buffer_vec := std_logic_vector(header.timestamp) &
-                header.user_defined &
-                std_logic_vector(to_unsigned(header.x_size, 16)) &
-                std_logic_vector(to_unsigned(header.y_size, 16)) &
-                std_logic_vector(to_unsigned(header.z_size, 16)) &
-                header.sample_type &
-                header.reserved_1 &
-                std_logic_vector(to_unsigned(header.dyna_range, 4)) &
-                header.sample_encode &
-                header.interleave_depth &
-                header.reserved_2 &
-                std_logic_vector(to_unsigned(header.output_word, 3)) &
-                header.entropy_coder &
-                header.reserved_3;
-	return buffer_vec;
+                      header.user_defined &
+                      std_logic_vector(to_unsigned(header.x_size, 16)) &
+                      std_logic_vector(to_unsigned(header.y_size, 16)) &
+                      std_logic_vector(to_unsigned(header.z_size, 16)) &
+                      header.sample_type &
+                      header.reserved_1 &
+                      std_logic_vector(to_unsigned(header.dyna_range, 4)) &
+                      header.sample_encode &
+                      header.interleave_depth &
+                      header.reserved_2 &
+                      std_logic_vector(to_unsigned(header.output_word, 3)) &
+                      header.entropy_coder &
+                      header.reserved_3;
+
+	    return buffer_vec;
     end function sdram_header_to_vec;
     
     --A flag indicating that the header has been sent
