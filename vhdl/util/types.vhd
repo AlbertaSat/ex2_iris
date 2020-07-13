@@ -23,7 +23,7 @@ package avalonmm_types is
     type avalonmm_write_from_master_t is record
         address     : std_logic_vector(29 downto 0);
         burst_count : std_logic_vector(7 downto 0);
-        write_data  : std_logic_vector(31 downto 0);
+        write_data  : std_logic_vector(15 downto 0);
         byte_enable : std_logic_vector(3 downto 0);
         write_cmd   : std_logic;
     end record avalonmm_write_from_master_t;
