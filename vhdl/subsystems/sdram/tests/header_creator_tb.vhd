@@ -99,7 +99,7 @@ begin
         vnir_rows <= 23;
         swir_rows <= 12;
 
-        wait until (swir_img_header(0) /= 'U');
+        wait until (swir_img_header(102) /= '0');
 
         swir_header <= vec_to_header(swir_img_header);
         vnir_header <= vec_to_header(vnir_img_header);
@@ -107,5 +107,11 @@ begin
         sending_img <= '1';
 
         wait until rising_edge(clock);
+        swir_rows <= 0;
+        wait until rising_edge(clock);
+        wait until rising_edge(clock);
+        wait until rising_edge(clock);
+        wait until rising_edge(clock);
+        sending_img <= '0';
     end process testing_process;
 end architecture;
