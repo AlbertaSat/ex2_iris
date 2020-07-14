@@ -49,8 +49,8 @@ end entity header_creator;
 
 architecture rtl of header_creator is
     --Creating the enumerator for the state machine
-    type header_creator_state_t is (init, assign, sending, sdram_busy);
-    signal state : header_creator_state_t;
+    type header_creator_state_t is (init, assign, sending);
+    signal state : header_creator_state_t := init;
 
     -- A function to turn a header record into a std_logic_vector for output
     function header2vec(header : sdram_header_t) return std_logic_vector is
@@ -76,6 +76,7 @@ architecture rtl of header_creator is
 begin
     main_process : process (clock) is
         --Creating an initial header with default values that fit both SWIR & VNIR Images
+        --TODO: Maybe specialize the user defined part?
         constant init_header : sdram_header_t := (
             timestamp   => to_unsigned(0, timestamp'length),
             user_defined => (0 => '1', others => '0'),
@@ -147,15 +148,11 @@ begin
                         end if;
 
                     when sending =>
-                        --This is kind of a transition state that waits for the sending_img signal to come back high
-                        if sending_img = '1' then
-                            state <= sdram_busy;
-                        end if;
-
-                    when sdram_busy =>
-                        --This state waits for the sdram to stop being busy before it goes to init to wait for the next imaging command
+                        --This state waits for the image to stop writing before freeing the header creator
                         if sending_img = '0' then
                             state <= init;
+                            swir_img_header <= (others => '0');
+                            vnir_img_header <= (others => '0');
                         end if;
                 end case;
             end if;

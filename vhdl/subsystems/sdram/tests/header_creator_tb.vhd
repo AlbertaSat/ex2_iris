@@ -113,5 +113,13 @@ begin
         wait until rising_edge(clock);
         wait until rising_edge(clock);
         sending_img <= '0';
+        wait until rising_edge(clock);
+        wait until rising_edge(clock);
+        wait until rising_edge(clock);
+        wait until rising_edge(clock);
+        wait until rising_edge(clock);
+        wait until rising_edge(clock);
+        wait until rising_edge(clock);
+        wait until rising_edge(clock);
     end process testing_process;
 end architecture;
