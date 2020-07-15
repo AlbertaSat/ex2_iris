@@ -78,8 +78,8 @@ begin
         --Creating an initial header with default values that fit both SWIR & VNIR Images
         --TODO: Maybe specialize the user defined part?
         constant init_header : sdram_header_t := (
-            timestamp   => to_unsigned(0, timestamp'length),
-            user_defined => (0 => '1', others => '0'),
+            timestamp           => to_unsigned(0, timestamp'length),
+            user_defined        => (0 => '1', others => '0'),
             x_size              => 0,
             y_size              => 0,
             z_size              => 0,
