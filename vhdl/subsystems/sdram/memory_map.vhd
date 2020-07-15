@@ -33,7 +33,8 @@ entity memory_map is
 
         --SDRAM config signals to and from the FPGA
         config              : in sdram_config_to_sdram_t;
-        filled_addresses    : out sdram_config_from_sdram_t;
+        filled_addresses    : out sdram_partitions_t;
+
         start_config        : in std_logic;
         config_done         : out std_logic;
 
@@ -43,7 +44,7 @@ entity memory_map is
 
         --Ouput image row address config
         next_row_type       : in sdram_next_row_fed;
-        row_address         : out integer range 0 to integer'high;
+        row_address         : out sdram_address_block_t;
 
         --Read data to be read from sdram due to mpu interaction
         sdram_error         : out sdram_error_t;
@@ -53,74 +54,82 @@ end entity memory_map;
 
 architecture rtl of memory_map is
     --FSM signals
-    type t_state is (init, idle, imaging_config, row_assign, mpu_check);
+    type t_state is (init, sys_config, idle, img_config, row_assign, mpu_check);
     signal state : t_state;
 
+    --Creating a function that automatically does memory placing
+    function place_data(filled_addresses : sdram_partitions_t, bounds : sdram_partitions_t)
 begin
 
     --The main process for everything
     main_process : process (clock, reset) is
-        --Signals defining the VHDL internal partitions in the memory
-        variable vnir_min       : integer;
-        variable vnir_max       : integer;
+        --A variable defining the VHDL internal partitions in the memory
+        variable sdram_partitions : sdram_partitions_t;
 
-        variable swir_min       : integer;
-        variable swir_max       : integer;
+        --Variables detailing the amount of rows left in the imaging proces
+        variable vnir_rows_left   : integer             := 0;
+        variable swir_rows_left   : integer             := 0;
 
-        variable vnir_temp_min  : integer;
-        variable vnir_temp_max  : integer;
-
-        variable swir_temp_min  : integer;
-        variable swir_temp_max  : integer;
-
-        --Variables representing the part of each partition that is currently filled with data
-        subtype locs is array (1 downto 0) of integer;
-
-        variable vnir_locs      : locs;
-        variable swir_locs      : locs;
-        variable vnir_temp_locs : locs;
-        variable swir_temp_locs : locs;
+        variable swir_header_sent : std_logic           := '0';
     begin
-
         if rising_edge(clock) then
             if (reset_n = '0') then
-                --If reset is asserted, initializing and writing all maps to 0
+                --If reset is asserted, initializing and writing everything to 0
                 state <= init;
-    
-                vnir_locs <= (0,0);
-                swir_locs <= (0,0);
-                vnir_temp_locs <= (0,0);
-                swir_temp_locs <= (0,0);
+
+                sdram_error <= NO_ERROR;
+                row_address <= 0;
+                config_done <= '0';
+                filled_addresses <= (
+                    swir_base           => 0,
+                    swir_bounds         => 0,
+                    swir_temp_base      => 0,
+                    swir_temp_bounds    => 0,
+                    vnir_base           => 0,
+                    vnir_bounds         => 0,
+                    vnir_temp_base      => 0,
+                    vnir_temp_bounds    => 0
+                );
+                sdram_partition := (
+                    swir_base           => 0,
+                    swir_bounds         => 0,
+                    swir_temp_base      => 0,
+                    swir_temp_bounds    => 0,
+                    vnir_base           => 0,
+                    vnir_bounds         => 0,
+                    vnir_temp_base      => 0,
+                    vnir_temp_bounds    => 0
+                );
             
             else
                 case state is
                     when init =>
+                        --Init just waits for start_config signal to start the configuration of the SDRAM
+                        if start_config = '1' then
+                            state <= sys_config;
+                        end if;
+
+                    when sys_config =>
                         --Creating the minimum and maximum locations for vnir and swir images
                         --TODO: Create a mapping process with the sizes of each taken into account
-                        vnir_min        <= config.memory_base; 
-                        vnir_max        <= config.memory_bounds / 2;
-                        swir_min        <= vnir_max + 1;
-                        swir_max        <= config.memory_bounds * 8 / 10;
-                        vnir_temp_min   <= swir_max + 1;
-                        vnir_temp_max   <= config.memory_bounds * 9 / 10;
-                        swir_temp_min   <= vnir_temp_max + 1;
-                        swir_temp_max   <= config.memory_bounds;
+                        sdram_parition.vnir_base            := config.memory_base; 
+                        sdram_parition.vnir_bounds          := config.memory_bounds / 2;
+                        sdram_parition.swir_base            := vnir_max + 1;
+                        sdram_parition.swir_bounds          := config.memory_bounds * 8 / 10;
+                        sdram_parition.vnir_temp_base       := swir_max + 1;
+                        sdram_parition.vnir_temp_bounds     := config.memory_bounds * 9 / 10;
+                        sdram_parition.swir_temp_base       := vnir_temp_max + 1;
+                        sdram_parition.swir_temp_bounds     := config.memory_bounds;
 
-                        --Setting the currently filled addresses to the lowest possible values
-                        vnir_locs       <= (vnir_min, vnir_min)
-                        swir_locs       <= (swir_min, swir_min)
-                        vnir_temp_locs  <= (vnir_temp_min, vnir_temp_min)
-                        swir_temp_locs  <= (swir_temp_min, swir_temp_min)
-
-                        --Setting the output signals to mirror the variables
-                        filled_addresses.vnir_base          <= vnir_locs(0);
-                        filled_addresses.vnir_bounds        <= vnir_locs(1);
-                        filled_addresses.swir_base          <= swir_locs(0);
-                        filled_addresses.swir_bounds        <= swir_locs(1);
-                        filled_addresses.vnir_temp_base     <= vnir_temp_locs(0);
-                        filled_addresses.vnir_temp_bounds   <= vnir_temp_locs(1);
-                        filled_addresses.swir_temp_base     <= swir_temp_locs(0);
-                        filled_addresses.swir_temp_bounds   <= swir_temp_locs(1);
+                        --Setting the output signals to say each subparition is empty
+                        filled_addresses.vnir_base          <= sdram_parition.vnir_base;
+                        filled_addresses.vnir_bounds        <= sdram_parition.vnir_base;
+                        filled_addresses.swir_base          <= sdram_parition.swir_base;
+                        filled_addresses.swir_bounds        <= sdram_parition.swir_base;
+                        filled_addresses.vnir_temp_base     <= sdram_parition.vnir_temp_base;
+                        filled_addresses.vnir_temp_bounds   <= sdram_parition.vnir_temp_base;
+                        filled_addresses.swir_temp_base     <= sdram_parition.swir_temp_base;
+                        filled_addresses.swir_temp_bounds   <= sdram_parition.swir_temp_base; 
 
                         --Setting the next state
                         state <= idle;
@@ -139,9 +148,21 @@ begin
                         state <= idle;
                     
                     when imaging_config =>
-                        --TODO: Figure out how the addressing works
-                        state <= row_assign;
-                    
+                        if swir_header_sent = '0' then
+                            --Using the rows in to configure the amount of rows left 
+                            swir_rows_left := number_swir_rows;
+                            vnir_rows_left := number_vnir_rows;
+
+                            row_address := (filled_addresses.vnir_bounds;
+
+                            filled_addresses.vnir_bounds <= filled_addresses.vnir_bounds + 10;
+                        else
+                            row_address := filled_addresses.vnir_bounds;
+
+                            filled_addresses.swir_bounds <= filled_addresses.swir_bounds + 10;
+                            state <= row_assign;
+                        end if;
+
                     when row_assign =>
                         --TODO: Figure how to time this
                         state <= idle;

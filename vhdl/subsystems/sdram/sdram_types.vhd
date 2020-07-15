@@ -20,18 +20,20 @@ use ieee.numeric_std.all;
 use work.fpga_types.all;
 
 package sdram_types is
-    type sdram_address_block_t is array (0 to 1) of integer;
+    type sdram_address_block_t is array (0 to 3) of integer;
+    
+    type sdram_error_t is (NO_ERROR, FULL, MPU_CHECK_FAILED);
 
-    type sdram_error_t is (SDRAM_NO_ERROR, SDRAM_FULL, SDRAM_MPU_CHECK_FAILED);
+    type vnir_row_available_t is (NO_ROW, BLUE_ROW, RED_ROW, NIR_ROW);
 
-    type sdram_next_row_fed is (NO_ROW, BLUE_ROW, RED_ROW, NIR_ROW, SWIR_ROW);
+    type sdram_next_row_fed_t is (NO_ROW, BLUE_ROW, RED_ROW, NIR_ROW, SWIR_ROW);
 
     type sdram_config_to_sdram_t is record
         memory_base     : integer;
         memory_bounds   : integer;
     end record sdram_config_to_sdram_t;
 
-    type sdram_config_from_sdram_t is record
+    type sdram_partitions_t is record
         swir_base           : integer;
         swir_bounds         : integer;
         swir_temp_base      : integer;
@@ -40,7 +42,7 @@ package sdram_types is
         vnir_bounds         : integer;
         vnir_temp_base      : integer;
         vnir_temp_bounds    : integer;
-    end record sdram_config_from_sdram_t;
+    end record sdram_partitions_t;
     
     type sdram_header_t is record
         timestamp        : timestamp_t;
