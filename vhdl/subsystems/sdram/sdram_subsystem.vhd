@@ -56,7 +56,6 @@ entity sdram_subsystem is
 end entity sdram_subsystem;
 
 architecture rtl of sdram_subsystem is
-
     component memory_map is
     port(
         
