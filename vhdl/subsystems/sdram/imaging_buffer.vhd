@@ -29,7 +29,7 @@ entity imaging_buffer is
     port(
         --Control Signals
         clock           : in std_logic;
-        reset           : in std_logic;
+        reset_n         : in std_logic;
 
         --Rows of Data
         vnir_rows       : in vnir_rows_t;
@@ -38,10 +38,16 @@ entity imaging_buffer is
         --Rows out
         vnir_row_out    : out vnir_row_t;
         swir_row_out    : out swir_row_t;
+        row_request     : in std_logic;
 
         --Flag signals
         swir_row_ready  : in std_logic;
-        vnir_row_ready  : in std_logic;
+        vnir_row_ready  : in vnir_row_available_t;
         header_sent     : in std_logic;
     );
 end entity imaging_buffer;
+
+architecture rtl of imaging_buffer is
+
+begin
+    

@@ -32,11 +32,14 @@ entity command_creator is
         reset               : in std_logic;
 
         --Header data
-        vnir_img_header     : in sdram_header;
-        swir_img_header     : in sdram_header;
+        vnir_img_header     : in sdram_header_t;
+        swir_img_header     : in sdram_header_t;
 
         --Rows
         row_data            : in vnir_row_t;
+
+        --Addy
+        address             : in sdram_address_block_t;
 
         -- Flags for MPU interaction
         sdram_busy          : in std_logic;
@@ -50,4 +53,6 @@ entity command_creator is
     );
 end entity command_creator;
 
+architecture rtl of command_creator is
 
+begin
