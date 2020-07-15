@@ -40,7 +40,7 @@ package avalonmm_types is
 
     type avalonmm_read_to_master_t is record
         wait_request    : std_logic;
-        read_data       : std_logic_vector(31 downto 0);
+        read_data       : std_logic_vector(15 downto 0);
         read_data_valid : std_logic;
     end record avalonmm_read_to_master_t;
 
