@@ -59,7 +59,7 @@ architecture rtl of lvds_decoder_in is
         return 0;  -- TODO: trigger some kind of error if we get here
     end function calc_align_offset;
 
-    constant n_decoder_channels : integer := vnir_lvds_data_width + 1; -- Add control
+    constant n_decoder_channels : integer := vnir_lvds_n_channels + 1; -- Add control
     constant control_target : vnir_pixel_t := (vnir_pixel_bits-10 => '1', others => '0');
     signal data_align : std_logic;
     signal decoder_out : std_logic_vector(n_decoder_channels*vnir_pixel_bits-1 downto 0);

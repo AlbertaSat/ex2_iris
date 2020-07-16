@@ -19,21 +19,23 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.vnir_types.all;
+use work.pulse_generator_pkg.all;
 
 entity image_requester is
 generic (
-    clocks_per_sec  : integer
+    clocks_per_sec      : integer
 );
 port (
-    clock           : in std_logic;
-    reset_n         : in std_logic;
-    config          : in vnir_config_t;
-    read_config     : in std_logic;
-    num_frames      : out integer;
-    do_imaging      : in std_logic;
-    imaging_done    : out std_logic;
-    sensor_clock    : in std_logic;
-    frame_request   : out std_logic
+    clock               : in std_logic;
+    reset_n             : in std_logic;
+    config              : in vnir_config_t;
+    read_config         : in std_logic;
+    num_frames          : out integer;
+    do_imaging          : in std_logic;
+    imaging_done        : out std_logic;
+    sensor_clock        : in std_logic;
+    frame_request       : out std_logic;
+    exposure_start    : out std_logic
 );
 end entity image_requester;
 
@@ -54,7 +56,17 @@ architecture rtl of image_requester is
         return config.fps * config.imaging_duration / 1000;
     end function calc_num_frames;
 
+    pure function calc_frame_request_offset(config : vnir_config_t) return integer is
+        variable clocks_per_frame : integer;
+        variable clocks_per_exposure : integer;
+    begin
+        clocks_per_frame := clocks_per_sec / config.fps;
+        clocks_per_exposure := clocks_per_sec * config.exposure_time;
+        return clocks_per_frame - clocks_per_exposure;
+    end function calc_frame_request_offset;
+
     signal frame_request_main_clock : std_logic;  -- Frame request, main clock domain
+    signal exposure_start_main_clock : std_logic; -- Exposure request, main clock domain
 
 begin
 
@@ -62,18 +74,21 @@ begin
         type state_t is (RESET, IDLE, IMAGING);
         variable state : state_t;
 
-        variable frames_remaining : integer;
-        variable fps : integer;
-        variable accum_fps : integer;  -- accum * fps
+        variable frame_request_gen : pulse_generator_t;
+        variable exposure_start_gen : pulse_generator_t;
     begin
         wait until rising_edge(clock);
 
-        frame_request_main_clock <= '0';
-        imaging_done <= '0';
-
         if reset_n = '0' then
+            frame_request_gen := pulse_generator_new;
+            exposure_start_gen := pulse_generator_new;
             state := RESET;
         end if;
+
+        step(frame_request_gen);
+        step(exposure_start_gen);
+        frame_request_main_clock <= frame_request_gen.pulses_out;
+        exposure_start_main_clock <= exposure_start_gen.pulses_out;
 
         case state is
         when RESET =>
@@ -81,25 +96,29 @@ begin
             state := IDLE;
         when IDLE =>
             if read_config = '1' then
-                frames_remaining := calc_num_frames(config);
-                fps := config.fps;
-                accum_fps := clocks_per_sec;  -- Take first frame immediately
-                num_frames <= frames_remaining;
+                -- TODO: frame_request_gen has a phase offset
+                frame_request_gen := pulse_generator_new (
+                    config.fps,
+                    calc_frame_request_offset(config),
+                    calc_num_frames(config),
+                    clocks_per_sec
+                );
+                exposure_start_gen := pulse_generator_new (
+                    config.fps, 0,
+                    calc_num_frames(config),
+                    clocks_per_sec
+                );
+                num_frames <= calc_num_frames(config);
             end if;
             if do_imaging = '1' then
+                start(frame_request_gen);
+                start(exposure_start_gen);
                 state := IMAGING;
             end if;
         when IMAGING =>
-            if frames_remaining = 0 then
+            if is_done(frame_request_gen) and is_done(exposure_start_gen) then
                 state := IDLE;
                 imaging_done <= '1';
-            else
-                if accum_fps >= clocks_per_sec then           -- if accum >= clocks_per_frame then
-                    accum_fps := accum_fps - clocks_per_sec;  --     accum -= clocks_per_frame
-                    frame_request_main_clock <= '1';
-                    frames_remaining := frames_remaining - 1;
-                end if;
-                accum_fps := accum_fps + fps;                 -- accum += 1
             end if;
         end case;
     end process fsm;
@@ -111,6 +130,15 @@ begin
         i => frame_request_main_clock,
         o_clock => sensor_clock,
         o => frame_request
+    );
+
+    -- Translate exposure request to sensor clock domain
+    exposure_start_clock_bridge : cmd_cross_clock port map (
+        reset_n => reset_n,
+        i_clock => clock,
+        i => exposure_start_main_clock,
+        o_clock => sensor_clock,
+        o => exposure_start
     );
 
 end architecture rtl;

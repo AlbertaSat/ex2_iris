@@ -103,18 +103,18 @@ architecture rtl of vnir_subsystem is
     );
     end component image_requester;
 
-    component row_collator is
+    component row_collector is
     port (
-        clock            : in std_logic;
-        reset_n          : in std_logic;
-        config           : in vnir_config_t;
-        read_config      : in std_logic;
-        pixels           : in vnir_pixel_vector_t(vnir_lvds_data_width-1 downto 0);
-        pixels_available : in std_logic;
-        rows             : out vnir_rows_t;
-        rows_available   : out std_logic
+        clock               : in std_logic;
+        config              : in vnir_config_t;
+        read_config         : in std_logic;
+        start               : in std_logic;
+        fragment            : in vnir_pixel_vector_t(vnir_lvds_n_channels-1 downto 0);
+        fragment_available  : in std_logic;
+        rows                : out vnir_rows_t;
+        rows_available      : out std_logic
     );
-    end component row_collator;
+    end component row_collector;
 
     constant clocks_per_sec : integer := 50000000;  -- TODO: set this to its actual value
 
@@ -126,14 +126,14 @@ architecture rtl of vnir_subsystem is
     signal align_done : std_logic;
     signal parallel_lvds : vnir_parallel_lvds_t;
     signal parallel_lvds_available : std_logic;
-    signal pixels : vnir_pixel_vector_t(vnir_lvds_data_width-1 downto 0);
+    signal pixels : vnir_pixel_vector_t(vnir_lvds_n_channels-1 downto 0);
     signal pixels_available : std_logic;
     signal start_locking : std_logic;
     signal locking_done : std_logic;
 
 begin
 
-    sm : process
+    fsm : process
         type state_t is (RESET, IDLE, CONFIGURING, IMAGING);
         variable state : state_t;
     begin
@@ -173,7 +173,7 @@ begin
                 state := IDLE; 
             end if;
         end case;
-    end process sm;
+    end process fsm;
 
     start_sensor_config <= locking_done;
     start_align <= sensor_config_done;
@@ -221,13 +221,13 @@ begin
         data_available => parallel_lvds_available
     );
 
-    row_collator_component : row_collator port map (
+    row_collector_component : row_collector port map (
         clock => clock,
-        reset_n => reset_n,
         config => config,
         read_config => start_sensor_config,
-        pixels => pixels,
-        pixels_available => pixels_available,
+        start => do_imaging,
+        fragment => pixels,
+        fragment_available => pixels_available,
         rows => rows,
         rows_available => rows_available
     );

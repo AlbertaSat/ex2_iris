@@ -14,9 +14,10 @@ architecture tests of lvds_decoder_tb is
 
     subtype word_t is std_logic_vector(vnir_pixel_bits-1 downto 0);
     type word_vector_t is array(integer range <>) of word_t;
-    subtype lvds_data_t is word_vector_t(vnir_lvds_data_width-1 downto 0);
+    subtype lvds_data_t is word_vector_t(vnir_lvds_n_channels-1 downto 0);
     type lvds_data_vector_t is array(integer range <>) of lvds_data_t;
 
+    -- TODO: I think this is wrong
     constant control_idle : word_t := (vnir_pixel_bits-10 => '1', others => '0');
     constant control_readout : word_t := (vnir_pixel_bits-1 => '1', others => '0');
 

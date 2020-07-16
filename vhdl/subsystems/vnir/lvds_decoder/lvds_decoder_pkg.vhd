@@ -21,7 +21,7 @@ use ieee.numeric_std.all;
 use work.vnir_types.all;
 
 package lvds_decoder_pkg is
-    constant n_fifo_channels : integer := vnir_lvds_data_width + 2; -- Add aligned and control
+    constant n_fifo_channels : integer := vnir_lvds_n_channels + 2; -- Add aligned and control
     subtype fifo_elem_t is std_logic_vector(vnir_pixel_bits-1 downto 0);
     subtype fifo_data_t is std_logic_vector(n_fifo_channels*vnir_pixel_bits-1 downto 0);
 

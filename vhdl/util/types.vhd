@@ -95,3 +95,199 @@ package spi_types is
     end record spi_t;
 
 end package spi_types;
+
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+package logic_types is
+
+    subtype logic1_t is std_logic_vector(1-1 downto 0);
+    subtype logic2_t is std_logic_vector(2-1 downto 0);
+    subtype logic3_t is std_logic_vector(3-1 downto 0);
+    subtype logic4_t is std_logic_vector(4-1 downto 0);
+    subtype logic5_t is std_logic_vector(5-1 downto 0);
+    subtype logic6_t is std_logic_vector(6-1 downto 0);
+    subtype logic7_t is std_logic_vector(7-1 downto 0);
+    subtype logic8_t is std_logic_vector(8-1 downto 0);
+    subtype logic15_t is std_logic_vector (15-1 downto 0);
+    subtype logic16_t is std_logic_vector(16-1 downto 0);
+    type logic16_vector_t is array(integer range <>) of logic16_t;
+
+    pure function to_logic1(i : integer) return logic1_t;
+    pure function to_logic2(i : integer) return logic2_t;
+    pure function to_logic3(i : integer) return logic3_t;
+    pure function to_logic4(i : integer) return logic4_t;
+    pure function to_logic5(i : integer) return logic5_t;
+    pure function to_logic6(i : integer) return logic6_t;
+    pure function to_logic7(i : integer) return logic7_t;
+    pure function to_logic8(i : integer) return logic8_t;
+    pure function to_logic15(i : integer) return logic15_t;
+    pure function to_logic16(i : integer) return logic16_t;
+
+    pure function bitwise_contains(flags : std_logic_vector; flag : std_logic_vector) return boolean;
+
+end package logic_types;
+
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_misc.all;
+use ieee.numeric_std.all;
+
+
+package body logic_types is
+
+    pure function to_logic1(i : integer) return logic1_t is
+    begin
+        return std_logic_vector(to_unsigned(i, 1));
+    end function to_logic1;
+
+    pure function to_logic2(i : integer) return logic2_t is
+    begin
+        return std_logic_vector(to_unsigned(i, 2));
+    end function to_logic2;
+
+    pure function to_logic3(i : integer) return logic3_t is
+    begin
+        return std_logic_vector(to_unsigned(i, 3));
+    end function to_logic3;
+    
+    pure function to_logic4(i : integer) return logic4_t is
+    begin
+        return std_logic_vector(to_unsigned(i, 4));
+    end function to_logic4;
+
+    pure function to_logic5(i : integer) return logic5_t is
+    begin
+        return std_logic_vector(to_unsigned(i, 5));
+    end function to_logic5;
+
+    pure function to_logic6(i : integer) return logic6_t is
+    begin
+        return std_logic_vector(to_unsigned(i, 6));
+    end function to_logic6;
+
+    pure function to_logic7(i : integer) return logic7_t is
+    begin
+        return std_logic_vector(to_unsigned(i, 7));
+    end function to_logic7;
+
+    pure function to_logic8(i : integer) return logic8_t is
+    begin
+        return std_logic_vector(to_unsigned(i, 8));
+    end function to_logic8;
+    
+    pure function to_logic15(i : integer) return logic15_t is
+    begin
+        return std_logic_vector(to_unsigned(i, 15));
+    end function to_logic15;
+
+    pure function to_logic16(i : integer) return logic16_t is
+    begin
+        return std_logic_vector(to_unsigned(i, 16));
+    end function to_logic16;
+
+    pure function bitwise_contains(flags : std_logic_vector; flag : std_logic_vector) return boolean is
+    begin
+        return or_reduce(flags and flag) = '1';
+    end function bitwise_contains;
+
+end package body logic_types;
+
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_misc.all;
+use ieee.numeric_std.all;
+
+
+package integer_types is
+
+    type integer_vector_t is array(integer range <>) of integer;
+
+    pure function max(a : integer; b : integer) return integer;
+    pure function max(v : integer_vector_t) return integer;
+
+    procedure increment_rollover(
+        i : inout integer;
+        threshold : integer;
+        enable : boolean;
+        rolled_over : out boolean
+    );
+
+    procedure increment(
+        i : inout integer;
+        enable : boolean
+    );
+
+end package integer_types;
+
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_misc.all;
+use ieee.numeric_std.all;
+
+
+package body integer_types is
+
+    pure function max(a : integer; b : integer) return integer is
+    begin
+        if a > b then return a; else return b; end if;
+    end function max;
+
+--    pure function max(v : integer_vector_t) return integer is
+--    begin
+--        if v'length = 1 then
+--            return v(v'left);
+--        elsif v'length = 2 then
+--            return max(v(v'left), v(v'right));
+--        else
+--            return max(
+--                max(v(v'left downto v'length / 2)),
+--                max(v(v'length / 2 + 1 downto v'right))
+--            );
+--        end if;
+--    end function max;
+
+    pure function max(v : integer_vector_t) return integer is
+        variable ret : integer;
+    begin
+        ret := v(v'left);
+        for i in v'range loop
+            ret := max(ret, v(i));
+        end loop;
+        return ret;
+    end function max;
+
+    procedure increment_rollover(
+        i : inout integer;
+        threshold : integer;
+        enable : boolean;
+        rolled_over : out boolean
+    ) is
+    begin
+        if enable then
+            if i + 1 < threshold then
+                i := i + 1;
+                rolled_over := false;
+            else
+                i := 0;
+                rolled_over := true;
+            end if;
+        end if;
+    end procedure increment_rollover;
+
+    procedure increment(
+        i : inout integer;
+        enable : boolean
+    ) is
+    begin
+        if enable then
+            i := i + 1;
+        end if;
+    end procedure increment;
+
+end package body integer_types;

@@ -20,6 +20,7 @@ use ieee.numeric_std.all;
 
 use work.vnir_types.all;
 use work.spi_types.all;
+use work.logic_types.all;
 
 
 entity sensor_configurer_tb is
@@ -31,12 +32,15 @@ architecture tests of sensor_configurer_tb is
     signal clock : std_logic := '0';
     signal reset_n : std_logic := '0';
     signal config : vnir_config_t;
-    signal start_config : std_logic;
+    signal start_config : std_logic := '0';
     signal config_done : std_logic;
     signal spi : spi_t;
 
-    constant spi_output_size : integer := 48;  -- 3 * 16
-	signal spi_output : std_logic_vector (0 to spi_output_size-1);
+    constant n_spi_instructions : integer := 33;
+    constant spi_max_addr : integer := 127;
+
+    type reg_t is array (integer range <>) of logic8_t;
+    signal reg : reg_t(0 to spi_max_addr);
 
     component sensor_configurer is
     port (	
@@ -46,7 +50,8 @@ architecture tests of sensor_configurer_tb is
         start_config    : in std_logic;
         config_done     : out std_logic;	
         spi_out			: out spi_from_master_t;
-        spi_in			: in spi_to_master_t
+        spi_in			: in spi_to_master_t;
+        sensor_reset    : out std_logic
     );
     end component sensor_configurer;
 begin
@@ -59,21 +64,34 @@ begin
 
     -- Group SPI output into 48-bit std logic vectors for easy verification
     collect_spi_output : process (spi)
-        variable i			: integer := 0;
-        variable out_tmp	: std_logic_vector(0 to spi_output_size-1);	
+        variable i : integer := 0;
+        variable word : logic16_t;
+        variable addr : logic7_t;
+        variable value : logic8_t;
     begin
-        if rising_edge(spi.from_master.clock) then		
-            out_tmp(i) := spi.from_master.data;
-            i := i + 1;
-            if (i = spi_output_size) then			
-                spi_output <= out_tmp;
-                i := 0;
+        if rising_edge(spi.from_master.clock) then
+            if spi.from_master.slave_select = '0' then
+                word(15-i) := spi.from_master.data;
+                i := i + 1;
+                if (i = word'length) then
+                    addr := word(14 downto 8);
+                    value := word(7 downto 0);
+                    reg(to_integer(unsigned(addr))) <= value;
+                    i := 0;
+                end if;
             end if;
         end if;
     end process collect_spi_output;
 
     test : process
     begin
+        wait until rising_edge(clock);
+        reset_n <= '1';
+        wait until rising_edge(clock);
+        start_config <= '1';
+        wait until rising_edge(clock);
+        start_config <= '0';
+        wait until rising_edge(clock) and config_done = '1';
 
         -- TODO: tests go here
 

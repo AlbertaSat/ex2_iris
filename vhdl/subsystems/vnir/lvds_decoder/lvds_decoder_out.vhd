@@ -39,7 +39,7 @@ end entity lvds_decoder_out;
 architecture rtl of lvds_decoder_out is
     signal aligned_in : std_logic;
     signal control_in : vnir_pixel_t;
-    signal data_in : vnir_pixel_vector_t(vnir_lvds_data_width-1 downto 0);
+    signal data_in : vnir_pixel_vector_t(vnir_lvds_n_channels-1 downto 0);
 
     pure function is_aligned(fifo_data : fifo_data_t) return boolean is
     begin

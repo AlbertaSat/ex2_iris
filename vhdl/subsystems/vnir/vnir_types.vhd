@@ -23,7 +23,7 @@ package vnir_types is
 
     constant vnir_pixel_bits : integer := 10;
     constant vnir_row_width  : integer := 2048;
-    constant vnir_lvds_data_width : integer := 16;
+    constant vnir_lvds_n_channels : integer := 16;
     
     subtype vnir_pixel_t is unsigned(vnir_pixel_bits-1 downto 0);
     type vnir_pixel_vector_t is array(integer range <>) of vnir_pixel_t;
@@ -40,6 +40,8 @@ package vnir_types is
         hi  : integer range 0 to vnir_row_width-1;
     end record vnir_window_t;
 
+    type vnir_flip_t is (FLIP_NONE, FLIP_X, FLIP_Y, FLIP_XY);
+
     type vnir_config_t is record
         start_config     : std_logic;
         window_blue      : vnir_window_t;
@@ -47,12 +49,14 @@ package vnir_types is
         window_nir       : vnir_window_t;
         imaging_duration : integer;
         fps              : integer;
+        exposure_time    : integer;
+        flip             : vnir_flip_t;
     end record vnir_config_t;
 
     type vnir_lvds_t is record
         clock     : std_logic;
         control   : std_logic;
-        data      : std_logic_vector (vnir_lvds_data_width-1 downto 0);
+        data      : std_logic_vector (vnir_lvds_n_channels-1 downto 0);
     end record vnir_lvds_t;
 
     type vnir_control_t is record
@@ -68,7 +72,7 @@ package vnir_types is
     
     type vnir_parallel_lvds_t is record
         control : vnir_control_t;
-        data : vnir_pixel_vector_t (vnir_lvds_data_width-1 downto 0);
+        data : vnir_pixel_vector_t (vnir_lvds_n_channels-1 downto 0);
     end record vnir_parallel_lvds_t;
 
     pure function size(window : vnir_window_t) return integer;
