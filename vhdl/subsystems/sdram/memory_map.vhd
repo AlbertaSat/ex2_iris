@@ -33,14 +33,14 @@ entity memory_map is
 
         --SDRAM config signals to and from the FPGA
         config              : in sdram_config_to_sdram_t;
-        filled_addresses    : out sdram_partitions_t;
+        memory_state        : out sdram_partitions_t;
 
         start_config        : in std_logic;
         config_done         : out std_logic;
 
         --Image Config signals
-        number_swir_rows    : in integer range 0 to integer'high;
-        number_vnir_rows    : in integer range 0 to integer'high;
+        number_swir_rows    : in natural;
+        number_vnir_rows    : in natural;
 
         --Ouput image row address config
         next_row_type       : in sdram_next_row_fed;
@@ -55,55 +55,74 @@ end entity memory_map;
 architecture rtl of memory_map is
     --FSM signals
     type t_state is (init, sys_config, idle, img_config, row_assign, mpu_check);
-    signal state : t_state;
+    signal state : t_state := init;
 
-    --Creating a function that automatically does memory placing
-    function place_data(filled_addresses : sdram_partitions_t, bounds : sdram_partitions_t)
+    --Variables detailing the amount of rows left in the imaging proces
+    signal red_rows_left    : natural   := 0;
+    signal blue_rows_left   : natural   := 0;
+    signal nir_rows_left    : natural   := 0;
+    signal swir_rows_left   : natural   := 0;
+
+    signal vnir_size        : natural   := 0;
+    signal swir_size        : natural   := 0;
+
+    --Start addresses for the images
+    signal vnir_start_address   : natural := 0;
+    signal swir_start_address   : natural := 0;
+
+    --Flag for whether or not the memory location for the swir header has been sent
+    signal swir_header_sent : std_logic := '0';
+
+    --Checks if the image will overflow the position, returns 1 if it does
+    function check_overflow(partition : partition_t, bit_size : natural) return std_logic is
+    begin
+        if (partition.filled_bounds + bit_size / 16 > partition.bounds) then
+            return '1';
+        else
+            return '0';
+        end if;
+    end function check_overflow;
+    
+    --Checks if the image won't fit in the memory because it is too full, returns 1 if it does
+    function check_full(partition : partition_t, bit_size : natural, start_address : natural) return std_logic is
+    begin
+        if (start_address <= partition.fill_base and start_address + bit_size / 16 >= partition.fill_base) then
+            return '1';
+        else
+            return '0';
+        end if;
+    end function check_full;
+
 begin
 
     --The main process for everything
     main_process : process (clock, reset) is
-        --A variable defining the VHDL internal partitions in the memory
-        variable sdram_partitions : sdram_partitions_t;
-
-        --Variables detailing the amount of rows left in the imaging proces
-        variable vnir_rows_left   : integer             := 0;
-        variable swir_rows_left   : integer             := 0;
-
-        variable swir_header_sent : std_logic           := '0';
+        --A zero mem array for easy init
+        constant zero_mem : partition_t := (
+            base        => 0,
+            bounds      => 0,
+            fill_base   => 0,
+            fill_bounds => 0
+        );
     begin
         if rising_edge(clock) then
             if (reset_n = '0') then
                 --If reset is asserted, initializing and writing everything to 0
                 state <= init;
 
-                sdram_error <= NO_ERROR;
-                row_address <= 0;
-                config_done <= '0';
-                filled_addresses <= (
-                    swir_base           => 0,
-                    swir_bounds         => 0,
-                    swir_temp_base      => 0,
-                    swir_temp_bounds    => 0,
-                    vnir_base           => 0,
-                    vnir_bounds         => 0,
-                    vnir_temp_base      => 0,
-                    vnir_temp_bounds    => 0
-                );
-                sdram_partition := (
-                    swir_base           => 0,
-                    swir_bounds         => 0,
-                    swir_temp_base      => 0,
-                    swir_temp_bounds    => 0,
-                    vnir_base           => 0,
-                    vnir_bounds         => 0,
-                    vnir_temp_base      => 0,
-                    vnir_temp_bounds    => 0
-                );
-            
             else
                 case state is
                     when init =>
+                        sdram_error <= NO_ERROR;
+                        row_address <= (0, 0);
+                        config_done <= '0';
+                        memory_state <= (
+                            vnir        => zero_mem,
+                            swir        => zero_mem,
+                            vnir_temp   => zero_mem,
+                            swir_temp   => zero_mem
+                        );
+
                         --Init just waits for start_config signal to start the configuration of the SDRAM
                         if start_config = '1' then
                             state <= sys_config;
@@ -112,28 +131,27 @@ begin
                     when sys_config =>
                         --Creating the minimum and maximum locations for vnir and swir images
                         --TODO: Create a mapping process with the sizes of each taken into account
-                        sdram_parition.vnir_base            := config.memory_base; 
-                        sdram_parition.vnir_bounds          := config.memory_bounds / 2;
-                        sdram_parition.swir_base            := vnir_max + 1;
-                        sdram_parition.swir_bounds          := config.memory_bounds * 8 / 10;
-                        sdram_parition.vnir_temp_base       := swir_max + 1;
-                        sdram_parition.vnir_temp_bounds     := config.memory_bounds * 9 / 10;
-                        sdram_parition.swir_temp_base       := vnir_temp_max + 1;
-                        sdram_parition.swir_temp_bounds     := config.memory_bounds;
+                        memory_state.vnir.base            := config.memory_base; 
+                        memory_state.vnir.bounds          := config.memory_bounds / 2;
+                        memory_state.swir.base            := config.memory_bounds / 2;
+                        memory_state.swir.bounds          := config.memory_bounds * 8 / 10;
+                        memory_state.vnir_temp.base       := config.memory_bounds * 8 / 10;
+                        memory_state.vnir_temp.bounds     := config.memory_bounds * 9 / 10;
+                        memory_state.swir_temp.base       := config.memory_bounds * 9 / 10;
+                        memory_state.swir_temp.bounds     := config.memory_bounds;
 
                         --Setting the output signals to say each subparition is empty
-                        filled_addresses.vnir_base          <= sdram_parition.vnir_base;
-                        filled_addresses.vnir_bounds        <= sdram_parition.vnir_base;
-                        filled_addresses.swir_base          <= sdram_parition.swir_base;
-                        filled_addresses.swir_bounds        <= sdram_parition.swir_base;
-                        filled_addresses.vnir_temp_base     <= sdram_parition.vnir_temp_base;
-                        filled_addresses.vnir_temp_bounds   <= sdram_parition.vnir_temp_base;
-                        filled_addresses.swir_temp_base     <= sdram_parition.swir_temp_base;
-                        filled_addresses.swir_temp_bounds   <= sdram_parition.swir_temp_base; 
+                        memory_state.vnir.filled_base          <= config.memory_base;
+                        memory_state.vnir.filled_bounds        <= config.memory_base;
+                        memory_state.swir.filled_base          <= config.memory_bounds / 2;
+                        memory_state.swir.filled_bounds        <= config.memory_bounds / 2;
+                        memory_state.vnir_temp.filled_base     <= config.memory_bounds * 8 / 10;
+                        memory_state.vnir_temp.filled_bounds   <= config.memory_bounds * 8 / 10;
+                        memory_state.swir_temp.filled_base     <= config.memory_bounds * 9 / 10;
+                        memory_state.swir_temp.filled_bounds   <= config.memory_bounds * 9 / 10;
 
                         --Setting the next state
                         state <= idle;
-                        config_done <= '1';
                     
                     when idle =>
                         --Idle state is really only for monitoring signals that change the state of the memory map
@@ -141,6 +159,15 @@ begin
                             state <= mpu_check;
                         elsif (number_vnir_rows /= 0 or number_swir_rows /= 0)
                             state <= imaging_config;
+
+                            --Configuring variables for the image
+                            swir_rows_left <= number_swir_rows;
+                            red_rows_left  <= number_vnir_rows;
+                            blue_rows_left <= number_vnir_rows;
+                            nir_rows_left  <= number_vnir_rows;
+
+                            vnir_size <= 160 + number_vnir_rows * 3 * 2048 * 10;
+                            swir_size <= 160 + number_swir_rows * 512 * 16;
                         end if;
 
                     when mpu_check =>
@@ -149,18 +176,42 @@ begin
                     
                     when imaging_config =>
                         if swir_header_sent = '0' then
-                            --Using the rows in to configure the amount of rows left 
-                            swir_rows_left := number_swir_rows;
-                            vnir_rows_left := number_vnir_rows;
+                            --Checking to see where the images should go in the partitions
+                            if check_overflow(memory_state.vnir, vnir_size) then
+                                --Checking to see if the memory is too full, if it is, send it back to idle with error
+                                if check_full(memory_state.vnir, vnir_size, memory_state.vnir.base) then
+                                    sdram_error <= full;
+                                    state <= idle;
+                                else
+                                    row_address <= memory_state.vnir.base;
+                                    vnir_start_address <= memory_state.vnir.base;
+                                    memory_state.vnir.bounds <= filled_addresses.vnir_bounds + 10;
+                                end if;
+                            else
+                                --Since the overflow is checked first, no need to check if full
+                                row_address <= memory_state.vnir.filled_bounds + 1;
+                                vnir_start_address <= memory_state.vnir.filled_bounds + 1;
+                                memory_state.vnir.bounds <= filled_addresses.vnir_bounds + 10;
+                            end if;
 
-                            row_address := (filled_addresses.vnir_bounds;
-
-                            filled_addresses.vnir_bounds <= filled_addresses.vnir_bounds + 10;
                         else
-                            row_address := filled_addresses.vnir_bounds;
-
-                            filled_addresses.swir_bounds <= filled_addresses.swir_bounds + 10;
-                            state <= row_assign;
+                            --Checking to see where the images should go in the partitions
+                            if check_overflow(memory_state.swir, swir_size) then
+                                --Checking to see if the memory is too full, if it is, send it back to idle with error
+                                if check_full(memory_state.swir, swir_size, memory_state.swir.base) then
+                                    sdram_error <= full;
+                                    state <= idle;
+                                else
+                                    row_address <= memory_state.swir.base;
+                                    swir_start_address <= memory_state.swir.base;
+                                    memory_state.swir.bounds <= filled_addresses.swir_bounds + 10;
+                                end if;
+                            else
+                                --Since the overflow is checked first, no need to check if full
+                                row_address <= memory_state.swir.filled_bounds + 1;
+                                swir_start_address <= memory_state.swir.filled_bounds + 1;
+                                memory_state.swir.bounds <= filled_addresses.swir_bounds + 10;
+                            end if;
                         end if;
 
                     when row_assign =>
