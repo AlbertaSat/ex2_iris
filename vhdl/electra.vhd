@@ -28,6 +28,7 @@ use work.fpga_types.all;
 entity electra is
 port (
     clock                    : in std_logic;
+    ref_clock                : in std_logic;
 
     -- vnir <=> sensor
     vnir_sensor_clock        : out std_logic;
@@ -65,6 +66,11 @@ architecture rtl of electra is
         clock_clk                : in  std_logic;
         reset_reset_n            : in  std_logic;
 
+        ref_clock_clk            : in std_logic;
+
+        vnir_sensor_clock_clk    : out std_logic;
+        vnir_sensor_clock_locked_export : out std_logic;
+
         sdram_write_address      : in  std_logic_vector(28 downto 0);
         sdram_write_burstcount   : in  std_logic_vector(7 downto 0);
         sdram_write_waitrequest  : out std_logic;
@@ -99,21 +105,22 @@ architecture rtl of electra is
 
     component vnir_subsystem
     port (
-        clock           : in std_logic;
-        reset_n         : in std_logic;
-        config          : in vnir_config_t;
-        config_done     : out std_logic;
-        do_imaging      : in std_logic;
-        num_rows        : out integer;
-        rows            : out vnir_rows_t;
-        rows_available  : out std_logic;
-        sensor_clock    : out std_logic;
-        sensor_reset    : out std_logic;
-        spi_out         : out spi_from_master_t;
-        spi_in          : in spi_to_master_t;
-        frame_request   : out std_logic;
-        lvds            : in vnir_lvds_t
+        clock               : in std_logic;
+        reset_n             : in std_logic;
+        sensor_clock        : in std_logic;
+        sensor_clock_locked : in std_logic;
+        sensor_reset        : out std_logic;
+        config              : in vnir_config_t;
+        config_done         : out std_logic;
+        do_imaging          : in std_logic;
+        num_rows            : out integer;
+        row                 : out vnir_row_t;
+        row_available       : out vnir_row_type_t;
+        spi_out             : out spi_from_master_t;
+        spi_in              : in spi_to_master_t;
+        frame_request       : out std_logic;
         exposure_start      : out std_logic;
+        lvds                : in vnir_lvds_t
     );
     end component;
 
@@ -182,6 +189,10 @@ architecture rtl of electra is
     -- fpga <=> vnir, swir
     signal do_imaging : std_logic;
 
+    -- SoC system <=> vnir
+    signal vnir_sensor_clock : std_logic;
+    signal vnir_sensor_clock_locked : std_logic;
+
     -- fpga <=> vnir
     signal vnir_config : vnir_config_t;
     signal vnir_config_done : std_logic;
@@ -231,6 +242,9 @@ begin
     soc_system_component : soc_system port map (
         clock_clk => clock,
         reset_reset_n => reset_n,
+        ref_clock_clk => ref_clock,
+        vnir_sensor_clock_clk => vnir_sensor_clock,
+        vnir_sensor_clock_locked_export => vnir_sensor_clock_locked,
         sdram_write_address => sdram_avalon.from_master.w.address,
         sdram_write_burstcount => sdram_avalon.from_master.w.burst_count,
         sdram_write_waitrequest => sdram_avalon.to_master.w.wait_request,
@@ -264,12 +278,13 @@ begin
     vnir_subsystem_component : vnir_subsystem port map (
         clock => clock,
         reset_n => reset_n,
+        sensor_clock => vnir_sensor_clock,
+        sensor_clock_locked => vnir_sensor_clock_locked,
+        sensor_reset => vnir_sensor_reset,
         config => vnir_config,
         config_done => vnir_config_done,
         do_imaging => do_imaging,
         num_rows => vnir_num_rows,
-        sensor_clock => vnir_sensor_clock,
-        sensor_reset => vnir_sensor_reset,
         row => vnir_row,
         row_available => vnir_row_available,
         spi_out => vnir_spi_out,
