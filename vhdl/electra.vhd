@@ -190,7 +190,7 @@ architecture rtl of electra is
     signal do_imaging : std_logic;
 
     -- SoC system <=> vnir
-    signal vnir_sensor_clock : std_logic;
+    signal vnir_sensor_clock_s : std_logic;
     signal vnir_sensor_clock_locked : std_logic;
 
     -- fpga <=> vnir
@@ -243,7 +243,7 @@ begin
         clock_clk => clock,
         reset_reset_n => reset_n,
         ref_clock_clk => ref_clock,
-        vnir_sensor_clock_clk => vnir_sensor_clock,
+        vnir_sensor_clock_clk => vnir_sensor_clock_s,
         vnir_sensor_clock_locked_export => vnir_sensor_clock_locked,
         sdram_write_address => sdram_avalon.from_master.w.address,
         sdram_write_burstcount => sdram_avalon.from_master.w.burst_count,
@@ -278,7 +278,7 @@ begin
     vnir_subsystem_component : vnir_subsystem port map (
         clock => clock,
         reset_n => reset_n,
-        sensor_clock => vnir_sensor_clock,
+        sensor_clock => vnir_sensor_clock_s,
         sensor_clock_locked => vnir_sensor_clock_locked,
         sensor_reset => vnir_sensor_reset,
         config => vnir_config,
@@ -347,5 +347,7 @@ begin
         image_request => image_request,
         imaging_duration => imaging_duration
     );
+
+    vnir_sensor_clock <= vnir_sensor_clock_s;
 
 end architecture rtl;
