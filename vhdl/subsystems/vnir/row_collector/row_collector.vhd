@@ -27,17 +27,19 @@ use work.integer_types.all;
 entity row_collector is
 port (
     clock               : in std_logic;
+    reset_n             : in std_logic;
 
     config              : in vnir_config_t;
     read_config         : in std_logic;
 
     start               : in std_logic;
+    image_length        : in integer;
 
     fragment            : in fragment_t;
     fragment_available  : in std_logic;
 
-    rows                : out vnir_rows_t;
-    rows_available      : out std_logic
+    row                 : out vnir_row_t;
+    row_available       : out vnir_row_type_t
 );
 end entity row_collector;
 
@@ -53,6 +55,7 @@ architecture rtl of row_collector is
         clock           : in std_logic;
         read_data       : out std_logic_vector(word_size-1 downto 0);
         read_address    : in std_logic_vector(address_size-1 downto 0);
+        read_enable     : in std_logic;
         write_data      : in std_logic_vector(word_size-1 downto 0);
         write_address   : in std_logic_vector(address_size-1 downto 0);
         write_enable    : in std_logic
@@ -61,7 +64,7 @@ architecture rtl of row_collector is
 
     type vnir_window_vector_t is array (integer range <>) of vnir_window_t;
 
-    constant address_bits : integer := 9;
+    constant address_bits : integer := 20;
     subtype address_t is std_logic_vector(address_bits-1 downto 0);
 
     constant sum_bits : integer := 21;  -- 2048 10-bit integers added together take 21 bits.
@@ -102,11 +105,13 @@ architecture rtl of row_collector is
     pure function to_address(index : fragment_idx_t; windows : vnir_window_vector_t) return address_t is
         variable row_position : integer;
         variable row_index : integer;
+        variable row_index_range : integer;
         variable address_i : integer;
     begin
         assert x_pos(index, windows) >= 0;
-        row_index := x_pos(index, windows) rem max(index.rows_per_window);
-        address_i :=  max(index.rows_per_window) * index.window
+        row_index_range := max(index.rows_per_window);
+        row_index := x_pos(index, windows) rem row_index_range;
+        address_i :=  row_index_range * index.fragments_per_row * index.window
                     + index.fragments_per_row * row_index
                     + index.fragment;
         return to_address(address_i);
@@ -116,7 +121,7 @@ architecture rtl of row_collector is
         variable p : sum_pixel_t;
     begin
         p := (others => '0');
-        p(u'length-1 downto 0) := std_logic_vector(u);
+        p(u'range) := std_logic_vector(u);
         return p;
     end function to_sum_pixel;
 
@@ -177,6 +182,7 @@ architecture rtl of row_collector is
     -- RAM signals
     signal read_data : sum_pixel_vector_t(vnir_lvds_n_channels-1 downto 0);
     signal read_address : address_t;
+    signal read_enable : std_logic;
     signal write_data : sum_pixel_vector_t(vnir_lvds_n_channels-1 downto 0);
     signal write_address : address_t;
     signal write_enable : std_logic;
@@ -197,41 +203,57 @@ begin
         end if;
     end process config_process;
 
-    -- Pipeline stage 0: calculate fragment indices (fragment #, row #, etc.)
+    -- Pipeline stage 0: calculate fragment indices (fragment #, row #, etc.).
+    -- Filter out any rows that are out of bounds. Request the last value of the
+    -- stored sums corresponding to the fragment's location
     p0 : process
         variable index : fragment_idx_t;
+        variable max_x : integer;
+        variable x : integer;
     begin
         wait until rising_edge(clock);
         
         p0_done <= '0';
+        read_enable <= '0';
+        read_address <= (others => '0');  -- Get rid of some annoying warnings
 
-        if start = '1' then
-            index := initial_index(windows);
-        end if;
-        if fragment_available = '1' then
-            fragment_p0 <= fragment;
-            index_p0 <= index;
-            p0_done <= '1';
-            increment(index);
+        if reset_n = '1' then
+            if start = '1' then
+                index := initial_index(windows);
+                max_x := image_length - 1;
+            end if;
+            if fragment_available = '1' then
+                -- Filter out rows outside of image boundaries
+                x := x_pos(index, windows);
+                if 0 <= x and x <= max_x then
+                    -- Make previous sum available for next pipeline stage
+                    if index.row > 0 then
+                        read_address <= to_address(index, windows);
+                        read_enable <= '1';
+                    end if;
+                    -- Advance to next pipeline stage
+                    fragment_p0 <= fragment;
+                    index_p0 <= index;
+                    p0_done <= '1';
+                end if;
+                increment(index);
+            end if;
         end if;
     end process p0;
 
-    -- Pipeline stage 1: request the last value of the sum corresponding to this fragment
+    -- Pipeline stage 1: delay until the sum is ready
     p1 : process
     begin
         wait until rising_edge(clock);
-
         p1_done <= '0';
-
-        if p0_done = '1' and x_pos(index_p0, windows) >= 0 then
-            read_address <= to_address(index_p0, windows);
+        if reset_n = '1' and p0_done = '1' then
             fragment_p1 <= fragment_p0;
             index_p1 <= index_p0;
-            p1_done <= '1';
+            p1_done <= p0_done;
         end if;
     end process p1;
 
-    -- Pipeline stage 2: read in the sum requested in pipeline stage 2, and update it
+    -- Pipeline stage 2: read in the sum requested in pipeline stage 0, and update it
     -- by adding this fragment to it. Write the result back into RAM. Possibly compute the
     -- average from the sum and export it to the next pipeline stage.
     p2 : process
@@ -239,57 +261,59 @@ begin
     begin
         wait until rising_edge(clock);
 
-        write_enable <= '0';
         p2_done <= '0';
+        write_enable <= '0';
+        write_address <= (others => '0');  -- Get rid of some annoying warnings
 
-        if p1_done = '1' then
-            -- Write to RAM
-            if index_p1.row = 0 then
-                sum := to_sum_pixels(fragment_p1);
-            else
-                sum := to_sum_pixels(fragment_p1) + read_data;
-            end if;
-            write_address <= to_address(index_p1, windows);
-            write_data <= sum;
-            write_enable <= '1';
+        if reset_n = '1' then
+            if p1_done = '1' then
+                -- Add to running sum
+                if index_p1.row = 0 then
+                    sum := to_sum_pixels(fragment_p1);
+                else
+                    sum := to_sum_pixels(fragment_p1) + read_data;
+                end if;
 
-            -- Average
-            if is_last_row(index_p1) then
-                fragment_p2 <= to_vnir_pixels(sum / window_size(index_p1));
-                index_p2 <= index_p1;
-                p2_done <= '1';
+                -- Write new running sum to RAM
+                write_address <= to_address(index_p1, windows);
+                write_data <= sum;
+                write_enable <= '1';
+
+                -- If this is the last row of the window, compute the average from the sum
+                if is_last_row(index_p1) then
+                    fragment_p2 <= to_vnir_pixels(sum / window_size(index_p1));
+                    index_p2 <= index_p1;
+                    p2_done <= '1';
+                end if;
             end if;
         end if;
     end process p2;
 
     -- Pipeline stage 3: collect the averaged fragments from the previous pipeline stage into
-    -- rows. When a row of each colour has been recieved, export the rows to the "rows" port,
-    -- asserting "rows_available".
+    -- rows.
     p3 : process
-        variable row : vnir_row_t;
         variable offset : integer;
         variable stride : integer;
     begin
         wait until rising_edge(clock);
 
-        rows_available <= '0';
+        row_available <= ROW_NONE;
 
-        if p2_done = '1' then
-            offset := index_p2.fragment;
-            stride := index_p2.fragments_per_row;
-            for i in fragment_p2'range loop
-                row(offset + i * stride) := fragment_p2(i);
-            end loop;
-            if is_last_fragment(index_p2) then
-                case index_p2.window is
-                    when 0 => rows.nir <= row;
-                    when 1 => rows.blue <= row;
-                    when 2 => rows.red <= row;
-                    when others =>
-                        report "Invalid row detected in row_averager.p3" severity failure;
-                end case;
-                if is_last_window(index_p2) then
-                    rows_available <= '1';
+        if reset_n = '1' then
+            if p2_done = '1' then
+                offset := index_p2.fragment;
+                stride := index_p2.fragments_per_row;
+                for i in fragment_p2'range loop
+                    row(offset + i * stride) <= fragment_p2(i);
+                end loop;
+                if is_last_fragment(index_p2) then
+                    case index_p2.window is
+                        when 0 => row_available <= ROW_NIR;
+                        when 1 => row_available <= ROW_BLUE;
+                        when 2 => row_available <= ROW_RED;
+                        when others =>
+                            report "Invalid window detected in row_collector.p3" severity failure;
+                    end case;
                 end if;
             end if;
         end if;
@@ -306,6 +330,7 @@ begin
             clock => clock,
             read_data => read_data(i),
             read_address => read_address,
+            read_enable => read_enable,
             write_data => write_data(i),
             write_address => write_address,
             write_enable => write_enable

@@ -30,6 +30,7 @@ port (
     clock           : in std_logic;
     read_data       : out std_logic_vector(word_size-1 downto 0);
     read_address    : in std_logic_vector(address_size-1 downto 0);
+    read_enable     : in std_logic;
     write_data      : in std_logic_vector(word_size-1 downto 0);
     write_address   : in std_logic_vector(address_size-1 downto 0);
     write_enable    : in std_logic
@@ -45,26 +46,27 @@ begin
         address_reg_b => "CLOCK0",
         clock_enable_input_a => "BYPASS",
         clock_enable_input_b => "BYPASS",
-		clock_enable_output_b => "BYPASS",
+        clock_enable_output_b => "BYPASS",
         intended_device_family => "Cyclone V",
         lpm_type => "altsyncram",
-		numwords_a => 2 ** address_size,
-		numwords_b => 2 ** address_size,
-		operation_mode => "DUAL_PORT",
-		outdata_aclr_b => "NONE",
-		outdata_reg_b => "CLOCK0",
+        numwords_a => 2 ** address_size,
+        numwords_b => 2 ** address_size,
+        operation_mode => "DUAL_PORT",
+        outdata_aclr_b => "NONE",
+        outdata_reg_b => "CLOCK0",
         power_up_uninitialized => "TRUE",
         read_during_write_mode_mixed_ports => "DONT_CARE",
-		widthad_a => address_size,
-		widthad_b => address_size,
-		width_a => word_size,
-		width_b => word_size,
-		width_byteena_a => 1
+        widthad_a => address_size,
+        widthad_b => address_size,
+        width_a => word_size,
+        width_b => word_size,
+        width_byteena_a => 1
     ) port map (
         address_a => write_address,
         address_b => read_address,
         clock0 => clock,
         data_a => write_data,
+        rden_b => read_enable,
         wren_a => write_enable,
         q_b => read_data
     );
