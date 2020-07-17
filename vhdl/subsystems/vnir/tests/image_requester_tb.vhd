@@ -29,28 +29,30 @@ architecture tests of image_requester_tb is
     signal clock            : std_logic := '0';  -- Main clock
     signal reset_n          : std_logic := '1';  -- Main reset
     signal config           : vnir_config_t;
-    signal start_config     : std_logic := '0';
+    signal read_config      : std_logic := '0';
     signal num_frames       : integer;
     signal do_imaging       : std_logic := '0';
     signal imaging_done     : std_logic;
     signal sensor_clock     : std_logic := '0';
     signal sensor_reset     : std_logic := '0';
     signal frame_request    : std_logic;
+    signal exposure_start   : std_logic;
     
     component image_requester is
     generic (
-        clocks_per_sec  : integer
+        clocks_per_sec      : integer
     );
     port (
-        clock           : in std_logic;
-        reset_n         : in std_logic;
-        config          : in vnir_config_t;
-        start_config    : in std_logic;
-        num_frames      : out integer;
-        do_imaging      : in std_logic;
-        imaging_done    : out std_logic;
-        sensor_clock    : in std_logic;
-        frame_request   : out std_logic
+        clock               : in std_logic;
+        reset_n             : in std_logic;
+        config              : in vnir_config_t;
+        read_config         : in std_logic;
+        num_frames          : out integer;
+        do_imaging          : in std_logic;
+        imaging_done        : out std_logic;
+        sensor_clock        : in std_logic;
+        frame_request       : out std_logic;
+        exposure_start      : out std_logic
     ); 
 	end component;
 
@@ -87,7 +89,7 @@ begin
         
         config.imaging_duration <= 1000;
         config.fps <= 30;
-        start_config <= '1'; wait until rising_edge(clock); start_config <= '0';
+        read_config <= '1'; wait until rising_edge(clock); read_config <= '0';
 
         do_imaging <= '1'; wait until rising_edge(clock); do_imaging <= '0';
         
@@ -101,12 +103,13 @@ begin
         clock => clock,
         reset_n => reset_n,
         config => config,
-        start_config => start_config,
+        read_config => read_config,
         num_frames => num_frames,
         do_imaging => do_imaging,
         imaging_done => imaging_done,
         sensor_clock => sensor_clock,
-        frame_request => frame_request
+        frame_request => frame_request,
+        exposure_start => exposure_start
     );
 
 end tests;

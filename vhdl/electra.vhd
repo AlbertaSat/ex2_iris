@@ -35,6 +35,7 @@ port (
     vnir_spi_out             : out spi_from_master_t;
     vnir_spi_in              : in spi_to_master_t;
     vnir_frame_request       : out std_logic;
+    vnir_exposure_start      : out std_logic;
     vnir_lvds                : in vnir_lvds_t;
     
     -- From QSys
@@ -112,6 +113,7 @@ architecture rtl of electra is
         spi_in          : in spi_to_master_t;
         frame_request   : out std_logic;
         lvds            : in vnir_lvds_t
+        exposure_start      : out std_logic;
     );
     end component;
 
@@ -273,6 +275,7 @@ begin
         spi_out => vnir_spi_out,
         spi_in => vnir_spi_in,
         frame_request => vnir_frame_request,
+        exposure_start => vnir_exposure_start,
         lvds => vnir_lvds
     );
 

@@ -35,7 +35,7 @@ port (
     imaging_done        : out std_logic;
     sensor_clock        : in std_logic;
     frame_request       : out std_logic;
-    exposure_start    : out std_logic
+    exposure_start      : out std_logic
 );
 end entity image_requester;
 

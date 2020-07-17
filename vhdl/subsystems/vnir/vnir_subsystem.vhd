@@ -45,6 +45,7 @@ port (
     spi_in              : in spi_to_master_t;
     
     frame_request       : out std_logic;
+    exposure_start      : out std_logic;
     lvds                : in vnir_lvds_t
 );
 end entity vnir_subsystem;
@@ -100,7 +101,8 @@ architecture rtl of vnir_subsystem is
         do_imaging      : in std_logic;
         imaging_done    : out std_logic;
         sensor_clock    : in std_logic;
-        frame_request   : out std_logic
+        frame_request   : out std_logic;
+        exposure_start  : out std_logic
     );
     end component image_requester;
 
@@ -211,7 +213,8 @@ begin
         do_imaging => do_imaging,  -- TODO: might want to use a registered input here
         imaging_done => imaging_done,
         sensor_clock => sensor_clock,
-        frame_request => frame_request
+        frame_request => frame_request,
+        exposure_start => exposure_start
     );
 
     lvds_decoder_component : lvds_decoder port map (
