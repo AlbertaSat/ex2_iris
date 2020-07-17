@@ -55,6 +55,7 @@ begin
         outdata_aclr_b => "NONE",
         outdata_reg_b => "CLOCK0",
         power_up_uninitialized => "TRUE",
+        rdcontrol_reg_b => "CLOCK0",
         read_during_write_mode_mixed_ports => "DONT_CARE",
         widthad_a => address_size,
         widthad_b => address_size,
