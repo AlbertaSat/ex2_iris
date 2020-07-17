@@ -50,25 +50,12 @@ package pulse_generator_pkg is
 
     pure function is_done (self : pulse_generator_t) return boolean;
 
-end package pulse_generator_pkg;
-
-
-library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-use work.pulse_generator_pkg.all;
-
-package pulse_generator_private is
+    -- Internal functions, do not use
     procedure step_delaying (self : inout pulse_generator_t);
     procedure step_running (self : inout pulse_generator_t);
-end package pulse_generator_private;
 
+end package pulse_generator_pkg;
 
-library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-use work.pulse_generator_pkg.all;
-use work.pulse_generator_private.all;
 
 package body pulse_generator_pkg is
     pure function pulse_generator_new(
@@ -119,16 +106,6 @@ package body pulse_generator_pkg is
         return self.state = IDLE;
     end function is_done;
 
-end package body pulse_generator_pkg;
-
-library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-use work.pulse_generator_pkg.all;
-use work.pulse_generator_private.all;
-
-package body pulse_generator_private is
-
     procedure step_delaying(self : inout pulse_generator_t) is
     begin
         if self.delay_remaining = 1 then
@@ -152,4 +129,4 @@ package body pulse_generator_private is
         end if;
     end procedure step_running;
 
-end package body pulse_generator_private;
+end package body pulse_generator_pkg;
