@@ -58,20 +58,23 @@ architecture rtl of memory_map is
     signal state : t_state := init;
 
     --Variables detailing the amount of rows left in the imaging proces
-    signal red_rows_left    : natural   := 0;
-    signal blue_rows_left   : natural   := 0;
-    signal nir_rows_left    : natural   := 0;
-    signal swir_rows_left   : natural   := 0;
+    signal red_rows_left        : natural := 0;
+    signal blue_rows_left       : natural := 0;
+    signal nir_rows_left        : natural := 0;
+    signal swir_rows_left       : natural := 0;
 
-    signal vnir_size        : natural   := 0;
-    signal swir_size        : natural   := 0;
+    signal vnir_rows            : natural := 0;
+    signal swir_rows            : natural := 0;
+    
+    signal vnir_size            : natural := 0;
+    signal swir_size            : natural := 0;
 
     --Start addresses for the images
     signal vnir_start_address   : natural := 0;
     signal swir_start_address   : natural := 0;
 
     --Flag for whether or not the memory location for the swir header has been sent
-    signal swir_header_sent : std_logic := '0';
+    signal swir_header_sent     : std_logic := '0';
 
     --Checks if the image will overflow the position, returns 1 if it does
     function check_overflow(partition : partition_t, bit_size : natural) return std_logic is
@@ -98,12 +101,19 @@ begin
     --The main process for everything
     main_process : process (clock, reset) is
         --A zero mem array for easy init
-        constant zero_mem : partition_t := (
+        constant ZERO_MEM : partition_t := (
             base        => 0,
             bounds      => 0,
             fill_base   => 0,
             fill_bounds => 0
         );
+
+        --Constants for sizing information
+        ADDRESS_SIZE    : natural := 16;
+        HEADER_SIZE     : natural := 160;
+        VNIR_ROW_SIZE   : natural := 20480;
+        SWIR_ROW_SIZE   : natural := 8192;
+
     begin
         if rising_edge(clock) then
             if (reset_n = '0') then
@@ -113,14 +123,14 @@ begin
             else
                 case state is
                     when init =>
-                        sdram_error <= NO_ERROR;
+                        sdram_error <= no_error;
                         row_address <= (0, 0);
                         config_done <= '0';
                         memory_state <= (
-                            vnir        => zero_mem,
-                            swir        => zero_mem,
-                            vnir_temp   => zero_mem,
-                            swir_temp   => zero_mem
+                            vnir        => ZERO_MEM,
+                            swir        => ZERO_MEM,
+                            vnir_temp   => ZERO_MEM,
+                            swir_temp   => ZERO_MEM
                         );
 
                         --Init just waits for start_config signal to start the configuration of the SDRAM
@@ -166,8 +176,10 @@ begin
                             blue_rows_left <= number_vnir_rows;
                             nir_rows_left  <= number_vnir_rows;
 
-                            vnir_size <= 160 + number_vnir_rows * 3 * 2048 * 10;
-                            swir_size <= 160 + number_swir_rows * 512 * 16;
+                            vnir_size <= HEADER_SIZE + number_vnir_rows * 3 * VNIR_ROW_SIZE;
+                            swir_size <= HEADER_SIZE + number_swir_rows * SWIR_ROW_SIZE;
+                            vnir_rows <= number_vnir_rows;
+                            swir_rows <= number_swir_rows;
                         end if;
 
                     when mpu_check =>
@@ -185,13 +197,17 @@ begin
                                 else
                                     row_address <= memory_state.vnir.base;
                                     vnir_start_address <= memory_state.vnir.base;
-                                    memory_state.vnir.bounds <= filled_addresses.vnir_bounds + 10;
+                                    memory_state.vnir.fill_bounds <= memory_state.vnir.base + (HEADER_SIZE + VNIR_ROW_SIZE * 3) / ADDRESS_SIZE;
+
+                                    swir_header_sent <= '1';
                                 end if;
                             else
                                 --Since the overflow is checked first, no need to check if full
                                 row_address <= memory_state.vnir.filled_bounds + 1;
                                 vnir_start_address <= memory_state.vnir.filled_bounds + 1;
-                                memory_state.vnir.bounds <= filled_addresses.vnir_bounds + 10;
+                                memory_state.vnir.fill_bounds <= memory_state.vnir.filled_bounds + (HEADER_SIZE + VNIR_ROW_SIZE * 3) / ADDRESS_SIZE;
+
+                                swir_header_sent <= '1';
                             end if;
 
                         else
@@ -204,19 +220,42 @@ begin
                                 else
                                     row_address <= memory_state.swir.base;
                                     swir_start_address <= memory_state.swir.base;
-                                    memory_state.swir.bounds <= filled_addresses.swir_bounds + 10;
+                                    memory_state.swir.fill_bounds <= memory_state.swir.base + (HEADER_SIZE + SWIR_ROW_SIZE) / ADDRESS_SIZE;
+
+                                    state <= row_assign;
                                 end if;
                             else
                                 --Since the overflow is checked first, no need to check if full
                                 row_address <= memory_state.swir.filled_bounds + 1;
                                 swir_start_address <= memory_state.swir.filled_bounds + 1;
-                                memory_state.swir.bounds <= filled_addresses.swir_bounds + 10;
+                                memory_state.swir.fill_bounds <= filled_addresses.swir.fill_bounds + (HEADER_SIZE + SWIR_ROW_SIZE) / ADDRESS_SIZE;
+                                
+                                state <= row_assign;
                             end if;
                         end if;
 
                     when row_assign =>
-                        --TODO: Figure how to time this
-                        state <= idle;
+                        case next_row_type is
+                            when no_row =>
+                                --If no row is sent over, checking to see if there are no more lines to send
+                                if (nir_rows_left = 0 and red_rows_left = 0 and blue_rows_left = 0 and swir_rows_left = 0) then
+                                    state <= idle;
+                                end if;
+                            
+                            when blue_row =>
+                                --The blue rows are the first rows in the vnir images, so putting them right after the header
+                                row_address <= vnir_start_address + (HEADER_SIZE + (VNIR_ROW_SIZE * (vnir_rows - blue_rows_left))) / ADDRESS_SIZE;
+                                blue_rows_left <= blue_rows_left - 1;
+                                
+                            when red_row =>
+                                --The red rows are in the middle of the image
+                                row_address <= vnir_start_address + (HEADER_SIZE + (VNIR_ROW_SIZE * vnir_rows * 1) + (VNIR_ROW_SIZE * (vnir_rows - red_rows_left))) / ADDRESS_SIZE;
+                                red_rows_left <= red_rows_left - 1;
+
+                            when nir_row =>
+                                --The nir rows are the last rows in the vnir images
+                                row_address <= vnir_start_address + (HEADER_SIZE + (VNIR_ROW_SIZE * vnir_rows * 2) + (VNIR_ROW_SIZE * (vnir_rows - nir_rows_left))) / ADDRESS_SIZE;
+                                nir_rows_left <= nir_rows_left - 1;
                 end case;
             end if;
         end if;
