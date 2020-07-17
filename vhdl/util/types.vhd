@@ -238,20 +238,6 @@ package body integer_types is
         if a > b then return a; else return b; end if;
     end function max;
 
---    pure function max(v : integer_vector_t) return integer is
---    begin
---        if v'length = 1 then
---            return v(v'left);
---        elsif v'length = 2 then
---            return max(v(v'left), v(v'right));
---        else
---            return max(
---                max(v(v'left downto v'length / 2)),
---                max(v(v'length / 2 + 1 downto v'right))
---            );
---        end if;
---    end function max;
-
     pure function max(v : integer_vector_t) return integer is
         variable ret : integer;
     begin
