@@ -97,7 +97,7 @@ architecture rtl of vnir_subsystem is
         reset_n         : in std_logic;
         config          : in vnir_config_t;
         read_config     : in std_logic;
-        num_frames      : out integer;
+        image_length    : out integer;
         do_imaging      : in std_logic;
         imaging_done    : out std_logic;
         sensor_clock    : in std_logic;
@@ -135,6 +135,7 @@ architecture rtl of vnir_subsystem is
     signal pixels_available : std_logic;
     signal start_locking : std_logic;
     signal locking_done : std_logic;
+    signal image_length : integer;
 
 begin
 
@@ -209,7 +210,7 @@ begin
         reset_n => reset_n,
         config => config_reg,
         read_config => start_sensor_config,
-        num_frames => num_rows,  -- TODO: num_frames is NOT the same as num_rows, fix this
+        image_length => image_length,
         do_imaging => do_imaging,  -- TODO: might want to use a registered input here
         imaging_done => imaging_done,
         sensor_clock => sensor_clock,
@@ -233,12 +234,14 @@ begin
         config => config,
         read_config => start_sensor_config,
         start => do_imaging,
-        image_length => num_rows,
+        image_length => image_length,
         fragment => pixels,
         fragment_available => pixels_available,
         row => row,
         row_available => row_available
     );
+
+    num_rows <= image_length;
 
     debug : process (clock) is
         variable chunk : vnir_pixel_t;

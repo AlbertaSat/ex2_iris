@@ -30,7 +30,7 @@ port (
     reset_n             : in std_logic;
     config              : in vnir_config_t;
     read_config         : in std_logic;
-    num_frames          : out integer;
+    image_length        : out integer;
     do_imaging          : in std_logic;
     imaging_done        : out std_logic;
     sensor_clock        : in std_logic;
@@ -51,9 +51,14 @@ architecture rtl of image_requester is
     );
     end component cmd_cross_clock;
 
-    pure function calc_num_frames(config : vnir_config_t) return integer is
+    pure function calc_image_length(config : vnir_config_t) return integer is
     begin
         return config.fps * config.imaging_duration / 1000;
+    end function calc_image_length;
+    
+    pure function calc_num_frames(config : vnir_config_t) return integer is
+    begin
+        return calc_image_length(config) + config.window_red.hi - config.window_nir.lo;
     end function calc_num_frames;
 
     pure function calc_frame_request_offset(config : vnir_config_t) return integer is
@@ -92,11 +97,10 @@ begin
 
         case state is
         when RESET =>
-            num_frames <= 0;
+            image_length <= 0;
             state := IDLE;
         when IDLE =>
             if read_config = '1' then
-                -- TODO: frame_request_gen has a phase offset
                 frame_request_gen := pulse_generator_new (
                     config.fps,
                     calc_frame_request_offset(config),
@@ -108,7 +112,7 @@ begin
                     calc_num_frames(config),
                     clocks_per_sec
                 );
-                num_frames <= calc_num_frames(config);
+                image_length <= calc_image_length(config);
             end if;
             if do_imaging = '1' then
                 start(frame_request_gen);
