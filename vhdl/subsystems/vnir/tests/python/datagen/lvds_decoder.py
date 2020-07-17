@@ -16,8 +16,7 @@
 
 
 import numpy as np
-
-from util import *
+from pathlib import Path
 
 
 if __name__ == '__main__':
@@ -26,9 +25,16 @@ if __name__ == '__main__':
     READOUT_TIME = 10
     LVDS_WIDTH = 16
     BITS = 10
+    OUT_DIR = Path('../../out/lvds_decoder/')
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     data_idle = np.random.randint(0, 2**BITS, LVDS_WIDTH)
-    print(f'constant data_idle : lvds_data_t := {logic_vector2d_to_vhdl(data_idle, BITS)};')
+    data_idle_file = open(OUT_DIR / 'data_idle.out', 'w')
+    data_idle_file.write(' '.join(bin(word)[2:].zfill(BITS)
+                                  for word in data_idle) + '\n')
 
-    data_readout = np.random.randint(0, 2**BITS, (READOUT_TIME, LVDS_WIDTH))
-    print(f'constant data_transmit : lvds_data_vector_t := {logic_vector3d_to_vhdl(data_readout, BITS)};')
+    data_transmit = np.random.randint(0, 2**BITS, (READOUT_TIME, LVDS_WIDTH))
+    data_transmit_file = open(OUT_DIR / 'data_transmit.out', 'w')
+    for data in data_transmit:
+        data_transmit_file.write(' '.join(bin(word)[2:].zfill(BITS)
+                                          for word in data) + '\n')
