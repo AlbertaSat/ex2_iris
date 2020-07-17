@@ -22,11 +22,11 @@ use work.fpga_types.all;
 package sdram_types is
     type sdram_address_block_t is array (0 to 1) of natural;
     
-    type sdram_error_t is (NO_ERROR, FULL, MPU_CHECK_FAILED);
+    type sdram_error_t is (no_error, full, mpu_check_failed);
 
-    type vnir_row_available_t is (NO_ROW, BLUE_ROW, RED_ROW, NIR_ROW);
+    type vnir_row_available_t is (no_row, blue_row, red_row, nir_row);
 
-    type sdram_next_row_fed_t is (NO_ROW, BLUE_ROW, RED_ROW, NIR_ROW, SWIR_ROW);
+    type sdram_next_row_fed_t is (no_row, blue_row, red_row, nir_row, swir_row);
 
     type sdram_config_to_sdram_t is record
         memory_base     : natural;
