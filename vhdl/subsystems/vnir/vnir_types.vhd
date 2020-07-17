@@ -29,7 +29,7 @@ package vnir_types is
     type vnir_pixel_vector_t is array(integer range <>) of vnir_pixel_t;
     subtype vnir_row_t is vnir_pixel_vector_t(vnir_row_width-1 downto 0);
 
-    type vnir_row_type_t is (ROW_NIR, ROW_BLUE, ROW_RED, ROW_NONE);
+    type vnir_row_type_t is (ROW_NONE, ROW_NIR, ROW_BLUE, ROW_RED);
 
     type vnir_rows_t is record
         blue : vnir_row_t;

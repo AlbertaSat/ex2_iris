@@ -20,6 +20,7 @@ use ieee.numeric_std.all;
 
 use work.spi_types.all;
 use work.vnir_types.all;
+use work.row_collector_pkg.all;
 
 
 entity vnir_subsystem is
@@ -37,8 +38,8 @@ port (
     do_imaging          : in std_logic;
 
     num_rows            : out integer;
-    rows                : out vnir_rows_t;
-    rows_available      : out std_logic;
+    row                 : out vnir_row_t;
+    row_available       : out vnir_row_type_t;
     
     spi_out             : out spi_from_master_t;
     spi_in              : in spi_to_master_t;
@@ -106,13 +107,15 @@ architecture rtl of vnir_subsystem is
     component row_collector is
     port (
         clock               : in std_logic;
+        reset_n             : in std_logic;
         config              : in vnir_config_t;
         read_config         : in std_logic;
         start               : in std_logic;
-        fragment            : in vnir_pixel_vector_t(vnir_lvds_n_channels-1 downto 0);
+        image_length        : in integer;
+        fragment            : in fragment_t;
         fragment_available  : in std_logic;
-        rows                : out vnir_rows_t;
-        rows_available      : out std_logic
+        row                 : out vnir_row_t;
+        row_available       : out vnir_row_type_t
     );
     end component row_collector;
 
@@ -204,7 +207,7 @@ begin
         reset_n => reset_n,
         config => config_reg,
         read_config => start_sensor_config,
-        num_frames => num_rows,
+        num_frames => num_rows,  -- TODO: num_frames is NOT the same as num_rows, fix this
         do_imaging => do_imaging,  -- TODO: might want to use a registered input here
         imaging_done => imaging_done,
         sensor_clock => sensor_clock,
@@ -223,13 +226,15 @@ begin
 
     row_collector_component : row_collector port map (
         clock => clock,
+        reset_n => reset_n,
         config => config,
         read_config => start_sensor_config,
         start => do_imaging,
+        image_length => num_rows,
         fragment => pixels,
         fragment_available => pixels_available,
-        rows => rows,
-        rows_available => rows_available
+        row => row,
+        row_available => row_available
     );
 
     debug : process (clock) is

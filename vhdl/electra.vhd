@@ -136,9 +136,9 @@ architecture rtl of electra is
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
-        vnir_rows_available : in std_logic;
+        vnir_row_available  : in vnir_row_type_t;
         vnir_num_rows       : in integer;
-        vnir_rows           : in vnir_rows_t;
+        vnir_row            : in vnir_row_t;
         swir_row_available  : in std_logic;
         swir_num_rows       : in integer;
         swir_row            : in swir_row_t;
@@ -185,8 +185,8 @@ architecture rtl of electra is
     signal vnir_config_done : std_logic;
     
     -- vnir <=> sdram
-    signal vnir_rows : vnir_rows_t;
-    signal vnir_rows_available : std_logic;
+    signal vnir_row : vnir_row_t;
+    signal vnir_row_available : vnir_row_type_t;
 
     -- vnir <=> sdram, fpga
     signal vnir_num_rows : integer;
@@ -266,10 +266,10 @@ begin
         config_done => vnir_config_done,
         do_imaging => do_imaging,
         num_rows => vnir_num_rows,
-        rows => vnir_rows,
-        rows_available => vnir_rows_available,
         sensor_clock => vnir_sensor_clock,
         sensor_reset => vnir_sensor_reset,
+        row => vnir_row,
+        row_available => vnir_row_available,
         spi_out => vnir_spi_out,
         spi_in => vnir_spi_in,
         frame_request => vnir_frame_request,
@@ -294,9 +294,9 @@ begin
     sdram_subsystem_component : sdram_subsystem port map (
         clock => clock,
         reset_n => reset_n,
-        vnir_rows_available => vnir_rows_available,
+        vnir_row_available => vnir_row_available,
         vnir_num_rows => vnir_num_rows,
-        vnir_rows => vnir_rows,
+        vnir_row => vnir_row,
         swir_row_available => swir_row_available,
         swir_num_rows => swir_num_rows,
         swir_row => swir_row,

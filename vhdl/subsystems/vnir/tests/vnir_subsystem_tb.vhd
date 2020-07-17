@@ -34,10 +34,11 @@ architecture tests of vnir_subsystem_tb is
     signal config               : vnir_config_t;
     signal config_done          : std_logic;
     signal do_imaging           : std_logic := '0';
-    signal rows                 : vnir_rows_t;
-    signal rows_available       : std_logic;
+    signal row                  : vnir_row_t;
+    signal row_available        : vnir_row_type_t;
     signal spi                  : spi_t;
     signal frame_request        : std_logic;
+    signal exposure_start       : std_logic;
     signal lvds                 : vnir_lvds_t := (
         clock => '0', control => '0', data => (others => '0')
     );
@@ -52,11 +53,12 @@ architecture tests of vnir_subsystem_tb is
         config              : in vnir_config_t;
         config_done         : out std_logic;
         do_imaging          : in std_logic;
-        rows                : out vnir_rows_t;
-        rows_available      : out std_logic;
+        row                 : out vnir_row_t;
+        row_available       : out vnir_row_type_t;
         spi_out             : out spi_from_master_t;
         spi_in              : in spi_to_master_t;
         frame_request       : out std_logic;
+        exposure_start      : out std_logic;
         lvds                : in vnir_lvds_t
     ); 
     end component;
@@ -174,11 +176,12 @@ begin
         config => config,
         config_done => config_done,
         do_imaging => do_imaging,
-        rows => rows,
-        rows_available => rows_available,
+        row => row,
+        row_available => row_available,
         spi_out => spi.from_master,
         spi_in => spi.to_master,
         frame_request => frame_request,
+        exposure_start => exposure_start,
         lvds => lvds
     );
 
