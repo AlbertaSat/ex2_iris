@@ -58,7 +58,8 @@ architecture rtl of image_requester is
     
     pure function calc_num_frames(config : vnir_config_t) return integer is
     begin
-        return calc_image_length(config) + config.window_red.hi - config.window_nir.lo;
+        -- TODO: it's cleaner here if we do something like max(config.windows.hi)
+        return calc_image_length(config) + config.window_red.hi; 
     end function calc_num_frames;
 
     pure function calc_frame_request_offset(config : vnir_config_t) return integer is

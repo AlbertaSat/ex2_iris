@@ -94,7 +94,7 @@ architecture rtl of row_collector is
 
     pure function x_pos(index : fragment_idx_t; windows : vnir_window_vector_t) return integer is
     begin
-        return index.frame - windows(index.window).lo + windows(0).lo - index.row;
+        return index.frame - windows(index.window).lo - index.row;
     end function x_pos;
 
     pure function to_address(i : integer) return address_t is

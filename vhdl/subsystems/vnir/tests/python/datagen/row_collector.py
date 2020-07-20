@@ -35,7 +35,7 @@ WINDOWS = [Window(10, 15), Window(24, 35), Window(36, 37)]
 ROW_WIDTH = 2048
 BITS = 10
 IMAGE_LENGTH = 10
-N_FRAMES = IMAGE_LENGTH + WINDOWS[-1].hi - WINDOWS[0].lo
+N_FRAMES = IMAGE_LENGTH + WINDOWS[-1].hi
 ROWS_PER_FRAME = sum(w.size for w in WINDOWS)
 
 OUT_DIR = Path('../../out/row_collector/')
@@ -66,10 +66,13 @@ def calc_averages(frames: np.ndarray) -> np.ndarray:
     for i_frame, frame in enumerate(frames):
         for i_row, row in enumerate(frame):
             i_window, _ = get_row_window(i_row)
-            x_row = i_frame - get_real_offset(i_row) + WINDOWS[0].lo
+            x_row = i_frame - get_real_offset(i_row)
             # print(i_window, x_row)
             if 0 <= x_row < IMAGE_LENGTH:
+                print('*', i_window, x_row)
                 sums[x_row][i_window] += row
+            else:
+                print(i_window, x_row)
 
     averages = np.zeros_like(sums, dtype=int)
     for i, w in enumerate(WINDOWS):
