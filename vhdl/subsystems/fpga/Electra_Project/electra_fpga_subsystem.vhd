@@ -47,10 +47,10 @@ entity electra_fpga_subsystem is
 		-- conduits to HPS over READ command; acquired from other subsystems
 		conduit_config_done            : in std_logic              := '0';                  --  conduit_end.export
 		conduit_sdram_busy             : in std_logic              := '0';                  --  conduit_end.export
-		conduit_sdram_error            : in std_logic_vector(7 downto 0)                    --  conduit_end.export
+		conduit_sdram_error            : in std_logic_vector(7 downto 0);                    --  conduit_end.export
 
 		-- image configuartion values, from HPS to sensor subsystems
-		conduit_image_config		   : out std_logic_vector(31 downto 0)				    -- conduit_end.export
+		conduit_image_config		   : out std_logic_vector(31 downto 0);				    -- conduit_end.export
 
 		-- image request, from HPS to other subsystems
 		conduit_image_request          : out std_logic             := '0';                  --  conduit_end.export
