@@ -32,8 +32,11 @@ architecture tests of vnir_subsystem_tb is
     signal sensor_clock_locked  : std_logic;
     signal sensor_reset         : std_logic;
     signal config               : vnir_config_t;
+    signal start_config         : std_logic;
     signal config_done          : std_logic;
     signal do_imaging           : std_logic := '0';
+    signal imaging_done         : std_logic;
+    signal num_rows             : integer;
     signal row                  : vnir_row_t;
     signal row_available        : vnir_row_type_t;
     signal spi                  : spi_t;
@@ -51,8 +54,11 @@ architecture tests of vnir_subsystem_tb is
         sensor_clock_locked : in std_logic;
         sensor_reset        : out std_logic;
         config              : in vnir_config_t;
+        start_config        : in std_logic;
         config_done         : out std_logic;
         do_imaging          : in std_logic;
+        imaging_done        : out std_logic;
+        num_rows            : out integer;
         row                 : out vnir_row_t;
         row_available       : out vnir_row_type_t;
         spi_out             : out spi_from_master_t;
@@ -65,10 +71,30 @@ architecture tests of vnir_subsystem_tb is
 
 begin
 
-    debug : process (do_imaging, clock)
+    debug : process (clock)
     begin
-        if rising_edge(do_imaging) then
-            report "Detected do_imaging rising edge";
+        if rising_edge(clock) then
+            if do_imaging = '1' then
+                report "do_imaging = 1";
+            end if;
+            if imaging_done = '1' then
+                report "imaging_done = 1";
+            end if;
+            if frame_request = '1' then
+                report "frame_request = 1";
+            end if;
+            if exposure_start = '1' then
+                report "exposure_start = 1";
+            end if;
+            if row_available = ROW_NIR then
+                report "row available = NIR";
+            end if;
+            if row_available = ROW_BLUE then
+                report "row available = BLUE";
+            end if;
+            if row_available = ROW_RED then
+                report "row available = RED";
+            end if;
         end if;
     end process debug;
 
@@ -94,45 +120,55 @@ begin
     end process lvds_clock_gen;
 
     sensor : process
-        type state_t is (IDLE, IMAGING);
+        type state_t is (IDLE, COLLECTING_FRAME, EMITTING_FRAME);
         variable state : state_t := IDLE;
         variable next_state : state_t := IDLE;
 
-        variable i : integer := 0;
-        variable counter : unsigned(0 to vnir_pixel_bits-1) := (others => '0');
+        constant fragments_per_row : integer := vnir_row_width / vnir_lvds_n_channels;
+
+        variable i_bit : integer := 0;
+        variable i_fragment : integer := 0;
+        variable i_row : integer := 0;
         variable zero : std_logic := '1';
     begin
         wait until rising_edge(lvds.clock) or falling_edge(lvds.clock);
 
         case state is
         when IDLE =>
-            lvds.control <= '1' when i = 9 else '0';
-            if do_imaging = '1' then next_state := IMAGING; end if;
-        when IMAGING =>
-            if i = 0 then
-                report "Sending chunk #"
-                    & integer'image(to_integer(counter))
-                    & ", row #"
-                    & integer'image(to_integer(counter) / 64);
+            lvds.control <= '1' when i_bit = 9 else '0';
+            if exposure_start = '1' then
+                next_state := COLLECTING_FRAME;
             end if;
-            lvds.control <= '1' when i = 0 else '0';
+        when COLLECTING_FRAME =>
+            lvds.control <= '1' when i_bit = 9 else '0';
+            if frame_request = '1' then
+                next_state := EMITTING_FRAME;
+            end if;
+        when EMITTING_FRAME =>
+            lvds.control <= '1' when i_bit = 0 else '0';
+            if i_fragment = fragments_per_row - 1 and i_row = total_rows(config) - 1 then
+                next_state := IDLE;
+            end if;
         end case;
 
-        lvds.data <= (others => counter(i));
+        lvds.data <= (others => to_unsigned(i_fragment, fragments_per_row)(vnir_pixel_bits-1-i_bit));
     
-        i := i + 1;
-        if i = vnir_pixel_bits then
-            i := 0;
-            if counter = 2 ** counter'length - 1 then
-                counter := (others => '0');
-            else
-                counter := counter + 1;
+        i_bit := i_bit + 1;
+        if i_bit = vnir_pixel_bits then
+            i_bit := 0;
+            i_fragment := i_fragment + 1;
+            if i_fragment = fragments_per_row then
+                i_fragment := 0;
+                i_row := i_row + 1;
             end if;
+
             if state /= next_state then
                 state := next_state;
-                counter := (others => '0');
+                i_fragment := 0;
+                i_row := 0;
             end if;
         end if;
+
     end process sensor;
 
 	test : process
@@ -144,15 +180,16 @@ begin
         report "Test: programming";
         wait until rising_edge(clock); reset_n <= '0'; wait until rising_edge(clock); reset_n <= '1';
         wait until rising_edge(clock);
-        config.window_red.lo <= 0  ; config.window_red.hi <= 9;
-        config.window_blue.lo <= 10; config.window_blue.hi <= 19;
-        config.window_nir.lo <= 20; config.window_nir.hi <= 29;
+        config.window_nir.lo  <= 0; config.window_nir.hi  <= 1;
+        config.window_blue.lo <= 2; config.window_blue.hi <= 3;
+        config.window_red.lo  <= 4; config.window_red.hi  <= 5;
         config.imaging_duration <= 1000;  -- 1 second
-        config.fps <= 30;
-        config.start_config <= '1';
+        config.fps <= 180;
+        config.exposure_time <= 1;
+        start_config <= '1';
         sensor_clock_locked <= '1';
         wait until rising_edge(clock);
-        config.start_config <= '0'; 
+        start_config <= '0'; 
         wait until rising_edge(clock) and config_done = '1';
         -- TODO: asserts here
 
@@ -174,8 +211,11 @@ begin
         sensor_clock_locked => sensor_clock_locked,
         sensor_reset => sensor_reset,
         config => config,
+        start_config => start_config,
         config_done => config_done,
         do_imaging => do_imaging,
+        imaging_done => imaging_done,
+        num_rows => num_rows,
         row => row,
         row_available => row_available,
         spi_out => spi.from_master,
