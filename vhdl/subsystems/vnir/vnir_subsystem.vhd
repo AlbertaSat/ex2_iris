@@ -36,6 +36,7 @@ port (
     config_done         : out std_logic;
     
     do_imaging          : in std_logic;
+    imaging_done        : out std_logic;
 
     num_rows            : out integer;
     row                 : out vnir_row_t;
@@ -93,16 +94,17 @@ architecture rtl of vnir_subsystem is
         clocks_per_sec  : integer
     );
     port (
-        clock           : in std_logic;
-        reset_n         : in std_logic;
-        config          : in vnir_config_t;
-        read_config     : in std_logic;
-        image_length    : out integer;
-        do_imaging      : in std_logic;
-        imaging_done    : out std_logic;
-        sensor_clock    : in std_logic;
-        frame_request   : out std_logic;
-        exposure_start  : out std_logic
+        clock               : in std_logic;
+        reset_n             : in std_logic;
+        config              : in vnir_config_t;
+        start_config        : in std_logic;
+        config_done         : out std_logic;
+        image_length        : out integer;
+        do_imaging          : in std_logic;
+        imaging_done        : out std_logic;
+        sensor_clock        : in std_logic;
+        frame_request       : out std_logic;
+        exposure_start      : out std_logic
     );
     end component image_requester;
 
@@ -124,7 +126,9 @@ architecture rtl of vnir_subsystem is
     constant clocks_per_sec : integer := 50000000;  -- TODO: set this to its actual value
 
     signal config_reg : vnir_config_t;
-    signal imaging_done : std_logic;
+    signal imaging_done_s : std_logic;
+    signal start_image_requester_config : std_logic;
+    signal image_requester_config_done : std_logic;
     signal start_sensor_config : std_logic;
     signal sensor_config_done : std_logic;
     signal start_align : std_logic;
@@ -175,13 +179,14 @@ begin
                 pixels_available <= '1';
                 pixels <= parallel_lvds.data;
             end if;
-            if imaging_done = '1' then -- TODO: might want to make sure row_collator is finished
+            if imaging_done_s = '1' then -- TODO: might want to make sure row_collator is finished
                 state := IDLE; 
             end if;
         end case;
     end process fsm;
 
-    start_sensor_config <= locking_done;
+    start_image_requester_config <= locking_done;
+    start_sensor_config <= image_requester_config_done;
     start_align <= sensor_config_done;
 
     delay_until_locked : delay_until port map (
@@ -209,14 +214,16 @@ begin
         clock => clock,
         reset_n => reset_n,
         config => config_reg,
-        read_config => start_sensor_config,
+        start_config => start_image_requester_config,
+        config_done => image_requester_config_done,
         image_length => image_length,
         do_imaging => do_imaging,  -- TODO: might want to use a registered input here
-        imaging_done => imaging_done,
+        imaging_done => imaging_done_s,
         sensor_clock => sensor_clock,
         frame_request => frame_request,
         exposure_start => exposure_start
     );
+    imaging_done <= imaging_done_s;
 
     lvds_decoder_component : lvds_decoder port map (
         clock => clock,
