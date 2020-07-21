@@ -33,6 +33,7 @@ port (
     sensor_reset        : out std_logic;
 
     config              : in vnir_config_t;
+    start_config        : in std_logic;
     config_done         : out std_logic;
     
     do_imaging          : in std_logic;
@@ -161,7 +162,7 @@ begin
         when RESET =>
             state := IDLE;
         when IDLE =>
-            if config.start_config = '1' then
+            if start_config = '1' then
                 config_reg <= config;
                 start_locking <= '1';
                 state := CONFIGURING;
@@ -249,16 +250,5 @@ begin
     );
 
     num_rows <= image_length;
-
-    debug : process (clock) is
-        variable chunk : vnir_pixel_t;
-    begin
-        if rising_edge(clock) then
-            if pixels_available = '1' then
-                chunk := pixels(0);
-                report "Recieved chunk: " & integer'image(to_integer(chunk));
-            end if;
-        end if;
-    end process debug;
 
 end architecture rtl;

@@ -45,7 +45,6 @@ package vnir_types is
     type vnir_flip_t is (FLIP_NONE, FLIP_X, FLIP_Y, FLIP_XY);
 
     type vnir_config_t is record
-        start_config     : std_logic;
         window_blue      : vnir_window_t;
         window_red       : vnir_window_t;
         window_nir       : vnir_window_t;
