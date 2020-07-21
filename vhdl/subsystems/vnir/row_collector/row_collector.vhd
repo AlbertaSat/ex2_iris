@@ -195,6 +195,14 @@ begin
     begin
         wait until rising_edge(clock);
         if read_config = '1' then
+            assert 0 <= config.window_nir.lo;
+            assert config.window_nir.lo <= config.window_nir.hi;
+            assert config.window_nir.hi < config.window_blue.lo;
+            assert config.window_blue.lo <= config.window_blue.hi;
+            assert config.window_blue.hi < config.window_red.lo;
+            assert config.window_red.lo <= config.window_red.hi;
+            assert config.window_red.hi < 2048;
+
             windows <= (
                 0 => config.window_nir,
                 1 => config.window_blue,
