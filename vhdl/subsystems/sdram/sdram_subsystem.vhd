@@ -42,10 +42,11 @@ entity sdram_subsystem is
         swir_row            : in swir_row_t;
         
         timestamp           : in timestamp_t;
-        mpu_memory_change   : in sdram_address_list_t;
+        mpu_memory_change   : in sdram_address_block_t;
         config_in           : in sdram_config_to_sdram_t;
-        config_out          : out sdram_config_from_sdram_t;
+        config_out          : out sdram_partitions_t;
         config_done         : out std_logic;
+        img_config_done     : out std_logic;
         
         sdram_busy          : out std_logic;
         sdram_error         : out stdram_error_t;
@@ -59,4 +60,6 @@ architecture rtl of sdram_subsystem is
     component memory_map is
     port(
         
-    )
+    );
+begin
+end architecture;
