@@ -30,7 +30,9 @@ architecture tests of vnir_subsystem_tb is
     signal reset_n              : std_logic := '0';  -- Main reset
     signal sensor_clock         : std_logic := '0';
     signal sensor_clock_locked  : std_logic;
-    signal sensor_reset         : std_logic;
+    signal sensor_power         : std_logic;
+    signal sensor_clock_enable  : std_logic;
+    signal sensor_reset_n       : std_logic;
     signal config               : vnir_config_t;
     signal start_config         : std_logic;
     signal config_done          : std_logic;
@@ -52,7 +54,9 @@ architecture tests of vnir_subsystem_tb is
         reset_n             : in std_logic;
         sensor_clock        : in std_logic;
         sensor_clock_locked : in std_logic;
-        sensor_reset        : out std_logic;
+        sensor_power        : out std_logic;
+        sensor_clock_enable : out std_logic;
+        sensor_reset_n      : out std_logic;
         config              : in vnir_config_t;
         start_config        : in std_logic;
         config_done         : out std_logic;
@@ -66,7 +70,7 @@ architecture tests of vnir_subsystem_tb is
         frame_request       : out std_logic;
         exposure_start      : out std_logic;
         lvds                : in vnir_lvds_t
-    ); 
+    );
     end component;
 
 begin
@@ -209,7 +213,9 @@ begin
         reset_n => reset_n,
         sensor_clock => sensor_clock,
         sensor_clock_locked => sensor_clock_locked,
-        sensor_reset => sensor_reset,
+        sensor_power => sensor_power,
+        sensor_clock_enable => sensor_clock_enable,
+        sensor_reset_n => sensor_reset_n,
         config => config,
         start_config => start_config,
         config_done => config_done,

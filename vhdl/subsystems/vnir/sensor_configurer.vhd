@@ -21,20 +21,25 @@ use ieee.numeric_std.all;
 use work.vnir_types.all;
 use work.spi_types.all;
 
--- TODO: reset sensor
--- TODO: Should probably have config delays here
-
 
 entity sensor_configurer is
+generic (
+    clocks_per_sec      : integer
+);
 port (	
-    clock           : in std_logic;
-    reset_n         : in std_logic;
-    config          : in vnir_config_t;
-    start_config    : in std_logic;
-    config_done     : out std_logic;	
-    spi_out         : out spi_from_master_t;
-    spi_in          : in spi_to_master_t;
-    sensor_reset    : out std_logic
+    clock               : in std_logic;
+    reset_n             : in std_logic;
+
+    config              : in vnir_config_t;
+    start_config        : in std_logic;
+    config_done         : out std_logic;
+    
+    spi_out             : out spi_from_master_t;
+    spi_in              : in spi_to_master_t;
+    
+    sensor_power        : out std_logic;
+    sensor_clock_enable : out std_logic;
+    sensor_reset_n      : out std_logic
 );
 end entity sensor_configurer;
 
@@ -99,56 +104,124 @@ architecture rtl of sensor_configurer is
     ); 
     end component;
 
+    component timer is
+    generic (
+        clocks_per_sec  : integer;
+        delay_us        : integer
+    );
+    port (
+        clock   : in std_logic;
+        reset_n : in std_logic;
+        start   : in std_logic;
+        done    : out std_logic
+    );
+    end component timer;
+
     signal spi_enable : std_logic;
     signal spi_cont : std_logic;
     signal spi_tx_data : std_logic_vector(15 downto 0);
     signal spi_busy : std_logic;
     signal spi_ss_n : std_logic;
+
+    signal sensor_reset_force : std_logic;
+    signal sensor_clock_disable_force : std_logic;
+
+
+    type timer_t is record
+        start : std_logic;
+        done : std_logic;
+    end record timer_t;
+
+    signal power_on_timer   : timer_t;
+    signal clock_on_timer   : timer_t;
+    signal reset_off_timer  : timer_t;
+    signal spi_settle_timer : timer_t;
+
 begin
 
     main_process : process
-        type state_t is (RESET, IDLE, TRANSMIT, TRANSMIT_FINISH);
+        type state_t is (RESET, OFF, IDLE, CONFIG_POWER_ON, CONFIG_CLOCK_ON, CONFIG_RESET_OFF,
+                         CONFIG_TRANSMIT, CONFIG_TRANSMIT_FINISH, CONFIG_SPI_SETTLE);
         variable state : state_t;
 
         variable i : integer;
         variable spi_busy_prev : std_logic;
 
         constant n_spi_instructions : integer := 33;  -- Length of all_instructions() output
-        variable instructions : logic16_vector_t(n_spi_instructions-1 downto 0);
+        variable spi_instructions : logic16_vector_t(n_spi_instructions-1 downto 0);
     begin
         wait until rising_edge(clock);
+
+        power_on_timer.start <= '0';
+        clock_on_timer.start <= '0';
+        reset_off_timer.start <= '0';
+        spi_settle_timer.start <= '0';
         config_done <= '0';
         spi_enable <= '0';
         spi_cont <= '0';
+
         if (reset_n = '0') then
             state := RESET;
         end if;
 
         case state is
         when RESET =>
-            state := IDLE;
+            state := OFF;
+            sensor_power <= '0';
+            sensor_reset_n <= '0';
+            sensor_clock_enable <= '0';
+        when OFF =>
+            if start_config = '1' then
+                spi_instructions := all_instructions(config);
+                power_on_timer.start <= '1';
+                state := CONFIG_POWER_ON;
+            end if;
+        when CONFIG_POWER_ON =>
+            sensor_power <= '1';
+            if power_on_timer.done = '1' then
+                clock_on_timer.start <= '1';
+                state := CONFIG_CLOCK_ON;
+            end if;
+        when CONFIG_CLOCK_ON =>
+            sensor_clock_enable <= '1';
+            if clock_on_timer.done = '1' then
+                reset_off_timer.start <= '1';
+                state := CONFIG_RESET_OFF;
+            end if;
         when IDLE =>
             if start_config = '1' then
-                state := TRANSMIT;
-                instructions := all_instructions(config);
-                i := 0;
-                spi_tx_data <= instructions(i);
+                spi_instructions := all_instructions(config);
+                sensor_reset_n <= '0';
+                reset_off_timer.start <= '1';
+                state := CONFIG_RESET_OFF;
             end if;
-        when TRANSMIT =>
+        when CONFIG_RESET_OFF =>
+            sensor_reset_n <= '1';
+            if reset_off_timer.done = '1' then
+                i := 0;
+                spi_tx_data <= spi_instructions(i);
+                state := CONFIG_TRANSMIT;
+            end if;
+        when CONFIG_TRANSMIT =>
             spi_enable <= '1';
             spi_cont <= '1';
             if (spi_busy = '1' and spi_busy_prev = '0') then
                 if (i = n_spi_instructions - 1) then
-                    state := TRANSMIT_FINISH;
+                    state := CONFIG_TRANSMIT_FINISH;
                 else
                     i := i + 1;
-                    spi_tx_data <= instructions(i);
+                    spi_tx_data <= spi_instructions(i);
                 end if;
             end if;
-        when TRANSMIT_FINISH =>
+        when CONFIG_TRANSMIT_FINISH =>
             if spi_busy = '0' then
-                state := IDLE;
+                spi_settle_timer.start <= '1';
+                state := CONFIG_SPI_SETTLE;
+            end if;
+        when CONFIG_SPI_SETTLE =>
+            if spi_settle_timer.done = '1' then
                 config_done <= '1';
+                state := IDLE;
             end if;
         end case;
         
@@ -179,6 +252,47 @@ begin
         busy        =>	spi_busy,
         rx_data     =>	open
     );
+
+    power_on_timer_cmp : timer generic map (
+        clocks_per_sec => clocks_per_sec,
+        delay_us => 1    -- TODO: find out power stability time
+    ) port map (
+        clock => clock,
+        reset_n => reset_n,
+        start => power_on_timer.start,
+        done => power_on_timer.done
+    );
+
+    clock_on_timer_cmp : timer generic map (
+        clocks_per_sec => clocks_per_sec,
+        delay_us => 1    -- From figure 7 of the user guide
+    ) port map (
+        clock => clock,
+        reset_n => reset_n,
+        start => clock_on_timer.start,
+        done => clock_on_timer.done
+    );
+
+    reset_off_timer_cmp : timer generic map (
+        clocks_per_sec => clocks_per_sec,
+        delay_us => 1    -- From figure 7 of the user guide
+    ) port map (
+        clock => clock,
+        reset_n => reset_n,
+        start => reset_off_timer.start,
+        done => reset_off_timer.done
+    );
+
+    spi_settle_timer_cmp : timer generic map (
+        clocks_per_sec => clocks_per_sec,
+        delay_us => 20000    -- Overkill probably. From section 3.7 of the user guide
+    ) port map (
+        clock => clock,
+        reset_n => reset_n,
+        start => spi_settle_timer.start,
+        done => spi_settle_timer.done
+    );
+
 
 end rtl;
 

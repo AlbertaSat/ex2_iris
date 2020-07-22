@@ -33,7 +33,9 @@ port (
 
     sensor_clock        : in std_logic;
     sensor_clock_locked : in std_logic;
-    sensor_reset        : out std_logic;
+    sensor_power        : out std_logic;
+    sensor_clock_enable : out std_logic;
+    sensor_reset_n      : out std_logic;
 
     config              : in vnir_config_t;
     start_config        : in std_logic;
@@ -69,15 +71,20 @@ architecture rtl of vnir_subsystem is
     end component delay_until;
 
     component sensor_configurer is
+    generic (
+        clocks_per_sec      : integer
+    );
     port (	
-        clock           : in std_logic;
-        reset_n         : in std_logic;
-        config          : in vnir_config_t;
-        start_config    : in std_logic;
-        config_done     : out std_logic;	
-        spi_out         : out spi_from_master_t;
-        spi_in          : in spi_to_master_t;
-        sensor_reset    : out std_logic
+        clock               : in std_logic;
+        reset_n             : in std_logic;
+        config              : in vnir_config_t;
+        start_config        : in std_logic;
+        config_done         : out std_logic;
+        spi_out             : out spi_from_master_t;
+        spi_in              : in spi_to_master_t;
+        sensor_power        : out std_logic;
+        sensor_clock_enable : out std_logic;
+        sensor_reset_n      : out std_logic
     );
     end component sensor_configurer;
 
@@ -199,7 +206,9 @@ begin
         done => locking_done
     );
 
-    sensor_configurer_component : sensor_configurer port map (
+    sensor_configurer_component : sensor_configurer generic map (
+        clocks_per_sec => clocks_per_sec
+    ) port map (
         clock => clock,
         reset_n => reset_n,
         config => config_reg,
@@ -207,7 +216,9 @@ begin
         config_done => sensor_config_done,
         spi_out => spi_out,
         spi_in => spi_in,
-        sensor_reset => sensor_reset
+        sensor_power => sensor_power,
+        sensor_clock_enable => sensor_clock_enable,
+        sensor_reset_n => sensor_reset_n
     );
     
     image_requester_component : image_requester generic map (

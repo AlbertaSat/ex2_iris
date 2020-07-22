@@ -31,8 +31,9 @@ port (
     ref_clock                : in std_logic;
 
     -- vnir <=> sensor
+    vnir_sensor_power        : out std_logic;
     vnir_sensor_clock        : out std_logic;
-    vnir_sensor_reset        : out std_logic;
+    vnir_sensor_reset_n      : out std_logic;
     vnir_spi_out             : out spi_from_master_t;
     vnir_spi_in              : in spi_to_master_t;
     vnir_frame_request       : out std_logic;
@@ -109,7 +110,9 @@ architecture rtl of electra is
         reset_n             : in std_logic;
         sensor_clock        : in std_logic;
         sensor_clock_locked : in std_logic;
-        sensor_reset        : out std_logic;
+        sensor_power        : out std_logic;
+        sensor_clock_enable : out std_logic;
+        sensor_reset_n      : out std_logic;
         config              : in vnir_config_t;
         config_done         : out std_logic;
         do_imaging          : in std_logic;
@@ -192,6 +195,7 @@ architecture rtl of electra is
     -- SoC system <=> vnir
     signal vnir_sensor_clock_s : std_logic;
     signal vnir_sensor_clock_locked : std_logic;
+    signal vnir_sensor_clock_enable : std_logic;
 
     -- fpga <=> vnir
     signal vnir_config : vnir_config_t;
@@ -280,7 +284,9 @@ begin
         reset_n => reset_n,
         sensor_clock => vnir_sensor_clock_s,
         sensor_clock_locked => vnir_sensor_clock_locked,
-        sensor_reset => vnir_sensor_reset,
+        sensor_power => vnir_sensor_power,
+        sensor_clock_enable => vnir_sensor_clock_enable,
+        sensor_reset_n => vnir_sensor_reset_n,
         config => vnir_config,
         config_done => vnir_config_done,
         do_imaging => do_imaging,
@@ -348,6 +354,6 @@ begin
         imaging_duration => imaging_duration
     );
 
-    vnir_sensor_clock <= vnir_sensor_clock_s;
+    vnir_sensor_clock <= vnir_sensor_clock_s and vnir_sensor_clock_enable;
 
 end architecture rtl;
