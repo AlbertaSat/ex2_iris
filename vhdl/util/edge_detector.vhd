@@ -10,7 +10,7 @@ entity edge_detector is
         ip          : in std_logic;
         edge_flag   : out std_logic
     );
-end entity fall_edge_detector;
+end entity edge_detector;
 
 architecture rtl of edge_detector is
     signal prev_ip : std_logic;
