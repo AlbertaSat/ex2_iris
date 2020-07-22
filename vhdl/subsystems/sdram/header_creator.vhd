@@ -55,9 +55,9 @@ architecture rtl of header_creator is
     component edge_detector is 
         generic(fall_edge : boolean);
         port(
-            clk, reset_n : std_logic;
-            ip, edge_flag : std_logic);
-    end edge_detector;
+            clk, reset_n, ip : in std_logic;
+            edge_flag : out std_logic);
+    end component edge_detector;
 begin
     --Values for the headers
     swir_img_header <= std_logic_vector(timestamp) &                    --Timestamp (64 bits)
@@ -92,8 +92,14 @@ begin
                        "0000000000";                                    --Reserved (10 bits)
     
     --Incrementing the counter when a falling edge of the sending image flag is received
-    fall_edge_detect : edge_detector generic map(true) portmap(clock, reset_n, sending_img, counter_inc_flag);
+    fall_edge_detect : edge_detector generic map(true) port map(clock, reset_n, sending_img, counter_inc_flag);
     
-    counter <= counter + 1 when counter_inc_flag = '1' else
-               counter;
+    counter_process : process (clock) is
+    begin
+        if rising_edge(clock) then
+            if (counter_inc_flag = '1') then
+                counter <= counter + 1;
+            end if;
+        end if;
+    end process;
 end architecture;
