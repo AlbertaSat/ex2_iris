@@ -24,6 +24,9 @@ use work.row_collector_pkg.all;
 
 
 entity vnir_subsystem is
+generic (
+    clocks_per_sec : integer := 50000000
+);
 port (
     clock               : in std_logic;
     reset_n             : in std_logic;
@@ -123,8 +126,6 @@ architecture rtl of vnir_subsystem is
         row_available       : out vnir_row_type_t
     );
     end component row_collector;
-
-    constant clocks_per_sec : integer := 50000000;  -- TODO: set this to its actual value
 
     signal config_reg : vnir_config_t;
     signal imaging_done_s : std_logic;
