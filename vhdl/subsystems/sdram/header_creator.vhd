@@ -42,120 +42,58 @@ entity header_creator is
         vnir_rows       : in integer;
         swir_rows       : in integer;
 
-        --Flag indicating the imager is still working
+        --Flag indicating the imager is working
         sending_img     : in std_logic
     );
 end entity header_creator;
 
 architecture rtl of header_creator is
-    --Creating the enumerator for the state machine
-    type header_creator_state_t is (init, assign, sending);
-    signal state : header_creator_state_t := init;
+    --Counter variable for the user defined bits indicating image number
+    signal counter : unsigned (7 downto 0) := "00000000";
+    signal counter_inc_flag: std_logic;
 
-    -- A function to turn a header record into a std_logic_vector for output
-    function header2vec(header : sdram_header_t) return std_logic_vector is
-	    variable buffer_vec : std_logic_vector (159 downto 0);
-    begin
-        buffer_vec := std_logic_vector(header.timestamp) &
-                      header.user_defined &
-                      std_logic_vector(to_unsigned(header.x_size, 16)) &
-                      std_logic_vector(to_unsigned(header.y_size, 16)) &
-                      std_logic_vector(to_unsigned(header.z_size, 16)) &
-                      header.sample_type &
-                      header.reserved_1 &
-                      std_logic_vector(to_unsigned(header.dyna_range, 4)) &
-                      header.sample_encode &
-                      header.interleave_depth &
-                      header.reserved_2 &
-                      std_logic_vector(to_unsigned(header.output_word, 3)) &
-                      header.entropy_coder &
-                      header.reserved_3;
-
-	    return buffer_vec;
-    end function header2vec;
+    component edge_detector is 
+        generic(fall_edge : boolean);
+        port(
+            clk, reset_n : std_logic;
+            ip, edge_flag : std_logic);
+    end edge_detector;
 begin
-    main_process : process (clock) is
-        --Creating an initial header with default values that fit both SWIR & VNIR Images
-        --TODO: Maybe specialize the user defined part?
-        constant init_header : sdram_header_t := (
-            timestamp           => to_unsigned(0, timestamp'length),
-            user_defined        => (0 => '1', others => '0'),
-            x_size              => 0,
-            y_size              => 0,
-            z_size              => 0,
-            sample_type         => '0',
-            reserved_1          => "00",
-            dyna_range          => 0,
-            sample_encode       => '1',
-            interleave_depth    => (others => '0'),
-            reserved_2          => "00",
-            output_word         => 1,
-            entropy_coder       => '0',
-            reserved_3          => (others => '0')
-        );
-
-        --Assigning the headers to be the same as the initial header
-        variable swir_header : sdram_header_t;
-        variable vnir_header : sdram_header_t;
-    begin
-
-        if rising_edge(clock) then
-            --Reset causes the header creator to reset back to initial values
-            if (reset_n = '0') then
-                state <= init;
-
-                --Reseting the output headers
-                swir_img_header <= (others => '0');
-                vnir_img_header <= (others => '0');
-               
-            else
-                case state is
-                    when init =>
-                        --Setting the variable headers to be the same as the init_header, then customizing
-                        swir_header := init_header;
-                        vnir_header := init_header;
-
-                        swir_header.x_size      := 512;
-                        swir_header.z_size      := 1;
-                        swir_header.dyna_range  := 16;
-
-                        vnir_header.x_size      := 2048;
-                        vnir_header.z_size      := 3;
-                        vnir_header.dyna_range  := 10;
-
-                        --Setting to idle state
-                        state <= assign;
-
-                        --Setting the outputs to zero
-                        swir_img_header <= (others => '0');
-                        vnir_img_header <= (others => '0');
-
-                    when assign =>
-                        --Just waiting for the timestamp and the rows
-                        if (to_integer(timestamp) /= 0 and swir_rows /= 0 and vnir_rows /= 0) then
-                            --Next state is sending
-                            state <= sending;
-
-                            --Assigning the output rows to the correct ones 
-                            swir_header.timestamp := timestamp;
-                            vnir_header.timestamp := timestamp;
-
-                            swir_header.y_size := swir_rows;
-                            vnir_header.y_size := vnir_rows;
-
-                            swir_img_header <= header2vec(swir_header);
-                            vnir_img_header <= header2vec(vnir_header);
-                        end if;
-
-                    when sending =>
-                        --This state waits for the image to stop writing before freeing the header creator
-                        if sending_img = '0' then
-                            state <= init;
-                            swir_img_header <= (others => '0');
-                            vnir_img_header <= (others => '0');
-                        end if;
-                end case;
-            end if;
-        end if;
-    end process;
+    --Values for the headers
+    swir_img_header <= std_logic_vector(timestamp) &                    --Timestamp (64 bits)
+                       std_logic_vector(counter) &                      --User Defined [img number defined by counter] (8 bits)
+                       "0000001000000000" &                             --X Size [512 px/row for swir] (16 bits)
+                       std_logic_vector(to_unsigned(swir_rows, 16)) &   --Y Size (16 bits)
+                       "0000000000000001" &                             --Z Size [1 for swir] (16 bits)
+                       '0' &                                            --Sample Type (1 bit)
+                       "11" &                                           --Reserved (2 bits)
+                       "0000" &                                         --Dynamic Range [16 bit/px for swir] (4 bits)
+                       '1' &                                            --BSQ format (1 bit)
+                       "0000000000000000" &                             --Interleave Depth (16 bits)
+                       "00" &                                           --Reserved
+                       "001" &                                          --Output word length (3 bits)
+                       '0' &                                            --Entropy Encoding
+                       "0000000000";                                    --Reserved (10 bits)
+    
+    
+    vnir_img_header <= std_logic_vector(timestamp) &                    --Timestamp (64 bits)
+                       std_logic_vector(counter) &                      --User Defined [img number defined by counter] (8 bits)
+                       "0000100000000000" &                             --X Size [2048 px/row for vnir] (16 bits)
+                       std_logic_vector(to_unsigned(vnir_rows, 16)) &   --Y Size (16 bits)
+                       "0000000000000011" &                             --Z Size [3 for vnir] (16 bits)
+                       '0' &                                            --Sample Type (1 bit)
+                       "11" &                                           --Reserved (2 bits)
+                       "1010" &                                         --Dynamic Range [10 bit/px for vnir] (4 bits)
+                       '1' &                                            --BSQ format (1 bit)
+                       "0000000000000000" &                             --Interleave Depth (16 bits)
+                       "00" &                                           --Reserved
+                       "001" &                                          --Output word length (3 bits)
+                       '0' &                                            --Entropy Encoding
+                       "0000000000";                                    --Reserved (10 bits)
+    
+    --Incrementing the counter when a falling edge of the sending image flag is received
+    fall_edge_detect : edge_detector generic map(true) portmap(clock, reset_n, sending_img, counter_inc_flag);
+    
+    counter <= counter + 1 when counter_inc_flag = '1' else
+               counter;
 end architecture;
