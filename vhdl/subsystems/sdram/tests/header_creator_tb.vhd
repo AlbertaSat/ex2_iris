@@ -46,30 +46,6 @@ architecture sim of header_creator_tb is
     --Outputs
     signal swir_img_header      : std_logic_vector(159 downto 0);
     signal vnir_img_header      : std_logic_vector(159 downto 0);
-
-    signal swir_header          : sdram_header_t;
-    signal vnir_header          : sdram_header_t;
-
-    function vec_to_header(vector_header : std_logic_vector) return sdram_header_t is
-        variable buffer_header : sdram_header_t;
-    begin
-        buffer_header.timestamp         := unsigned(vector_header(159 downto 96));
-        buffer_header.user_defined      := vector_header(95 downto 88);
-        buffer_header.x_size            := to_integer(unsigned(vector_header(87 downto 72)));
-        buffer_header.y_size            := to_integer(unsigned(vector_header(71 downto 56)));
-        buffer_header.z_size            := to_integer(unsigned(vector_header(55 downto 40)));
-        buffer_header.sample_type       := vector_header(39);
-        buffer_header.reserved_1        := vector_header(38 downto 37);
-        buffer_header.dyna_range        := to_integer(unsigned(vector_header(36 downto 33)));
-        buffer_header.sample_encode     := vector_header(32);
-        buffer_header.interleave_depth  := vector_header(31 downto 16);
-        buffer_header.reserved_2        := vector_header(15 downto 14);
-        buffer_header.output_word       := to_integer(unsigned(vector_header(13 downto 11)));
-        buffer_header.entropy_coder     := vector_header(10);
-        buffer_header.reserved_3        := vector_header(9 downto 0);
-
-        return buffer_header;
-    end function vec_to_header;
 begin
     i_header_creator : entity work.header_creator(rtl)
     port map(
@@ -100,9 +76,6 @@ begin
         swir_rows <= 12;
 
         wait until (swir_img_header(102) /= '0');
-
-        swir_header <= vec_to_header(swir_img_header);
-        vnir_header <= vec_to_header(vnir_img_header);
 
         sending_img <= '1';
 
