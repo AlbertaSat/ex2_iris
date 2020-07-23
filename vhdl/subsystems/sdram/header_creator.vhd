@@ -49,8 +49,8 @@ end entity header_creator;
 
 architecture rtl of header_creator is
     --Counter variable for the user defined bits indicating image number
-    signal counter : unsigned (7 downto 0) := "00000000";
-    signal counter_inc_flag: std_logic;
+    signal counter          : unsigned (7 downto 0) := "00000000";
+    signal counter_inc_flag : std_logic;
 
     component edge_detector is 
         generic(fall_edge : boolean);
