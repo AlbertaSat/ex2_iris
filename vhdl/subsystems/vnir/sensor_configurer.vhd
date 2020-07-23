@@ -147,7 +147,7 @@ begin
         variable i : integer;
         variable spi_busy_prev : std_logic;
 
-        constant n_spi_instructions : integer := 33;  -- Length of all_instructions() output
+        constant n_spi_instructions : integer := 39;  -- Length of all_instructions() output
         variable spi_instructions : logic16_vector_t(n_spi_instructions-1 downto 0);
     begin
         wait until rising_edge(clock);
@@ -302,6 +302,7 @@ package body vnir_sensor_config_pkg is
     pure function l8_instructions(l8 : logic8_t; addr : integer) return logic16_vector_t is
         variable instructions : logic16_vector_t(0 downto 0);
     begin
+        report "l8_instructions(value=" & integer'image(to_integer(unsigned(l8))) & ", addr=" & integer'image(addr) & ")";
         instructions(0) := '1' & to_logic7(addr) & l8;
         return instructions;
     end function l8_instructions;
@@ -314,6 +315,7 @@ package body vnir_sensor_config_pkg is
     pure function l16_instructions(l16 : logic16_t; addr : integer) return logic16_vector_t is
         variable instructions : logic16_vector_t(2-1 downto 0);
     begin
+        report "l16_instructions(value=" & integer'image(to_integer(unsigned(l16))) & ", addr=" & integer'image(addr) & ")";
         instructions(1) := '1' & to_logic7(addr + 0) & l16(7 downto 0);
         instructions(0) := '1' & to_logic7(addr + 1) & l16(15 downto 8);
         return instructions;
@@ -393,8 +395,20 @@ package body vnir_sensor_config_pkg is
     end function n_channels_instructions;
 
     pure function calibration_instructions(config : vnir_config_t) return logic16_vector_t is
+        constant adc_gain : integer := 32;
+        constant v_ramp1 : integer := 109;
+        constant v_ramp2 : integer := 109;
+        constant offset : integer := 16323;
+
+        constant addr_adc_gain : integer := 103;
+        constant addr_v_ramp1 : integer := 98;
+        constant addr_v_ramp2 : integer := 99;
+        constant addr_offset : integer := 100;
     begin
-        return i8_instructions(0, 0);  -- TODO: do calibration
+        return i8_instructions(adc_gain, addr_adc_gain)
+             & i8_instructions(v_ramp1, addr_v_ramp1)
+             & i8_instructions(v_ramp2, addr_v_ramp2)
+             & i16_instructions(offset, addr_offset);
     end;
 
     pure function bit_mode_instructions(pixel_bits : integer) return logic16_vector_t is
@@ -461,6 +475,8 @@ package body vnir_sensor_config_pkg is
              & i8_instructions(64, 91)
              & i8_instructions(101, 94)
              & i8_instructions(106, 95)
+             & i8_instructions(1, 102)
+             & i8_instructions(1, 118)
              & i8_instructions(98, 123);
     end function undocumented_instructions;
 
