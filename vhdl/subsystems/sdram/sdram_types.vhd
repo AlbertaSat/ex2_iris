@@ -46,21 +46,4 @@ package sdram_types is
         vnir_temp   : partition_t;
         swir_temp   : partition_t;
     end record sdram_partitions_t;
-    
-    type sdram_header_t is record
-        timestamp        : timestamp_t;
-        user_defined     : std_logic_vector (7 downto 0);
-        x_size           : integer range 0 to 2**16 - 1;
-        y_size           : integer range 0 to 2**16 - 1;
-        z_size           : integer range 0 to 2**16 - 1;
-        sample_type      : std_logic;
-        reserved_1       : std_logic_vector (1 downto 0);
-        dyna_range       : integer;
-        sample_encode    : std_logic;
-        interleave_depth : std_logic_vector (15 downto 0);
-        reserved_2       : std_logic_vector (1 downto 0);
-        output_word      : integer;
-        entropy_coder    : std_logic;
-        reserved_3       : std_logic_vector (9 downto 0);
-    end record sdram_header_t;
 end package sdram_types;
