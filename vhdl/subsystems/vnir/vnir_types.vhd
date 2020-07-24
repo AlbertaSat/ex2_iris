@@ -44,15 +44,26 @@ package vnir_types is
 
     type vnir_flip_t is (FLIP_NONE, FLIP_X, FLIP_Y, FLIP_XY);
 
+    type vnir_calibration_t is record
+        v_ramp1  : integer;
+        v_ramp2  : integer;
+        offset   : integer;
+        adc_gain : integer;
+    end record vnir_calibration_t;
+
     type vnir_config_t is record
         window_blue      : vnir_window_t;
         window_red       : vnir_window_t;
         window_nir       : vnir_window_t;
-        imaging_duration : integer;
-        fps              : integer;
-        exposure_time    : integer;
         flip             : vnir_flip_t;
+        calibration      : vnir_calibration_t;
     end record vnir_config_t;
+
+    type vnir_image_config_t is record
+        duration        : integer;
+        fps             : integer;
+        exposure_time   : integer;
+    end record vnir_image_config_t;
 
     type vnir_lvds_t is record
         clock     : std_logic;
@@ -97,14 +108,14 @@ package body vnir_types is
     pure function to_vnir_control (ctrl_bits : std_logic_vector) return vnir_control_t is
     begin
         return (
-            dval => ctrl_bits(ctrl_bits'left-0),
-            lval => ctrl_bits(ctrl_bits'left-1),
-            fval => ctrl_bits(ctrl_bits'left-2),
-            slot => ctrl_bits(ctrl_bits'left-3),
-            row => ctrl_bits(ctrl_bits'left-4),
-            fot => ctrl_bits(ctrl_bits'left-5),
-            inte1 => ctrl_bits(ctrl_bits'left-6),
-            inte2 => ctrl_bits(ctrl_bits'left-7)
+            dval => ctrl_bits(0),
+            lval => ctrl_bits(1),
+            fval => ctrl_bits(2),
+            slot => ctrl_bits(3),
+            row => ctrl_bits(4),
+            fot => ctrl_bits(5),
+            inte1 => ctrl_bits(6),
+            inte2 => ctrl_bits(7)
         );
     end function to_vnir_control;
 

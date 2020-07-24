@@ -56,13 +56,25 @@ architecture rtl of lvds_decoder_in is
             end if;
         end loop;
 
+        report "Can't cumpute align offset" severity failure;
         return 0;  -- TODO: trigger some kind of error if we get here
     end function calc_align_offset;
 
+    pure function lsb_to_msb(v : unsigned) return unsigned is
+        variable v2 : unsigned(v'range);
+    begin
+        for i in v'range loop
+            v2(v2'high - i) := v(i);
+        end loop;
+        return v2;
+    end function lsb_to_msb;
+
     constant n_decoder_channels : integer := vnir_lvds_n_channels + 1; -- Add control
-    constant control_target : vnir_pixel_t := (vnir_pixel_bits-10 => '1', others => '0');
+    constant control_target_lsb : vnir_pixel_t := (9 => '1', others => '0');
+    constant control_target_msb : vnir_pixel_t := lsb_to_msb(control_target_lsb);
     signal data_align : std_logic;
-    signal decoder_out : std_logic_vector(n_decoder_channels*vnir_pixel_bits-1 downto 0);
+    signal decoder_out_msb : std_logic_vector(n_decoder_channels*vnir_pixel_bits-1 downto 0);
+    signal decoder_out_lsb : std_logic_vector(n_decoder_channels*vnir_pixel_bits-1 downto 0);
     signal decoder_outclock : std_logic;
 begin
     ser_to_par : lvds_decoder_ser_to_par generic map (
@@ -73,16 +85,25 @@ begin
         rx_in(n_decoder_channels-1 downto 1) => lvds_in.data,
         rx_in(0) => lvds_in.control,
         rx_inclock => lvds_in.clock,
-        rx_out => decoder_out,
+        rx_out => decoder_out_msb,
         rx_outclock => decoder_outclock
     );
     clock <= decoder_outclock;
+
+    -- ALTLVDS assumes the input is given MSB first, but the sensor gives input LBS first.
+    -- Therefore, we need to flip the bit ordering of ALTLVDS's output.
+    gen : for i_channel in 0 to n_decoder_channels-1 generate
+        gen : for i_bit in 0 to vnir_pixel_bits-1 generate
+            decoder_out_lsb(vnir_pixel_bits * i_channel + i_bit) <= 
+                decoder_out_msb(vnir_pixel_bits * i_channel + vnir_pixel_bits - 1 - i_bit);
+        end generate;
+    end generate;
 
     fsm : process (decoder_outclock)
         type state_t is (RESET, IDLE, READOUT, ALIGN_HIGH, ALIGN_LOW, ALIGN_WAIT);
         variable state : state_t;
         variable offset : integer;
-        variable control : vnir_pixel_t;
+        variable control_msb : vnir_pixel_t;
     begin
         if rising_edge(decoder_outclock) then
             to_fifo <= (others => '0');
@@ -91,23 +112,23 @@ begin
                 state := RESET;
             end if;
 
-            control := unsigned(decoder_out(vnir_pixel_bits-1 downto 0));
+            control_msb := unsigned(decoder_out_msb(vnir_pixel_bits-1 downto 0));
 
             case state is
             when RESET =>
                 state := IDLE;
             when IDLE =>
                 if start_align = '1' then
-                    state := ALIGN_HIGH;
-                    offset := calc_align_offset(control, control_target);
+                    offset := calc_align_offset(control_msb, control_target_msb);
+                    if offset = 0 then state := READOUT; else state := ALIGN_HIGH; end if;
                 end if;
             when READOUT =>
                 if start_align = '1' then
-                    state := ALIGN_HIGH;
-                    offset := calc_align_offset(control, control_target);
+                    offset := calc_align_offset(control_msb, control_target_msb);
+                    if offset = 0 then state := READOUT; else state := ALIGN_HIGH; end if;
                 else
                     to_fifo <= (others => '1');
-                    to_fifo(vnir_pixel_bits*n_fifo_channels-1 downto vnir_pixel_bits) <= decoder_out;
+                    to_fifo(vnir_pixel_bits*n_fifo_channels-1 downto vnir_pixel_bits) <= decoder_out_lsb;
                 end if;
             when ALIGN_HIGH =>
                 state := ALIGN_LOW;
@@ -120,7 +141,7 @@ begin
                     state := ALIGN_HIGH;
                 end if;
             when ALIGN_WAIT =>
-                if control = control_target then  -- TODO: might fail due to unset output
+                if control_msb = control_target_msb then  -- TODO: might fail due to unset output
                     state := READOUT;
                 end if;
             end case;

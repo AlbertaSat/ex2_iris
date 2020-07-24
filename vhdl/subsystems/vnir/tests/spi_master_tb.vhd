@@ -4,6 +4,8 @@ USE ieee.std_logic_arith.all;
 USE ieee.std_logic_unsigned.all;
 USE ieee.numeric_std.all;
 
+library std;
+use std.env.stop;
 
 entity spi_master_tb is
 
@@ -111,7 +113,7 @@ begin
 		wait for clockPeriod;
 		cont <= '0';
 		
-		wait;
+		stop;
 	end process test;
 
 	dut : spi_master

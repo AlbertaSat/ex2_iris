@@ -19,6 +19,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use std.textio.all;
 
+library std;
+use std.env.stop;
+
 use work.spi_types.all;
 use work.vnir_types.all;
 
@@ -36,9 +39,8 @@ architecture tests of lvds_decoder_tb is
     subtype lvds_data_t is word_vector_t(vnir_lvds_n_channels-1 downto 0);
     type lvds_data_vector_t is array(integer range <>) of lvds_data_t;
 
-    -- TODO: I think this is wrong
-    constant control_idle : word_t := (vnir_pixel_bits-10 => '1', others => '0');
-    constant control_readout : word_t := (vnir_pixel_bits-1 => '1', others => '0');
+    constant control_idle : word_t := (9 => '1', others => '0');
+    constant control_readout : word_t := (0 => '1', others => '0');
 
     signal data_idle : lvds_data_t;
     signal data_transmit : lvds_data_vector_t(10-1 downto 0);
@@ -90,7 +92,8 @@ architecture tests of lvds_decoder_tb is
         signal lvds : inout vnir_lvds_t
     ) is
     begin
-        for i in control'range loop
+        -- Data is sent LSB first
+        for i in 0 to control'length-1 loop
             lvds.control <= control(i);
             for j in data'range loop
                 lvds.data(j) <= data(j)(i);
@@ -178,8 +181,8 @@ begin
         end loop;
 
         report "ALL TESTS FINISHED." severity note;
+        stop;
 
-        wait;
     end process tests_process;
 
     decoder : lvds_decoder port map (

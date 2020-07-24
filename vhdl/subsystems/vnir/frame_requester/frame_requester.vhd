@@ -21,7 +21,7 @@ use ieee.numeric_std.all;
 use work.vnir_types.all;
 use work.pulse_generator_pkg.all;
 
-entity image_requester is
+entity frame_requester is
 generic (
     clocks_per_sec      : integer
 );
@@ -31,11 +31,12 @@ port (
     reset_n             : in std_logic;
 
     config              : in vnir_config_t;
+    image_config        : in vnir_image_config_t;
     start_config        : in std_logic;
     config_done         : out std_logic;
-    image_length        : out integer;
     
     do_imaging          : in std_logic;
+    image_length        : out integer;
     imaging_done        : out std_logic;
     
     -- Interface w/ sensor is clocked on the sensor clock
@@ -43,11 +44,11 @@ port (
     frame_request       : out std_logic;
     exposure_start      : out std_logic
 );
-end entity image_requester;
+end entity frame_requester;
 
-architecture rtl of image_requester is
+architecture rtl of frame_requester is
 
-    component image_requester_sensor_clock is
+    component frame_requester_sensor_clock is
     generic (
         clocks_per_sec      : integer
     );
@@ -55,15 +56,16 @@ architecture rtl of image_requester is
         sensor_clock        : in std_logic;
         reset_n             : in std_logic;
         config              : in vnir_config_t;
+        image_config        : in vnir_image_config_t;
         start_config        : in std_logic;
         config_done         : out std_logic;
-        image_length        : out integer;
         do_imaging          : in std_logic;
+        image_length        : out integer;
         imaging_done        : out std_logic;
         frame_request       : out std_logic;
         exposure_start      : out std_logic
     );
-    end component image_requester_sensor_clock;
+    end component frame_requester_sensor_clock;
 
     component cmd_cross_clock is
     port (
@@ -76,26 +78,27 @@ architecture rtl of image_requester is
     );
     end component cmd_cross_clock;
 
-    signal reset_n_sensor_clock      : std_logic;
-    signal start_config_sensor_clock : std_logic;
-    signal config_done_sensor_clock  : std_logic;
-    signal do_imaging_sensor_clock   : std_logic;
-    signal imaging_done_sensor_clock : std_logic;
+    signal reset_n_sensor_clock         : std_logic;
+    signal start_config_sensor_clock    : std_logic;
+    signal config_done_sensor_clock     : std_logic;
+    signal do_imaging_sensor_clock      : std_logic;
+    signal imaging_done_sensor_clock    : std_logic;
     
 begin
 
-    ir_sensor_clock_component : image_requester_sensor_clock generic map (
+    ir_sensor_clock_component : frame_requester_sensor_clock generic map (
         clocks_per_sec => 48000000
     ) port map (
         sensor_clock => sensor_clock,
         reset_n => reset_n_sensor_clock,
         
         config => config,
+        image_config => image_config,
         start_config => start_config_sensor_clock,
         config_done => config_done_sensor_clock,
-        image_length => image_length,
         
         do_imaging => do_imaging_sensor_clock,
+        image_length => image_length,
         imaging_done => imaging_done_sensor_clock,
         
         frame_request => frame_request,
@@ -151,6 +154,7 @@ begin
         o => imaging_done,
         o_reset_n => open
     );
+
 
     
 

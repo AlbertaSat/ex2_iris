@@ -41,10 +41,14 @@ port (
     start_config        : in std_logic;
     config_done         : out std_logic;
     
+    image_config        : in vnir_image_config_t;
+    start_image_config  : in std_logic;
+    image_config_done   : out std_logic;
+    num_rows            : out integer;
+    
     do_imaging          : in std_logic;
     imaging_done        : out std_logic;
 
-    num_rows            : out integer;
     row                 : out vnir_row_t;
     row_available       : out vnir_row_type_t;
     
@@ -59,6 +63,15 @@ end entity vnir_subsystem;
 
 
 architecture rtl of vnir_subsystem is
+
+    component single_delay is
+    port (
+        clock   : in std_logic;
+        reset_n : in std_logic;
+        i       : in std_logic;
+        o       : out std_logic
+    );
+    end component single_delay;
 
     component delay_until is
     port (
@@ -100,7 +113,7 @@ architecture rtl of vnir_subsystem is
     );
     end component lvds_decoder;
 
-    component image_requester is
+    component frame_requester is
     generic (
         clocks_per_sec  : integer
     );
@@ -108,16 +121,16 @@ architecture rtl of vnir_subsystem is
         clock               : in std_logic;
         reset_n             : in std_logic;
         config              : in vnir_config_t;
+        image_config        : in vnir_image_config_t;
         start_config        : in std_logic;
         config_done         : out std_logic;
-        image_length        : out integer;
         do_imaging          : in std_logic;
-        imaging_done        : out std_logic;
+        image_length        : out integer;
         sensor_clock        : in std_logic;
         frame_request       : out std_logic;
         exposure_start      : out std_logic
     );
-    end component image_requester;
+    end component frame_requester;
 
     component row_collector is
     port (
@@ -127,6 +140,7 @@ architecture rtl of vnir_subsystem is
         read_config         : in std_logic;
         start               : in std_logic;
         image_length        : in integer;
+        done                : out std_logic;
         fragment            : in fragment_t;
         fragment_available  : in std_logic;
         row                 : out vnir_row_t;
@@ -136,8 +150,8 @@ architecture rtl of vnir_subsystem is
 
     signal config_reg : vnir_config_t;
     signal imaging_done_s : std_logic;
-    signal start_image_requester_config : std_logic;
-    signal image_requester_config_done : std_logic;
+    signal start_frame_requester_config : std_logic;
+    signal frame_requester_config_done : std_logic;
     signal start_sensor_config : std_logic;
     signal sensor_config_done : std_logic;
     signal start_align : std_logic;
@@ -153,13 +167,15 @@ architecture rtl of vnir_subsystem is
 begin
 
     fsm : process
-        type state_t is (RESET, IDLE, CONFIGURING, IMAGING);
+        type state_t is (RESET, PRE_CONFIG, CONFIGURING, PRE_IMAGE_CONFIG, IMAGE_CONFIGURING, IDLE, IMAGING);
         variable state : state_t;
     begin
         wait until rising_edge(clock);
         
         start_locking <= '0';
+        start_frame_requester_config <= '0';
         config_done <= '0';
+        image_config_done <= '0';
         pixels_available <= '0';
 
         if reset_n = '0' then
@@ -168,22 +184,61 @@ begin
 
         case state is
         when RESET =>
-            state := IDLE;
-        when IDLE =>
+            state := PRE_CONFIG;
+        when PRE_CONFIG =>
+            assert start_image_config = '0';
+            assert do_imaging = '0';
             if start_config = '1' then
                 config_reg <= config;
                 start_locking <= '1';
                 state := CONFIGURING;
-            elsif do_imaging = '1' then
-                -- TODO: might want to start the image_requester here instead of it starting independently
-                state := IMAGING;
             end if;
         when CONFIGURING =>
+            assert start_config = '0';
+            assert start_image_config = '0';
+            assert do_imaging = '0';
             if align_done = '1' then
                 config_done <= '1';
+                state := PRE_IMAGE_CONFIG;
+            end if;
+        when PRE_IMAGE_CONFIG =>
+            assert start_config = '0';
+            assert do_imaging = '0';
+            if start_image_config = '1' then
+                start_frame_requester_config <= '1';
+                state := IMAGE_CONFIGURING;
+            end if;
+        when IMAGE_CONFIGURING =>
+            assert start_config = '0';
+            assert start_image_config = '0';
+            assert do_imaging = '0';
+            if frame_requester_config_done then
+                image_config_done <= '1';
                 state := IDLE;
             end if;
+        when IDLE =>
+            assert (start_config = '0' and start_image_config = '0' and do_imaging = '0') or
+                   (start_config = '1' and start_image_config = '0' and do_imaging = '0') or
+                   (start_config = '0' and start_image_config = '1' and do_imaging = '0') or
+                   (start_config = '0' and start_image_config = '0' and do_imaging = '1');
+                   
+            if start_config = '1' then
+                config_reg <= config;
+                start_locking <= '1';
+                state := CONFIGURING;
+            end if;
+            if start_image_config = '1' then
+                start_frame_requester_config <= '1';
+                state := IMAGE_CONFIGURING;
+            end if;
+            if do_imaging = '1' then
+                -- TODO: might want to start the frame_requester here instead of it starting independently
+                state := IMAGING;
+            end if;
         when IMAGING =>
+            assert start_config = '0';
+            assert start_image_config = '0';
+            assert do_imaging = '0';
             if parallel_lvds_available = '1' and parallel_lvds.control.dval = '1' then
                 pixels_available <= '1';
                 pixels <= parallel_lvds.data;
@@ -194,8 +249,7 @@ begin
         end case;
     end process fsm;
 
-    start_image_requester_config <= locking_done;
-    start_sensor_config <= image_requester_config_done;
+    start_sensor_config <= locking_done;
     start_align <= sensor_config_done;
 
     delay_until_locked : delay_until port map (
@@ -221,22 +275,21 @@ begin
         sensor_reset_n => sensor_reset_n
     );
     
-    image_requester_component : image_requester generic map (
+    frame_requester_component : frame_requester generic map (
         clocks_per_sec => clocks_per_sec
     ) port map (
         clock => clock,
         reset_n => reset_n,
         config => config_reg,
-        start_config => start_image_requester_config,
-        config_done => image_requester_config_done,
+        image_config => image_config,
+        start_config => start_frame_requester_config,
+        config_done => frame_requester_config_done,
         image_length => image_length,
-        do_imaging => do_imaging,  -- TODO: might want to use a registered input here
-        imaging_done => imaging_done_s,
+        do_imaging => do_imaging,
         sensor_clock => sensor_clock,
         frame_request => frame_request,
         exposure_start => exposure_start
     );
-    imaging_done <= imaging_done_s;
 
     lvds_decoder_component : lvds_decoder port map (
         clock => clock,
@@ -254,12 +307,14 @@ begin
         config => config,
         read_config => start_sensor_config,
         start => do_imaging,
+        done => imaging_done_s,
         image_length => image_length,
         fragment => pixels,
         fragment_available => pixels_available,
         row => row,
         row_available => row_available
     );
+    imaging_done <= imaging_done_s;
 
     num_rows <= image_length;
 

@@ -34,6 +34,7 @@ port (
 
     start               : in std_logic;
     image_length        : in integer;
+    done                : out std_logic;
 
     fragment            : in fragment_t;
     fragment_available  : in std_logic;
@@ -302,13 +303,19 @@ begin
     p3 : process
         variable offset : integer;
         variable stride : integer;
+        variable n_rows : integer_vector_t(2 downto 0);
+        variable n_rows_target : integer_vector_t(2 downto 0);
     begin
         wait until rising_edge(clock);
 
         row_available <= ROW_NONE;
+        done <= '0';
 
         if reset_n = '1' then
-            if p2_done = '1' then
+            if start = '1' then
+                n_rows := (others => 0);
+                n_rows_target := (others => image_length);
+            elsif p2_done = '1' then
                 offset := index_p2.fragment;
                 stride := index_p2.fragments_per_row;
                 for i in fragment_p2'range loop
@@ -322,6 +329,10 @@ begin
                         when others =>
                             report "Invalid window detected in row_collector.p3" severity failure;
                     end case;
+                    n_rows(index_p2.window) := n_rows(index_p2.window) + 1;
+                    if n_rows = n_rows_target then
+                        done <= '1';
+                    end if;
                 end if;
             end if;
         end if;

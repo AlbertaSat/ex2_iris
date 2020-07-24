@@ -69,10 +69,6 @@ architecture tests of sensor_configurer_tb is
 
     procedure check_register_values(reg : in reg_t; config : in vnir_config_t) is
         constant undefined : logic8_t := (others => 'U');
-        constant v_ramp1 : integer := 109;
-        constant v_ramp2 : integer := 109;
-        constant offset : integer := 16323;
-        constant adc_gain : integer := 32;
     begin
 
         for addr in 0 to spi_max_addr loop
@@ -112,12 +108,12 @@ architecture tests of sensor_configurer_tb is
                 when 94 =>          assert reg(addr) = to_logic8(101);
                 when 95 =>          assert reg(addr) = to_logic8(106);
                 when 96 to 97 =>    assert reg(addr) = undefined;
-                when 98 =>          assert reg(addr) = to_logic8(v_ramp1);
-                when 99 =>          assert reg(addr) = to_logic8(v_ramp2);
-                when 100 =>         assert reg(addr) = to_logic8(offset);
-                when 101 =>         assert reg(addr) = to_logic8(offset / (2**8));
+                when 98 =>          assert reg(addr) = to_logic8(config.calibration.v_ramp1);
+                when 99 =>          assert reg(addr) = to_logic8(config.calibration.v_ramp2);
+                when 100 =>         assert reg(addr) = to_logic8(config.calibration.offset);
+                when 101 =>         assert reg(addr) = to_logic8(config.calibration.offset / (2**8));
                 when 102 =>         assert reg(addr) = to_logic8(1);
-                when 103 =>         assert reg(addr) = to_logic8(adc_gain);
+                when 103 =>         assert reg(addr) = to_logic8(config.calibration.adc_gain);
                 when 104 to 110 =>  assert reg(addr) = undefined;
                 when 111 =>         assert reg(addr) = to_logic8(1);
                 when 112 =>         assert reg(addr) = to_logic8(0);
@@ -171,6 +167,7 @@ begin
         config.window_nir <= (lo => 11, hi => 15);
         config.window_blue <= (lo => 16, hi => 26);
         config.window_red <= (lo => 30, hi => 50);
+        config.calibration <= (v_ramp1 => 109, v_ramp2 => 109, offset => 16323, adc_gain => 32);
         start_config <= '1'; wait until rising_edge(clock); start_config <= '0';
         
         wait for 30 us;

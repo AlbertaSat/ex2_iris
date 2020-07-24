@@ -18,6 +18,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+library std;
+use std.env.stop;
+
 use work.spi_types.all;
 use work.vnir_types.all;
 
@@ -34,8 +37,11 @@ architecture tests of vnir_subsystem_tb is
     signal sensor_clock_enable  : std_logic;
     signal sensor_reset_n       : std_logic;
     signal config               : vnir_config_t;
-    signal start_config         : std_logic;
+    signal start_config         : std_logic := '0';
     signal config_done          : std_logic;
+    signal image_config         : vnir_image_config_t;
+    signal start_image_config   : std_logic := '0';
+    signal image_config_done    : std_logic;
     signal do_imaging           : std_logic := '0';
     signal imaging_done         : std_logic;
     signal num_rows             : integer;
@@ -52,6 +58,7 @@ architecture tests of vnir_subsystem_tb is
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
+    
         sensor_clock        : in std_logic;
         sensor_clock_locked : in std_logic;
         sensor_power        : out std_logic;
@@ -60,9 +67,12 @@ architecture tests of vnir_subsystem_tb is
         config              : in vnir_config_t;
         start_config        : in std_logic;
         config_done         : out std_logic;
+        image_config        : in vnir_image_config_t;
+        start_image_config  : in std_logic;
+        image_config_done   : out std_logic;
+        num_rows            : out integer;
         do_imaging          : in std_logic;
         imaging_done        : out std_logic;
-        num_rows            : out integer;
         row                 : out vnir_row_t;
         row_available       : out vnir_row_type_t;
         spi_out             : out spi_from_master_t;
@@ -101,6 +111,28 @@ begin
             end if;
         end if;
     end process debug;
+
+    reciever : process
+        variable n_nir_rows : integer := 0;
+        variable n_blue_rows : integer := 0;
+        variable n_red_rows : integer := 0;
+    begin
+        wait until rising_edge(clock) and do_imaging = '1';
+
+        loop
+            wait until rising_edge(clock);
+            if row_available = ROW_NIR then n_nir_rows := n_nir_rows + 1; end if;
+            if row_available = ROW_BLUE then n_blue_rows := n_blue_rows + 1; end if;
+            if row_available = ROW_RED then n_red_rows := n_red_rows + 1; end if;
+            exit when imaging_done = '1';
+        end loop;
+
+        assert num_rows = 1;
+        assert n_nir_rows = num_rows;
+        assert n_blue_rows = num_rows;
+        assert n_red_rows = num_rows;
+        stop;
+    end process;
 
     clock_gen : process
         constant clock_period : time := 20 ns;
@@ -178,34 +210,23 @@ begin
 	test : process
     begin
         
-        -- -----------------------------------
-		-- Test programming the sensor
-		-- -----------------------------------
-        report "Test: programming";
         wait until rising_edge(clock); reset_n <= '0'; wait until rising_edge(clock); reset_n <= '1';
         wait until rising_edge(clock);
+        sensor_clock_locked <= '1';
         config.window_nir.lo  <= 0; config.window_nir.hi  <= 1;
         config.window_blue.lo <= 2; config.window_blue.hi <= 3;
         config.window_red.lo  <= 4; config.window_red.hi  <= 5;
-        config.imaging_duration <= 1000;  -- 1 second
-        config.fps <= 180;
-        config.exposure_time <= 1;
-        start_config <= '1';
-        sensor_clock_locked <= '1';
-        wait until rising_edge(clock);
-        start_config <= '0'; 
+        config.calibration <= (v_ramp1 => 109, v_ramp2 => 109, offset => 16323, adc_gain => 32);
+        start_config <= '1'; wait until rising_edge(clock); start_config <= '0'; 
         wait until rising_edge(clock) and config_done = '1';
-        -- TODO: asserts here
 
-        -- -----------------------------------
-		-- Imaging
-        -- -----------------------------------
-        report "Test: imaging";
-        wait until rising_edge(clock); do_imaging <= '1'; wait until rising_edge(clock); do_imaging <= '0';
-        
-        report "Finished running tests.";
-		
-		wait;
+        image_config <= (duration => 10, fps => 100, exposure_time => 5);
+        start_image_config <= '1';  wait until rising_edge(clock); start_image_config <= '0'; 
+        wait until rising_edge(clock) and image_config_done = '1';
+
+        do_imaging <= '1'; wait until rising_edge(clock); do_imaging <= '0';
+
+        wait;
 	end process test;
 
 	u0 : vnir_subsystem port map(
@@ -219,6 +240,9 @@ begin
         config => config,
         start_config => start_config,
         config_done => config_done,
+        image_config => image_config,
+        start_image_config => start_image_config,
+        image_config_done => image_config_done,
         do_imaging => do_imaging,
         imaging_done => imaging_done,
         num_rows => num_rows,

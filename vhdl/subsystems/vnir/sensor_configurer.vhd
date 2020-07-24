@@ -62,7 +62,7 @@ package vnir_sensor_config_pkg is
     pure function flip_instructions(flip : vnir_flip_t) return logic16_vector_t;
     pure function misc_instructions(flags : std_logic_vector) return logic16_vector_t;
     pure function n_channels_instructions(n_channels : integer) return logic16_vector_t;
-    pure function calibration_instructions(config : vnir_config_t) return logic16_vector_t;
+    pure function calibration_instructions(calibration : vnir_calibration_t) return logic16_vector_t;
     pure function bit_mode_instructions(pixel_bits : integer) return logic16_vector_t;
     pure function pll_instructions(sensor_clock_MHz : integer; pixel_bits : integer) return logic16_vector_t;
     pure function undocumented_instructions return logic16_vector_t;
@@ -122,10 +122,6 @@ architecture rtl of sensor_configurer is
     signal spi_tx_data : std_logic_vector(15 downto 0);
     signal spi_busy : std_logic;
     signal spi_ss_n : std_logic;
-
-    signal sensor_reset_force : std_logic;
-    signal sensor_clock_disable_force : std_logic;
-
 
     type timer_t is record
         start : std_logic;
@@ -285,7 +281,8 @@ begin
 
     spi_settle_timer_cmp : timer generic map (
         clocks_per_sec => clocks_per_sec,
-        delay_us => 20000    -- Overkill probably. From section 3.7 of the user guide
+        -- delay_us => 20000    -- Overkill probably. From section 3.7 of the user guide
+        delay_us => 1
     ) port map (
         clock => clock,
         reset_n => reset_n,
@@ -302,7 +299,6 @@ package body vnir_sensor_config_pkg is
     pure function l8_instructions(l8 : logic8_t; addr : integer) return logic16_vector_t is
         variable instructions : logic16_vector_t(0 downto 0);
     begin
-        report "l8_instructions(value=" & integer'image(to_integer(unsigned(l8))) & ", addr=" & integer'image(addr) & ")";
         instructions(0) := '1' & to_logic7(addr) & l8;
         return instructions;
     end function l8_instructions;
@@ -315,7 +311,6 @@ package body vnir_sensor_config_pkg is
     pure function l16_instructions(l16 : logic16_t; addr : integer) return logic16_vector_t is
         variable instructions : logic16_vector_t(2-1 downto 0);
     begin
-        report "l16_instructions(value=" & integer'image(to_integer(unsigned(l16))) & ", addr=" & integer'image(addr) & ")";
         instructions(1) := '1' & to_logic7(addr + 0) & l16(7 downto 0);
         instructions(0) := '1' & to_logic7(addr + 1) & l16(15 downto 8);
         return instructions;
@@ -394,21 +389,16 @@ package body vnir_sensor_config_pkg is
         end case;
     end function n_channels_instructions;
 
-    pure function calibration_instructions(config : vnir_config_t) return logic16_vector_t is
-        constant adc_gain : integer := 32;
-        constant v_ramp1 : integer := 109;
-        constant v_ramp2 : integer := 109;
-        constant offset : integer := 16323;
-
+    pure function calibration_instructions(calibration : vnir_calibration_t) return logic16_vector_t is
         constant addr_adc_gain : integer := 103;
         constant addr_v_ramp1 : integer := 98;
         constant addr_v_ramp2 : integer := 99;
         constant addr_offset : integer := 100;
     begin
-        return i8_instructions(adc_gain, addr_adc_gain)
-             & i8_instructions(v_ramp1, addr_v_ramp1)
-             & i8_instructions(v_ramp2, addr_v_ramp2)
-             & i16_instructions(offset, addr_offset);
+        return i8_instructions(calibration.adc_gain, addr_adc_gain)
+             & i8_instructions(calibration.v_ramp1, addr_v_ramp1)
+             & i8_instructions(calibration.v_ramp2, addr_v_ramp2)
+             & i16_instructions(calibration.offset, addr_offset);
     end;
 
     pure function bit_mode_instructions(pixel_bits : integer) return logic16_vector_t is
@@ -487,7 +477,7 @@ package body vnir_sensor_config_pkg is
              & flip_instructions(config.flip)
              & misc_instructions(EXTERNAL_EXPOSURE or DUMMY_INSERTION)
              & n_channels_instructions(vnir_lvds_n_channels)
-             & calibration_instructions(config)
+             & calibration_instructions(config.calibration)
              & bit_mode_instructions(vnir_pixel_bits)
              & pll_instructions(48, vnir_pixel_bits)  -- TODO: set this properly
              & undocumented_instructions;

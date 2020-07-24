@@ -18,27 +18,32 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+library std;
+use std.env.stop;
+
 use work.spi_types.all;
 use work.vnir_types.all;
 
-entity image_requester_tb is
+entity frame_requester_tb is
 end entity;
 
 
-architecture tests of image_requester_tb is	    
+architecture tests of frame_requester_tb is	    
     signal clock            : std_logic := '0';  -- Main clock
     signal reset_n          : std_logic := '1';  -- Main reset
     signal config           : vnir_config_t;
-    signal read_config      : std_logic := '0';
-    signal num_frames       : integer;
-    signal do_imaging       : std_logic := '0';
+    signal image_config     : vnir_image_config_t;
+    signal start_config     : std_logic := '0';
+    signal config_done      : std_logic;
+    signal image_length     : integer;
+    signal do_imaging       : std_logic;
     signal imaging_done     : std_logic;
     signal sensor_clock     : std_logic := '0';
     signal sensor_reset     : std_logic := '0';
     signal frame_request    : std_logic;
     signal exposure_start   : std_logic;
     
-    component image_requester is
+    component frame_requester is
     generic (
         clocks_per_sec      : integer
     );
@@ -46,19 +51,21 @@ architecture tests of image_requester_tb is
         clock               : in std_logic;
         reset_n             : in std_logic;
         config              : in vnir_config_t;
-        read_config         : in std_logic;
-        num_frames          : out integer;
+        image_config        : in vnir_image_config_t;
+        start_config        : in std_logic;
+        config_done         : out std_logic;
         do_imaging          : in std_logic;
+        image_length        : out integer;
         imaging_done        : out std_logic;
         sensor_clock        : in std_logic;
         frame_request       : out std_logic;
         exposure_start      : out std_logic
     ); 
-	end component;
+	end component frame_requester;
 
 begin
 
-    debug : process (do_imaging, frame_request)
+    debug : process (frame_request, do_imaging)
     begin
         if rising_edge(do_imaging) then
             report "Detected do_imaging rising edge";
@@ -87,24 +94,30 @@ begin
         
         reset_n <= '0'; wait until rising_edge(clock); reset_n <= '1';
         
-        config.imaging_duration <= 1000;
-        config.fps <= 30;
-        read_config <= '1'; wait until rising_edge(clock); read_config <= '0';
+        config.window_nir <= (lo => 1, hi => 1);
+        config.window_blue <= (lo => 2, hi => 2);
+        config.window_red <= (lo => 3, hi => 3);
+        image_config <= (duration => 10, fps => 100, exposure_time => 5);
+        start_config <= '1'; wait until rising_edge(clock); start_config <= '0';
+        wait until rising_edge(clock) and config_done = '1';
 
         do_imaging <= '1'; wait until rising_edge(clock); do_imaging <= '0';
         
-        wait;
+        wait until rising_edge(clock) and imaging_done = '1';
+        stop;
 
 	end process test;
 
-    image_requester_component : image_requester generic map (
+    frame_requester_component : frame_requester generic map (
         clocks_per_sec => 50000000
     ) port map(
         clock => clock,
         reset_n => reset_n,
         config => config,
-        read_config => read_config,
-        num_frames => num_frames,
+        image_config => image_config,
+        start_config => start_config,
+        config_done => config_done,
+        image_length => image_length,
         do_imaging => do_imaging,
         imaging_done => imaging_done,
         sensor_clock => sensor_clock,
