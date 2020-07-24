@@ -45,7 +45,7 @@ entity memory_map is
 
         --Ouput image row address config
         next_row_type       : in sdram_next_row_fed;
-        row_address         : out sdram_address_block_t;
+        row_address         : out unsigned (31 downto 0);
 
         --Read data to be read from sdram due to mpu interaction
         sdram_error         : out sdram_error_t;
@@ -59,22 +59,31 @@ architecture rtl of memory_map is
     signal state : t_state := init;
 
     --Start addresses for each band for the image
-    signal start_blue_address : unsigned(32 downto 0);
-    signal start_red_address  : unsigned(32 downto 0);
-    signal start_nir_address  : unsigned(32 downto 0);
-    signal start_swir_address : unsigned(32 downto 0);
+    signal start_blue_address : unsigned(31 downto 0);
+    signal start_red_address  : unsigned(31 downto 0);
+    signal start_nir_address  : unsigned(31 downto 0);
+    signal start_swir_address : unsigned(31 downto 0);
 
     --Next addresses out of the memory state
-    signal next_blue_address : unsigned(32 downto 0);
-    signal next_red_address  : unsigned(32 downto 0);
-    signal next_nir_address  : unsigned(32 downto 0);
-    signal next_swir_address : unsigned(32 downto 0);
+    signal next_blue_address : unsigned(31 downto 0);
+    signal next_red_address  : unsigned(31 downto 0);
+    signal next_nir_address  : unsigned(31 downto 0);
+    signal next_swir_address : unsigned(31 downto 0);
 
     --Output signal coming from enumerator
     signal inc_blue_address : std_logic;
     signal inc_red_address  : std_logic;
     signal inc_nir_address  : std_logic;
     signal inc_swir_address : std_logic;
+
+    --Various output signals to be Mux'd
+    signal row_assign_address : unsigned(31 downto 0);
+    signal img_config_address : unsigned(31 downto 0);
+
+    --State controlling variables
+    signal cfg_mem_state : std_logic := '0';
+    signal cfg_header    : std_logic := '0';
+    signal init_process  : std_logic := '0';
 
     component address_counter is
         generic(increment_size, address_length : integer);
@@ -157,6 +166,17 @@ begin
             output_address => next_swir_address
         );
     
-    
+    state_machine : process(clock) is
+    begin
+        if rising_edge(clock) then
+            if (reset_n = '0') then
+                state <= init;
+            else
+                case state is
+                    when init =>
+                        row_assign_address <= to_unsigned(0, 32);
+                        init_process <= '1';
+                    when sys_config =>
+                        
 
 end architecture;                
