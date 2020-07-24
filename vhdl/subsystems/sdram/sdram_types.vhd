@@ -27,6 +27,8 @@ package sdram_types is
     type vnir_row_available_t is (no_row, blue_row, red_row, nir_row);
 
     type sdram_next_row_fed_t is (no_row, blue_row, red_row, nir_row, swir_row);
+    attribute enum_encoding : string;
+    attribute enum_encoding of sdram_next_row_fed_t : type is "000 001 010 011 100";
 
     type sdram_config_to_sdram_t is record
         memory_base     : natural;
