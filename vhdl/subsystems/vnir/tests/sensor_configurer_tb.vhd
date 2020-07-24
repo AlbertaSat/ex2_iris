@@ -33,7 +33,8 @@ architecture tests of sensor_configurer_tb is
 
     component sensor_configurer is
     generic (
-        clocks_per_sec      : integer
+        clocks_per_sec      : integer;
+        spi_settle_us       : integer
     );
     port (	
         clock               : in std_logic;
@@ -178,7 +179,8 @@ begin
     end process test;
 
     sensor_configurer_component : sensor_configurer generic map (
-        clocks_per_sec => 50000000
+        clocks_per_sec => 50000000,
+        spi_settle_us => 1   -- Decrease SPI settle time for faster testing
     ) port map (
         clock => clock,
         reset_n => reset_n,

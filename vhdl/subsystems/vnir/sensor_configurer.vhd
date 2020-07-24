@@ -24,9 +24,13 @@ use work.spi_types.all;
 
 entity sensor_configurer is
 generic (
-    clocks_per_sec      : integer
+    clocks_per_sec      : integer;
+    power_on_delay_us   : integer := 1;  -- TODO: find out power stability time
+    clock_on_delay_us   : integer := 1;  -- From figure 7 of the user guide
+    reset_off_delay_us  : integer := 1;  -- From figure 7 of the user guide
+    spi_settle_us       : integer := 20000  -- Overkill probably. From section 3.7 of the user guide
 );
-port (	
+port (
     clock               : in std_logic;
     reset_n             : in std_logic;
 
@@ -251,7 +255,7 @@ begin
 
     power_on_timer_cmp : timer generic map (
         clocks_per_sec => clocks_per_sec,
-        delay_us => 1    -- TODO: find out power stability time
+        delay_us => power_on_delay_us
     ) port map (
         clock => clock,
         reset_n => reset_n,
@@ -261,7 +265,7 @@ begin
 
     clock_on_timer_cmp : timer generic map (
         clocks_per_sec => clocks_per_sec,
-        delay_us => 1    -- From figure 7 of the user guide
+        delay_us => clock_on_delay_us
     ) port map (
         clock => clock,
         reset_n => reset_n,
@@ -271,7 +275,7 @@ begin
 
     reset_off_timer_cmp : timer generic map (
         clocks_per_sec => clocks_per_sec,
-        delay_us => 1    -- From figure 7 of the user guide
+        delay_us => reset_off_delay_us
     ) port map (
         clock => clock,
         reset_n => reset_n,
@@ -281,8 +285,7 @@ begin
 
     spi_settle_timer_cmp : timer generic map (
         clocks_per_sec => clocks_per_sec,
-        -- delay_us => 20000    -- Overkill probably. From section 3.7 of the user guide
-        delay_us => 1
+        delay_us => spi_settle_us
     ) port map (
         clock => clock,
         reset_n => reset_n,
