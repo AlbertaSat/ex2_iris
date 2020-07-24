@@ -212,7 +212,7 @@ begin
             assert start_config = '0';
             assert start_image_config = '0';
             assert do_imaging = '0';
-            if frame_requester_config_done then
+            if frame_requester_config_done = '1' then
                 image_config_done <= '1';
                 state := IDLE;
             end if;
