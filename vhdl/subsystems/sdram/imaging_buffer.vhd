@@ -43,7 +43,7 @@ entity imaging_buffer is
         --Flag signals
         swir_row_ready  : in std_logic;
         vnir_row_ready  : in vnir_row_available_t;
-        header_sent     : in std_logic;
+        header_sent     : in std_logic
     );
 end entity imaging_buffer;
 
