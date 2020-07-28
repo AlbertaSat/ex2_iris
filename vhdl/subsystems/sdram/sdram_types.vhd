@@ -20,27 +20,31 @@ use ieee.numeric_std.all;
 use work.fpga_types.all;
 
 package sdram_types is
-    type sdram_address_block_t is array (0 to 1) of natural;
+    type sdram_address_block_t is array (0 to 1) of unsigned(31 downto 0);
     
     type sdram_error_t is (no_error, full, mpu_check_failed);
 
     type vnir_row_available_t is (no_row, blue_row, red_row, nir_row);
 
     type sdram_next_row_fed_t is (no_row, blue_row, red_row, nir_row, swir_row);
-    attribute enum_encoding : string;
-    attribute enum_encoding of sdram_next_row_fed_t : type is "000 001 010 011 100";
 
     type sdram_config_to_sdram_t is record
-        memory_base     : natural;
-        memory_bounds   : natural;
+        memory_base     : unsigned(31 downto 0);
+        memory_bounds   : unsigned(31 downto 0);
     end record sdram_config_to_sdram_t;
 
     type partition_t is record
-        base               : natural;
-        bounds             : natural;
-        fill_base          : natural;
-        fill_bounds        : natural;
+        base               : unsigned(31 downto 0);
+        bounds             : unsigned(31 downto 0);
+        fill_bounds        : unsigned(31 downto 0);
+        fill_base          : unsigned(31 downto 0);
     end record partition_t;
+
+    constant UNDEFINED_PARTITION : partition_t := (
+        base => 0,
+        bounds => 0,
+        fill_base => 0,
+        fill_bounds => 0);
 
     type sdram_partitions_t is record
         vnir        : partition_t;
