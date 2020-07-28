@@ -52,7 +52,7 @@ architecture rtl of partition_register is
     --Checks if the image won't fit in the memory because it is too full, returns 1 if it does
     function check_full(partition : partition_t, address_size : unsigned(31 downto 0), start_address : unsigned(31 downto 0)) return std_logic is
     begin
-        if (start_address <= partition.fill_base and start_address + bit_size / 16 >= partition.fill_base) then
+        if (start_address <= partition.fill_base and start_address + address_size >= partition.fill_base) then
             return '1';
         else
             return '0';
