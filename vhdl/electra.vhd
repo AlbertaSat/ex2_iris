@@ -91,21 +91,30 @@ architecture rtl of electra is
 
     component sdram_subsystem
     port (
+        --Control signals
         clock               : in std_logic;
         reset_n             : in std_logic;
+
+        --VNIR row signals
         vnir_rows_available : in std_logic;
         vnir_num_rows       : in integer;
         vnir_rows           : in vnir_rows_t;
+        
+        --SWIR row signals
         swir_row_available  : in std_logic;
         swir_num_rows       : in integer;
         swir_row            : in swir_row_t;
+        
         timestamp           : in timestamp_t;
-        mpu_memory_change   : in sdram_address_list_t;
+        mpu_memory_change   : in sdram_address_block_t;
         config_in           : in sdram_config_to_sdram_t;
-        config_out          : out sdram_config_from_sdram_t;
+        config_out          : out sdram_partitions_t;
         config_done         : out std_logic;
+        img_config_done     : out std_logic;
+        
         sdram_busy          : out std_logic;
-        sdram_error         : out sdram_error_t;
+        sdram_error         : out stdram_error_t;
+        
         sdram_avalon_out    : out avalonmm_rw_from_master_t;
         sdram_avalon_in     : in avalonmm_rw_to_master_t
     );
@@ -178,6 +187,7 @@ architecture rtl of electra is
     signal mpu_memory_change : sdram_address_list_t;
     signal sdram_config : sdram_config_t;
     signal sdram_config_done : std_logic;
+    signal sdram_img_config_done : std_logic;
     signal sdram_busy : std_logic;
     signal sdram_error : sdram_error_t;
 
@@ -255,6 +265,7 @@ begin
         config_in => sdram_config.to_sdram,
         config_out => sdram_config.from_sdram,
         config_done => sdram_config_done,
+        img_config_done => sdram_img_config_done,
         sdram_busy => sdram_busy,
         sdram_error => sdram_error,
         sdram_avalon_out => sdram_avalon.from_master,
