@@ -20,7 +20,8 @@ use ieee.numeric_std.all;
 use work.fpga_types.all;
 
 package sdram_types is
-    type sdram_address_block_t is array (0 to 1) of unsigned(31 downto 0);
+    subtype sdram_address is unsigned (31 downto 0);
+    type sdram_address_block_t is array (0 to 1) of sdram_address;
     
     type sdram_error_t is (no_error, full, mpu_check_failed);
 
