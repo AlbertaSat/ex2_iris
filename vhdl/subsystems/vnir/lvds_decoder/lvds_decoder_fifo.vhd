@@ -29,15 +29,15 @@ generic (
     show_ahead  : boolean := false
 );
 port (
-    aclr		: in std_logic;
-    data		: in std_logic_vector(breadth-1 downto 0);
-    rdclk		: in std_logic;
-    rdreq		: in std_logic;
-    wrclk		: in std_logic;
-    wrreq		: in std_logic;
-    q		    : out std_logic_vector(breadth-1 downto 0);
-    rdempty		: out std_logic;
-    wrfull		: out std_logic 
+    aclr        : in std_logic;
+    data        : in std_logic_vector(breadth-1 downto 0);
+    rdclk       : in std_logic;
+    rdreq       : in std_logic;
+    wrclk       : in std_logic;
+    wrreq       : in std_logic;
+    q           : out std_logic_vector(breadth-1 downto 0);
+    rdempty     : out std_logic;
+    wrfull      : out std_logic 
 );
 end entity lvds_decoder_fifo;
 
@@ -46,19 +46,19 @@ architecture rtl of lvds_decoder_fifo is
 	generic (
         intended_device_family  : string;
         lpm_numwords            : natural;
-        lpm_showahead		    : string;
+        lpm_showahead           : string;
         lpm_type                : string;
         lpm_width               : natural;
         lpm_widthu              : natural;
         overflow_checking       : string;
         rdsync_delaypipe        : natural;
-        read_aclr_synch		    : string;
+        read_aclr_synch         : string;
         underflow_checking      : string;
         use_eab	                : string;
         write_aclr_synch        : string;
         wrsync_delaypipe        : natural
-	);
-	port (
+    );
+    port (
         aclr    : in std_logic;
         data    : in std_logic_vector (breadth-1 downto 0);
         rdclk   : in std_logic;
@@ -68,7 +68,7 @@ architecture rtl of lvds_decoder_fifo is
         q       : out std_logic_vector (breadth-1 downto 0);
         rdempty : out std_logic;
         wrfull  : out std_logic 
-	);
+    );
     end component dcfifo;
     
     pure function to_on_off(b : boolean) return string is
@@ -96,8 +96,8 @@ begin
         aclr => aclr,
         data => data,
         rdclk => rdclk,
-		rdreq => rdreq,
-		wrclk => wrclk,
+        rdreq => rdreq,
+        wrclk => wrclk,
         wrreq => wrreq,
         q => q,
         rdempty => rdempty,
