@@ -66,7 +66,7 @@ architecture rtl of partition_register is
     end function check_full;
 begin
     --Combinitorial process specifying signal assignments
-    state_process : process(state, add_sub_length, base, bounds, add_sub_length) is
+    state_process : process(state, add_sub_length, base, bounds) is
     begin
         case state is
             when init =>
@@ -84,15 +84,15 @@ begin
                             full <= '1';
                             no_add = '1';
                         else
-                            buffer_fill_bounds <= buffer_part.base + add_sub_length;
-                            img_start <= buffer_part.base;
-                            img_end <= buffer_part.base + add_sub_length;
+                            buffer_fill_bounds <= buffer_part.base + 1 + add_sub_length;
+                            img_start <= buffer_part.base + 1;
+                            img_end <= buffer_part.base + 1 + add_sub_length;
                         end if;
                     else
                         --No need to check if it's full, the overflow did that already
-                        buffer_fill_bounds <= buffer_part.fill_bounds + add_sub_length;
-                        img_start <= buffer_part.fill_bounds;
-                        img_end <= buffer_part.fill_bounds + add_sub_length;
+                        buffer_fill_bounds <= buffer_part.fill_bounds + 1 + add_sub_length;
+                        img_start <= buffer_part.fill_bounds + 1;
+                        img_end <= buffer_part.fill_bounds + 1 + add_sub_length;
                     end if;
                 else
                     --Just need to check if it's full for this case
@@ -100,9 +100,9 @@ begin
                         full = '1';
                         no_add = '1';
                     else
-                        buffer_fill_bounds <= buffer_part.fill + bounds + add_sub_length;
-                        img_start <= buffer_part.fill_bounds;
-                        img_end <= buffer_part.fill_bounds + add_sub_length;
+                        buffer_fill_bounds <= buffer_part.fill_bounds + 1 + add_sub_length;
+                        img_start <= buffer_part.fill_bounds + 1;
+                        img_end <= buffer_part.fill_bounds + 1 + add_sub_length;
                     end if;
                 end if;
 

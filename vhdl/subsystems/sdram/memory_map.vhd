@@ -59,6 +59,8 @@ architecture rtl of memory_map is
     type t_state is (init, idle, imaging);
     signal state, next_state : t_state;
 
+    signal buffer_address : sdram_address;
+
     --Start addresses for each band for the image
     signal start_blue_address : sdram_address;
     signal start_red_address  : sdram_address;
@@ -112,9 +114,11 @@ architecture rtl of memory_map is
     signal write_addresses  : std_logic;
     signal delete_addresses : std_logic;
 
-    signal prev_row_type : sdram_next_row_fed;
+    signal curr_row_type, prev_row_type : sdram_next_row_fed;
+    signal vnir_header_sent : std_logic;
 
-    signal vnir_band_length : unsigned (31 downto 0);
+    signal vnir_band_length : sdram_address;
+    signal swir_band_length : sdram_address;
 
     constant VNIR_ROW_LENGTH : unsigned (10 downto 0) := to_unsigned(1280, 11); --2048 px/row * 10 b/px / 16 b/address = 1280 address/row
     constant SWIR_ROW_LENGTH : unsigned (9 downto 0) := to_unsigned(512, 10);   -- 512 px/row * 16 b/px / 16 b/address = 512  address/row
@@ -281,13 +285,16 @@ begin
         );
 
     --Process responsible assigning the next state at the rising edge
-    state_clocking : process(clock) is
+    sig_assign : process(clock) is
     begin
         if rising_edge(clock) then
             if (reset_n = '0') then
                 state <= init;
+                output_address <= to_unsigned(0, 32);
             else
                 state <= next_state;
+                output_address <= buffer_address;
+                prev_row_type <= sdram_next_row_fed;
         end if;
     end process;
 
@@ -296,7 +303,7 @@ begin
     begin
         case state is
             when init =>
-                if start_config <= '1' then
+                if (start_config <= '1') then
                     next_state <= img_config;
                 else
                     next_state <= init;
@@ -317,13 +324,40 @@ begin
     end process;
 
     --Creating the start addresses for each counter
-    start_swir_header_address <= swir_img_start + 1; --Don't wanna overwrite the end of the last image
-    start_vnir_header_address <= vnir_img_start + 1;
+    start_swir_header_address <= swir_img_start;
+    start_vnir_header_address <= vnir_img_start;
 
-    start_blue_address <= vnir_img_start + HEADER_LENGTH + 1;
-    start_red_address  <= vnir_img_start + number_vnir_rows * VNIR_ROW_LENGTH + HEADER_LENGTH + 1; --Adding room for the blue band
-    start_nir_address  <= vnir_img_start + number_vnir_rows * 2 * VNIR_ROW_LENGTH + HEADER_LENGTH + 1; --Room for both blue and red
-    start_swir_address <= swir_img_start + HEADER_LENGTH + 1;
+    start_blue_address <= vnir_img_start + HEADER_LENGTH;
+    start_red_address  <= vnir_img_start + vnir_band_length + HEADER_LENGTH; --Adding room for the blue band
+    start_nir_address  <= vnir_img_start + vnir_band_length * 2 + HEADER_LENGTH; --Room for both blue and red
+    start_swir_address <= swir_img_start + HEADER_LENGTH;
     
+    state_process : process() is
+    begin
+        case state is
+            when init => null;
+            when img_config =>
+                vnir_band_length <= number_vnir_rows * VNIR_ROW_LENGTH;
+                swir_band_length <= number_swir_rows * SWIR_ROW_LENGTH;
+            when imaging =>
+        end case;
+    end process;
+    
+    no_new_rows <= '1' when (next_blue_address = start_red_address and next_red_address = start_nir_address and next_nir_address = vnir_img_end and next_swir_address = swir_img_end) else '0';
 
+    inc_nir_address  <= '1' when (next_row_req = '1' and prev_row_type = nir_row) else '0';
+    inc_red_address  <= '1' when (next_row_req = '1' and prev_row_type = red_row) else '0';
+    inc_blue_address <= '1' when (next_row_req = '1' and prev_row_type = blue_row) else '0';
+    inc_swir_address <= '1' when (next_row_req = '1' and prev_row_type = swir_row) else '0';
+
+    with next_row_type select row_assign_address <=
+        next_swir_address when swir_row,
+        next_nir_address  when nir_row,
+        next_red_address  when red_row,
+        next_blue_address when blue_row;
+    
+    output_address <= row_assign_address when state = imaging else
+                      img_config_address when state = img_config else
+                      to_unsigned(0, 32);    
+    
 end architecture;
