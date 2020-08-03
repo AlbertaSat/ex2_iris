@@ -8,45 +8,44 @@ use IEEE.numeric_std.all;
 
 entity electra is
 	port (
-		clk_clk                                     : in    std_logic                     := '0';             --                                  clk.clk
-		electra_fpga_subsystem_0_conduit_end_export : out   std_logic_vector(31 downto 0);                    -- electra_fpga_subsystem_0_conduit_end.export
-		hps_io_hps_io_usb1_inst_D0                  : inout std_logic                     := '0';             --                               hps_io.hps_io_usb1_inst_D0
-		hps_io_hps_io_usb1_inst_D1                  : inout std_logic                     := '0';             --                                     .hps_io_usb1_inst_D1
-		hps_io_hps_io_usb1_inst_D2                  : inout std_logic                     := '0';             --                                     .hps_io_usb1_inst_D2
-		hps_io_hps_io_usb1_inst_D3                  : inout std_logic                     := '0';             --                                     .hps_io_usb1_inst_D3
-		hps_io_hps_io_usb1_inst_D4                  : inout std_logic                     := '0';             --                                     .hps_io_usb1_inst_D4
-		hps_io_hps_io_usb1_inst_D5                  : inout std_logic                     := '0';             --                                     .hps_io_usb1_inst_D5
-		hps_io_hps_io_usb1_inst_D6                  : inout std_logic                     := '0';             --                                     .hps_io_usb1_inst_D6
-		hps_io_hps_io_usb1_inst_D7                  : inout std_logic                     := '0';             --                                     .hps_io_usb1_inst_D7
-		hps_io_hps_io_usb1_inst_CLK                 : in    std_logic                     := '0';             --                                     .hps_io_usb1_inst_CLK
-		hps_io_hps_io_usb1_inst_STP                 : out   std_logic;                                        --                                     .hps_io_usb1_inst_STP
-		hps_io_hps_io_usb1_inst_DIR                 : in    std_logic                     := '0';             --                                     .hps_io_usb1_inst_DIR
-		hps_io_hps_io_usb1_inst_NXT                 : in    std_logic                     := '0';             --                                     .hps_io_usb1_inst_NXT
-		hps_io_hps_io_spim1_inst_CLK                : out   std_logic;                                        --                                     .hps_io_spim1_inst_CLK
-		hps_io_hps_io_spim1_inst_MOSI               : out   std_logic;                                        --                                     .hps_io_spim1_inst_MOSI
-		hps_io_hps_io_spim1_inst_MISO               : in    std_logic                     := '0';             --                                     .hps_io_spim1_inst_MISO
-		hps_io_hps_io_spim1_inst_SS0                : out   std_logic;                                        --                                     .hps_io_spim1_inst_SS0
-		hps_io_hps_io_i2c1_inst_SDA                 : inout std_logic                     := '0';             --                                     .hps_io_i2c1_inst_SDA
-		hps_io_hps_io_i2c1_inst_SCL                 : inout std_logic                     := '0';             --                                     .hps_io_i2c1_inst_SCL
-		hps_io_hps_io_can1_inst_RX                  : in    std_logic                     := '0';             --                                     .hps_io_can1_inst_RX
-		hps_io_hps_io_can1_inst_TX                  : out   std_logic;                                        --                                     .hps_io_can1_inst_TX
-		memory_mem_a                                : out   std_logic_vector(14 downto 0);                    --                               memory.mem_a
-		memory_mem_ba                               : out   std_logic_vector(2 downto 0);                     --                                     .mem_ba
-		memory_mem_ck                               : out   std_logic;                                        --                                     .mem_ck
-		memory_mem_ck_n                             : out   std_logic;                                        --                                     .mem_ck_n
-		memory_mem_cke                              : out   std_logic;                                        --                                     .mem_cke
-		memory_mem_cs_n                             : out   std_logic;                                        --                                     .mem_cs_n
-		memory_mem_ras_n                            : out   std_logic;                                        --                                     .mem_ras_n
-		memory_mem_cas_n                            : out   std_logic;                                        --                                     .mem_cas_n
-		memory_mem_we_n                             : out   std_logic;                                        --                                     .mem_we_n
-		memory_mem_reset_n                          : out   std_logic;                                        --                                     .mem_reset_n
-		memory_mem_dq                               : inout std_logic_vector(31 downto 0) := (others => '0'); --                                     .mem_dq
-		memory_mem_dqs                              : inout std_logic_vector(3 downto 0)  := (others => '0'); --                                     .mem_dqs
-		memory_mem_dqs_n                            : inout std_logic_vector(3 downto 0)  := (others => '0'); --                                     .mem_dqs_n
-		memory_mem_odt                              : out   std_logic;                                        --                                     .mem_odt
-		memory_mem_dm                               : out   std_logic_vector(3 downto 0);                     --                                     .mem_dm
-		memory_oct_rzqin                            : in    std_logic                     := '0';             --                                     .oct_rzqin
-		reset_reset_n                               : in    std_logic                     := '0'              --                                reset.reset_n
+		clk_clk                       : in    std_logic                     := '0';             --    clk.clk
+		hps_io_hps_io_usb1_inst_D0    : inout std_logic                     := '0';             -- hps_io.hps_io_usb1_inst_D0
+		hps_io_hps_io_usb1_inst_D1    : inout std_logic                     := '0';             --       .hps_io_usb1_inst_D1
+		hps_io_hps_io_usb1_inst_D2    : inout std_logic                     := '0';             --       .hps_io_usb1_inst_D2
+		hps_io_hps_io_usb1_inst_D3    : inout std_logic                     := '0';             --       .hps_io_usb1_inst_D3
+		hps_io_hps_io_usb1_inst_D4    : inout std_logic                     := '0';             --       .hps_io_usb1_inst_D4
+		hps_io_hps_io_usb1_inst_D5    : inout std_logic                     := '0';             --       .hps_io_usb1_inst_D5
+		hps_io_hps_io_usb1_inst_D6    : inout std_logic                     := '0';             --       .hps_io_usb1_inst_D6
+		hps_io_hps_io_usb1_inst_D7    : inout std_logic                     := '0';             --       .hps_io_usb1_inst_D7
+		hps_io_hps_io_usb1_inst_CLK   : in    std_logic                     := '0';             --       .hps_io_usb1_inst_CLK
+		hps_io_hps_io_usb1_inst_STP   : out   std_logic;                                        --       .hps_io_usb1_inst_STP
+		hps_io_hps_io_usb1_inst_DIR   : in    std_logic                     := '0';             --       .hps_io_usb1_inst_DIR
+		hps_io_hps_io_usb1_inst_NXT   : in    std_logic                     := '0';             --       .hps_io_usb1_inst_NXT
+		hps_io_hps_io_spim1_inst_CLK  : out   std_logic;                                        --       .hps_io_spim1_inst_CLK
+		hps_io_hps_io_spim1_inst_MOSI : out   std_logic;                                        --       .hps_io_spim1_inst_MOSI
+		hps_io_hps_io_spim1_inst_MISO : in    std_logic                     := '0';             --       .hps_io_spim1_inst_MISO
+		hps_io_hps_io_spim1_inst_SS0  : out   std_logic;                                        --       .hps_io_spim1_inst_SS0
+		hps_io_hps_io_i2c1_inst_SDA   : inout std_logic                     := '0';             --       .hps_io_i2c1_inst_SDA
+		hps_io_hps_io_i2c1_inst_SCL   : inout std_logic                     := '0';             --       .hps_io_i2c1_inst_SCL
+		hps_io_hps_io_can1_inst_RX    : in    std_logic                     := '0';             --       .hps_io_can1_inst_RX
+		hps_io_hps_io_can1_inst_TX    : out   std_logic;                                        --       .hps_io_can1_inst_TX
+		memory_mem_a                  : out   std_logic_vector(14 downto 0);                    -- memory.mem_a
+		memory_mem_ba                 : out   std_logic_vector(2 downto 0);                     --       .mem_ba
+		memory_mem_ck                 : out   std_logic;                                        --       .mem_ck
+		memory_mem_ck_n               : out   std_logic;                                        --       .mem_ck_n
+		memory_mem_cke                : out   std_logic;                                        --       .mem_cke
+		memory_mem_cs_n               : out   std_logic;                                        --       .mem_cs_n
+		memory_mem_ras_n              : out   std_logic;                                        --       .mem_ras_n
+		memory_mem_cas_n              : out   std_logic;                                        --       .mem_cas_n
+		memory_mem_we_n               : out   std_logic;                                        --       .mem_we_n
+		memory_mem_reset_n            : out   std_logic;                                        --       .mem_reset_n
+		memory_mem_dq                 : inout std_logic_vector(31 downto 0) := (others => '0'); --       .mem_dq
+		memory_mem_dqs                : inout std_logic_vector(3 downto 0)  := (others => '0'); --       .mem_dqs
+		memory_mem_dqs_n              : inout std_logic_vector(3 downto 0)  := (others => '0'); --       .mem_dqs_n
+		memory_mem_odt                : out   std_logic;                                        --       .mem_odt
+		memory_mem_dm                 : out   std_logic_vector(3 downto 0);                     --       .mem_dm
+		memory_oct_rzqin              : in    std_logic                     := '0';             --       .oct_rzqin
+		reset_reset_n                 : in    std_logic                     := '0'              --  reset.reset_n
 	);
 end entity electra;
 
@@ -58,8 +57,7 @@ architecture rtl of electra is
 			avalon_slave_read_n    : in  std_logic                     := 'X';             -- read_n
 			avalon_slave_readdata  : out std_logic_vector(31 downto 0);                    -- readdata
 			reset_n                : in  std_logic                     := 'X';             -- reset_n
-			clock                  : in  std_logic                     := 'X';             -- clk
-			conduit_end_data       : out std_logic_vector(31 downto 0)                     -- export
+			clock                  : in  std_logic                     := 'X'              -- clk
 		);
 	end component electra_fpga_subsystem;
 
@@ -434,8 +432,7 @@ begin
 			avalon_slave_read_n    => mm_interconnect_0_electra_fpga_subsystem_0_avalon_slave_read_ports_inv,  --             .read_n
 			avalon_slave_readdata  => mm_interconnect_0_electra_fpga_subsystem_0_avalon_slave_readdata,        --             .readdata
 			reset_n                => rst_controller_reset_out_reset_ports_inv,                                --        reset.reset_n
-			clock                  => clk_clk,                                                                 --        clock.clk
-			conduit_end_data       => electra_fpga_subsystem_0_conduit_end_export                              --  conduit_end.export
+			clock                  => clk_clk                                                                  --        clock.clk
 		);
 
 	hps_0 : component electra_hps_0

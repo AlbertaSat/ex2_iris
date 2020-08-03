@@ -8,8 +8,7 @@
    <export preferredWidth="282" />
   </columns>
  </systemtable>
- <library
-   expandedCategories="Library/University Program/Clock,Project,Library/Basic Functions/Simulation; Debug and Verification,Library/Processors and Peripherals/Hard Processor Systems,Library,Library/Processors and Peripherals,Library/Basic Functions,Library/University Program,Library/Basic Functions/Simulation; Debug and Verification/Debug and Performance" />
+ <library expandedCategories="Library,Project" />
  <window width="1936" height="1056" x="-8" y="-8" />
  <generation synthesis="VHDL" />
 </preferences>

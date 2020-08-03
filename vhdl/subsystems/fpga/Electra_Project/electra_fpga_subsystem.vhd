@@ -27,8 +27,6 @@ use work.fpga_types.all;
 
 entity electra_fpga_subsystem is
 	port (
-		
-		-- TODO: add timestamping
 
 		reset_n                : in  std_logic                     := '0';                   --        reset.reset_n
 		clock                  : in  std_logic                     := '0';                   --        clock.clk
@@ -37,26 +35,7 @@ entity electra_fpga_subsystem is
 		avalon_slave_write_n   : in  std_logic                     := '0';                   -- avalon_slave.write_n
 		avalon_slave_writedata : in  std_logic_vector(31 downto 0) := (others => '0');       --             .writedata
 		avalon_slave_read_n    : in  std_logic                     := '0';                   --             .read_n
-		avalon_slave_readdata  : out std_logic_vector(31 downto 0);                          --             .readdata
-		
-		-- conduits to other subsystems acquired from HPS over WRITE command
-		conduit_vnir_config            : out std_logic_vector(31 downto 0)                  --  conduit_end.export
-		conduit_swir_config            : out std_logic_vector(31 downto 0)                  --  conduit_end.export
-		conduit_sdram_config           : out std_logic_vector(31 downto 0)                  --  conduit_end.export
-
-		-- conduits to HPS over READ command; acquired from other subsystems
-		conduit_config_done            : in std_logic              := '0';                  --  conduit_end.export
-		conduit_sdram_busy             : in std_logic              := '0';                  --  conduit_end.export
-		conduit_sdram_error            : in std_logic_vector(7 downto 0);                    --  conduit_end.export
-
-		-- image configuartion values, from HPS to sensor subsystems
-		conduit_image_config		   : out std_logic_vector(31 downto 0);				    -- conduit_end.export
-
-		-- image request, from HPS to other subsystems
-		conduit_image_request          : out std_logic             := '0';                  --  conduit_end.export
-
-		-- mpu memory check request, from HPS to SDRAM subsystem 
-		conduit_mpu_memory_check       : out std_logic             := '0'                   --  conduit_end.export
+		avalon_slave_readdata  : out std_logic_vector(31 downto 0)                          --             .readdata
 
 	);
 end entity electra_fpga_subsystem;
@@ -67,7 +46,6 @@ architecture rtl of electra_fpga_subsystem is
 		-- pass VNIR information to subsystem
 		-- pass SDRAM information to subsystem
 		-- pass SWIR information to subsystem
-		-- update all conduits in Qsys (see entity)
 		-- add PLL IP to system for clocking to subsystems
 
 	component vnir_subsystem is
@@ -97,6 +75,36 @@ architecture rtl of electra_fpga_subsystem is
 	);
 	end component;
 
+	component sdram_subsystem is
+		port (
+			--Control signals
+			clock               : in std_logic;
+			reset_n             : in std_logic;
+	
+			--VNIR row signals
+			vnir_rows_available : in std_logic;
+			vnir_num_rows       : in integer;
+			vnir_rows           : in vnir_rows_t;
+			
+			--SWIR row signals
+			swir_row_available  : in std_logic;
+			swir_num_rows       : in integer;
+			swir_row            : in swir_row_t;
+			
+			timestamp           : in timestamp_t;
+			mpu_memory_change   : in sdram_address_block_t;
+			config_in           : in sdram_config_to_sdram_t;
+			config_out          : out sdram_partitions_t;
+			config_done         : out std_logic;
+			img_config_done     : out std_logic;
+			
+			sdram_busy          : out std_logic;
+			sdram_error         : out stdram_error_t;
+			
+			sdram_avalon_out    : out avalonmm_rw_from_master_t;
+			sdram_avalon_in     : in avalonmm_rw_to_master_t
+		);
+	end component sdram_subsystem;
 
 	-- add signals here
 	--
@@ -131,11 +139,34 @@ begin
 		lvds                => lvds
 	);
 	
+	sdram_subsystem_component: sdram_subsystem port map (
+		clock               => clock,
+		reset_n             => reset_n,
+	
+		vnir_rows_available => vnir_rows_available,
+		vnir_num_rows       => vnir_num_rows,
+		vnir_rows           => vnir_rows,
+
+		swir_row_available  => siwr_row_available,
+		swir_num_rows       => swir_num_rows,
+		swir_row            => swir_row,
+			
+		timestamp           => timestamp,
+		mpu_memory_change   => mpu_memory_change,
+		config_in           => config_in,
+		config_out          => config_out,
+		config_done         => config_done,
+		img_config_done     => img_config_done,
+			
+		sdram_busy          => sdram_busy,
+		sdram_error         => sdram_error,
+			
+		sdram_avalon_out    => sdram_avalon_out,
+		sdram_avalon_in     => sdram_avalon_in
+	);
 	
 	-- BELOW: auto-generated grounding of outputs
 
 	avalon_slave_readdata <= "00000000000000000000000000000000";
-
-	conduit_end_data <= "00000000000000000000000000000000";
 
 end architecture rtl; -- of electra_fpga_subsystem
