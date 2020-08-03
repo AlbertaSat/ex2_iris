@@ -1,0 +1,8 @@
+DMA Write .vhd file is DMA_write.vhd
+
+To run simulation, unzip DMA_Write_Sim.zip,
+open ModelSim, click file->change directory and go to unzipped folder
+Then, click on file->load->macro file and run load_sim.tcl
+
+The testbench file and DMA file can be found at folder location
+soc_system/testbench/soc_system_tb/simulation
