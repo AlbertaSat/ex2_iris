@@ -44,6 +44,7 @@ entity sdram_subsystem is
         timestamp           : in timestamp_t;
         mpu_memory_change   : in sdram_address_block_t;
         config_in           : in sdram_config_to_sdram_t;
+        start_config        : in std_logic;
         config_out          : out sdram_partitions_t;
         config_done         : out std_logic;
         img_config_done     : out std_logic;
