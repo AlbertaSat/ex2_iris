@@ -18,7 +18,7 @@ entity partition_register is
         bounds_write, filled_add, filled_subtract : in std_logic;
 
         --Values to write
-        base, bounds, add_sub_length : in sdram_address;
+        base, bounds, add_length, sub_length : in sdram_address;
 
         --Partition read from the register
         part_out : out partition_t;
@@ -66,7 +66,7 @@ architecture rtl of partition_register is
     end function check_full;
 begin
     --Combinitorial process specifying signal assignments
-    state_process : process(state, add_sub_length, base, bounds) is
+    state_process : process(state, add_length, sub_length, base, bounds) is
     begin
         case state is
             when init =>
@@ -79,39 +79,39 @@ begin
             when add_address =>
                 --Some complicated conditional checking (yay!)
                 if (buffer_part.fill_base < buffer_part.fill_bounds) then
-                    if (check_overflow(buffer_part, add_sub_length) = '1') then
-                        if (check_full(buffer_part, add_sub_length, buffer_part.base) = '1') then
+                    if (check_overflow(buffer_part, add_length) = '1') then
+                        if (check_full(buffer_part, add_length, buffer_part.base) = '1') then
                             full <= '1';
                             no_add = '1';
                         else
-                            buffer_fill_bounds <= buffer_part.base + 1 + add_sub_length;
+                            buffer_fill_bounds <= buffer_part.base + 1 + add_length;
                             img_start <= buffer_part.base + 1;
-                            img_end <= buffer_part.base + 1 + add_sub_length;
+                            img_end <= buffer_part.base + 1 + add_length;
                         end if;
                     else
                         --No need to check if it's full, the overflow did that already
-                        buffer_fill_bounds <= buffer_part.fill_bounds + 1 + add_sub_length;
+                        buffer_fill_bounds <= buffer_part.fill_bounds + 1 + add_length;
                         img_start <= buffer_part.fill_bounds + 1;
-                        img_end <= buffer_part.fill_bounds + 1 + add_sub_length;
+                        img_end <= buffer_part.fill_bounds + 1 + add_length;
                     end if;
                 else
                     --Just need to check if it's full for this case
-                    if (check_full(buffer_part, add_sub_length, buffer_part.fill_bounds) = '1') then
+                    if (check_full(buffer_part, add_length, buffer_part.fill_bounds) = '1') then
                         full = '1';
                         no_add = '1';
                     else
-                        buffer_fill_bounds <= buffer_part.fill_bounds + 1 + add_sub_length;
+                        buffer_fill_bounds <= buffer_part.fill_bounds + 1 + add_length;
                         img_start <= buffer_part.fill_bounds + 1;
-                        img_end <= buffer_part.fill_bounds + 1 + add_sub_length;
+                        img_end <= buffer_part.fill_bounds + 1 + add_length;
                     end if;
                 end if;
 
             --When taking stuff outta the memory
             when sub_address =>
-                if (buffer_part.fill_base + add_sub_length > buffer_part.fill_bounds) then
+                if (buffer_part.fill_base + sub_length > buffer_part.fill_bounds) then
                     bad_mpu_check <= '1';
                 else
-                    buffer_fill_base <= buffer_part.fill_base + add_sub_length;
+                    buffer_fill_base <= buffer_part.fill_base + sub_length;
                 end if;
 
                 if (no_add = '1') then
