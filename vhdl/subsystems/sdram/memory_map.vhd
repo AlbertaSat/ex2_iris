@@ -61,6 +61,17 @@ architecture rtl of memory_map is
 
     signal buffer_address : sdram_address;
 
+    --Add/subtract address length signals
+    signal vnir_add_length : sdram_address;
+    signal swir_add_length : sdram_address;
+    signal vnir_temp_add_length : sdram_address;
+    signal swir_temp_add_length : sdram_address;
+
+    signal vnir_sub_length : sdram_address;
+    signal swir_sub_length : sdram_address;
+    signal vnir_temp_sub_length : sdram_address;
+    signal swir_temp_sub_length : sdram_address;
+
     --Start addresses for each band for the image
     signal start_blue_address : sdram_address;
     signal start_red_address  : sdram_address;
@@ -83,19 +94,16 @@ architecture rtl of memory_map is
     signal row_assign_address : sdram_address;
     signal img_config_address : sdram_address;
 
-    --Intermediate partitions
-    signal vnir_partition : partition_t;
-    signal swir_partition : partition_t;
-    signal vnir_temp_partition : partition_t;
-    signal swir_temp_partition : partition_t;
-
     --Img write addresses
     signal vnir_img_start : sdram_address;
     signal vnir_img_end   : sdram_address;
+
     signal swir_img_start : sdram_address;
     signal swir_img_end   : sdram_address;
+
     signal vnir_temp_img_start : sdram_address;
     signal vnir_temp_img_end   : sdram_address;
+
     signal swir_temp_img_start : sdram_address;
     signal swir_temp_img_end   : sdram_address;
 
@@ -121,8 +129,8 @@ architecture rtl of memory_map is
     signal swir_band_length : sdram_address;
 
     constant VNIR_ROW_LENGTH : unsigned (10 downto 0) := to_unsigned(1280, 11); --2048 px/row * 10 b/px / 16 b/address = 1280 address/row
-    constant SWIR_ROW_LENGTH : unsigned (9 downto 0) := to_unsigned(512, 10);   -- 512 px/row * 16 b/px / 16 b/address = 512  address/row
-    constant HEADER_LENGTH : unsigned (4 downto 0) := to_unsigned(16, 5);       -- 160 b/header / 16 b/address = 16 address/header;
+    constant SWIR_ROW_LENGTH : unsigned (9 downto 0)  := to_unsigned(512, 10);  -- 512 px/row * 16 b/px / 16 b/address = 512 address/row
+    constant HEADER_LENGTH   : unsigned (4 downto 0)  := to_unsigned(16, 5);    -- 160 b/header         / 16 b/address = 16 address/header
 
     component address_counter is
         generic(increment_size, address_length : integer);
@@ -138,7 +146,7 @@ architecture rtl of memory_map is
     component partition_register is
         port(
         clk, reset_n, bounds_write, filled_add, filled_subtract : in std_logic;
-        base, bounds, add_sub_length : in sdram_address;
+        base, bounds, add_length, sub_length : in sdram_address;
         part_out : out partition_t;
         img_start, img_end : out sdram_address;
         full, bad_mpu_check : out std_logic
@@ -146,6 +154,57 @@ architecture rtl of memory_map is
     end component partition_register;
 
 begin
+    --Process responsible assigning the next state at the rising edge
+    sig_assign : process(clock) is
+    begin
+        if rising_edge(clock) then
+            if (reset_n = '0') then
+                state <= init;
+                output_address <= to_unsigned(0, 32);
+            else
+                state <= next_state;
+                output_address <= buffer_address;
+                prev_row_type <= sdram_next_row_fed;
+        end if;
+    end process;
+
+    --Process responsible for assigning the appropriate state
+    state_machine : process(start_config, no_new_rows, number_vnir_rows, number_swir_rows) is
+    begin
+        case state is
+            when init =>
+                if (start_config <= '1') then
+                    next_state <= img_config;
+                else
+                    next_state <= init;
+                end if;
+            when img_config =>
+                if (number_vnir_rows > 0 and number_swir_rows > 0 and vnir_header_sent = '0') then
+                    vnir_band_length <= number_vnir_rows * VNIR_ROW_LENGTH;
+                    swir_band_length <= number_swir_rows * SWIR_ROW_LENGTH;
+                else
+                    next_state <= img_config;
+                end if;
+            when imaging =>
+                if (no_new_rows = '1') then
+                    next_state <= idle;
+                else
+                    next_state <= imaging;
+                end if;
+        end case;
+    end process;
+
+    state_process : process() is
+    begin
+        case state is
+            when init => null;
+            when img_config =>
+                vnir_band_length <= number_vnir_rows * VNIR_ROW_LENGTH;
+                swir_band_length <= number_swir_rows * SWIR_ROW_LENGTH;
+            when imaging =>
+        end case;
+    end process;
+
     --Address counters for each band
     blue_row_counter : address_counter
         generic map(
@@ -207,9 +266,10 @@ begin
 
             base => config.memory_base;
             bounds => config.memory_bounds / 2;
-            add_sub_length => ,
+            add_length => vnir_add_length,
+            sub_length => vnir_sub_length,
 
-            part_out => vnir_partition,
+            part_out => memory_state.vnir,
 
             img_start => vnir_img_start,
             img_end => vnir_img_end,
@@ -229,9 +289,10 @@ begin
 
             base => config.memory_bounds / 2 + 1;
             bounds => config.memory_bounds * 8 / 10;
-            add_sub_length => ,
+            add_length => swir_add_length,
+            sub_length => swir_sub_length,
 
-            part_out => swir_partition,
+            part_out => memory_state.swir,
             
             img_start => swir_img_start,
             img_end => swir_img_end,
@@ -251,9 +312,10 @@ begin
 
             base => config.memory_bounds * 8 / 10 + 1;
             bounds => config.memory_bounds * 9 / 10;
-            add_sub_length => ,
+            add_length => vnir_temp_add_length,
+            sub_length => vnir_temp_sub_length,
 
-            part_out => vnir_temp_partition,
+            part_out => memory_state.vnir_temp,
 
             img_start => vnir_temp_img_start,
             img_end => vnir_temp_img_end,
@@ -273,9 +335,10 @@ begin
 
             base => config.memory_bounds * 9 / 10 + 1;
             bounds => config.memory_bounds;
-            add_sub_length => ,
+            add_length => swir_temp_add_length,
+            sub_length => swir_temp_sub_length,
 
-            part_out => swir_temp_partition,
+            part_out => memory_state.swir_temp,
 
             img_start => swir_temp_img_start,
             img_end => swir_temp_img_end,
@@ -283,45 +346,6 @@ begin
             full => swir_temp_full,
             bad_mpu_check => swir_temp_bad_mpu_check
         );
-
-    --Process responsible assigning the next state at the rising edge
-    sig_assign : process(clock) is
-    begin
-        if rising_edge(clock) then
-            if (reset_n = '0') then
-                state <= init;
-                output_address <= to_unsigned(0, 32);
-            else
-                state <= next_state;
-                output_address <= buffer_address;
-                prev_row_type <= sdram_next_row_fed;
-        end if;
-    end process;
-
-    --Process responsible for assigning the appropriate state
-    state_machine : process(start_config, no_new_rows, number_vnir_rows, number_swir_rows) is
-    begin
-        case state is
-            when init =>
-                if (start_config <= '1') then
-                    next_state <= img_config;
-                else
-                    next_state <= init;
-                end if;
-            when img_config =>
-                if (number_vnir_rows > 0 and number_swir_rows > 0) then
-                    next_state <= imaging;
-                else
-                    next_state <= img_config;
-                end if;
-            when imaging =>
-                if (no_new_rows = '1') then
-                    next_state <= idle;
-                else
-                    next_state <= imaging;
-                end if;
-        end case;
-    end process;
 
     --Creating the start addresses for each counter
     start_swir_header_address <= swir_img_start;
@@ -332,29 +356,23 @@ begin
     start_nir_address  <= vnir_img_start + vnir_band_length * 2 + HEADER_LENGTH; --Room for both blue and red
     start_swir_address <= swir_img_start + HEADER_LENGTH;
     
-    state_process : process() is
-    begin
-        case state is
-            when init => null;
-            when img_config =>
-                vnir_band_length <= number_vnir_rows * VNIR_ROW_LENGTH;
-                swir_band_length <= number_swir_rows * SWIR_ROW_LENGTH;
-            when imaging =>
-        end case;
-    end process;
-    
     no_new_rows <= '1' when (next_blue_address = start_red_address and next_red_address = start_nir_address and next_nir_address = vnir_img_end and next_swir_address = swir_img_end) else '0';
 
-    inc_nir_address  <= '1' when (next_row_req = '1' and prev_row_type = nir_row) else '0';
-    inc_red_address  <= '1' when (next_row_req = '1' and prev_row_type = red_row) else '0';
+    inc_nir_address  <= '1' when (next_row_req = '1' and prev_row_type = nir_row)  else '0';
+    inc_red_address  <= '1' when (next_row_req = '1' and prev_row_type = red_row)  else '0';
     inc_blue_address <= '1' when (next_row_req = '1' and prev_row_type = blue_row) else '0';
     inc_swir_address <= '1' when (next_row_req = '1' and prev_row_type = swir_row) else '0';
 
     with next_row_type select row_assign_address <=
         next_swir_address when swir_row,
-        next_nir_address  when nir_row,
-        next_red_address  when red_row,
-        next_blue_address when blue_row;
+        next_nir_address  when  nir_row,
+        next_red_address  when  red_row,
+        next_blue_address when blue_row,
+        to_unsigned(0, 32) when  no_row;
+
+    img_config_address <= vnir_img_start when vnir_header_sent = '0' else
+                          swir_img_start when vnir_header_sent = '1' else
+                          to_unsigned(0, 32);  
     
     output_address <= row_assign_address when state = imaging else
                       img_config_address when state = img_config else
