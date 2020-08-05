@@ -28,7 +28,7 @@ use work.fpga_types.all;
 entity electra is
 port (
     clock                    : in std_logic;
-    ref_clock                : in std_logic;
+    pll_ref_clock            : in std_logic;
 
     -- vnir <=> sensor
     vnir_sensor_power        : out std_logic;
@@ -38,25 +38,7 @@ port (
     vnir_spi_in              : in spi_to_master_t;
     vnir_frame_request       : out std_logic;
     vnir_exposure_start      : out std_logic;
-    vnir_lvds                : in vnir_lvds_t;
-    
-    -- From QSys
-    memory_mem_a             : out   std_logic_vector(12 downto 0);
-    memory_mem_ba            : out   std_logic_vector(2 downto 0);
-    memory_mem_ck            : out   std_logic;
-    memory_mem_ck_n          : out   std_logic;
-    memory_mem_cke           : out   std_logic;
-    memory_mem_cs_n          : out   std_logic;
-    memory_mem_ras_n         : out   std_logic;
-    memory_mem_cas_n         : out   std_logic;
-    memory_mem_we_n          : out   std_logic;
-    memory_mem_reset_n       : out   std_logic;
-    memory_mem_dq            : inout std_logic_vector(7 downto 0);
-    memory_mem_dqs           : inout std_logic;
-    memory_mem_dqs_n         : inout std_logic;
-    memory_mem_odt           : out   std_logic;
-    memory_mem_dm            : out   std_logic;
-    memory_oct_rzqin         : in    std_logic
+    vnir_lvds                : in vnir_lvds_t
 );
 end entity electra;
 
@@ -64,43 +46,10 @@ end entity electra;
 architecture rtl of electra is
     component soc_system
     port (
-        clock_clk                : in  std_logic;
-        reset_reset_n            : in  std_logic;
-
-        ref_clock_clk            : in std_logic;
-
-        vnir_sensor_clock_clk    : out std_logic;
-        vnir_sensor_clock_locked_export : out std_logic;
-
-        sdram_write_address      : in  std_logic_vector(28 downto 0);
-        sdram_write_burstcount   : in  std_logic_vector(7 downto 0);
-        sdram_write_waitrequest  : out std_logic;
-        sdram_write_writedata    : in  std_logic_vector(63 downto 0);
-        sdram_write_byteenable   : in  std_logic_vector(7 downto 0);
-        sdram_write_write        : in  std_logic;
-        sdram_read_address       : in  std_logic_vector(28 downto 0);
-        sdram_read_burstcount    : in  std_logic_vector(7 downto 0);
-        sdram_read_waitrequest   : out std_logic;
-        sdram_read_readdata      : out std_logic_vector(63 downto 0);
-        sdram_read_readdatavalid : out std_logic;
-        sdram_read_read          : in  std_logic;
-
-        memory_mem_a             : out   std_logic_vector(12 downto 0);
-        memory_mem_ba            : out   std_logic_vector(2 downto 0);
-        memory_mem_ck            : out   std_logic;
-        memory_mem_ck_n          : out   std_logic;
-        memory_mem_cke           : out   std_logic;
-        memory_mem_cs_n          : out   std_logic;
-        memory_mem_ras_n         : out   std_logic;
-        memory_mem_cas_n         : out   std_logic;
-        memory_mem_we_n          : out   std_logic;
-        memory_mem_reset_n       : out   std_logic;
-        memory_mem_dq            : inout std_logic_vector(7 downto 0);
-        memory_mem_dqs           : inout std_logic;
-        memory_mem_dqs_n         : inout std_logic;
-        memory_mem_odt           : out   std_logic;
-        memory_mem_dm            : out   std_logic;
-        memory_oct_rzqin         : in    std_logic
+        pll_0_refclk_clk    : in  std_logic := 'X'; -- clk
+        pll_0_locked_export : out std_logic;        -- export
+        pll_0_outclk0_clk   : out std_logic;        -- clk
+        pll_0_reset_reset   : in  std_logic := 'X'  -- reset
     );
     end component;
 
@@ -244,39 +193,10 @@ architecture rtl of electra is
 
 begin
     soc_system_component : soc_system port map (
-        clock_clk => clock,
-        reset_reset_n => reset_n,
-        ref_clock_clk => ref_clock,
-        vnir_sensor_clock_clk => vnir_sensor_clock_s,
-        vnir_sensor_clock_locked_export => vnir_sensor_clock_locked,
-        sdram_write_address => sdram_avalon.from_master.w.address,
-        sdram_write_burstcount => sdram_avalon.from_master.w.burst_count,
-        sdram_write_waitrequest => sdram_avalon.to_master.w.wait_request,
-        sdram_write_writedata => sdram_avalon.from_master.w.write_data,
-        sdram_write_byteenable => sdram_avalon.from_master.w.byte_enable,
-        sdram_write_write => sdram_avalon.from_master.w.write_cmd,
-        sdram_read_address => sdram_avalon.from_master.r.address,
-        sdram_read_burstcount => sdram_avalon.from_master.r.burst_count,
-        sdram_read_waitrequest => sdram_avalon.to_master.r.wait_request,
-        sdram_read_readdata => sdram_avalon.to_master.r.read_data,
-        sdram_read_readdatavalid => sdram_avalon.to_master.r.read_data_valid,
-        sdram_read_read => sdram_avalon.from_master.r.read_cmd,
-        memory_mem_a => memory_mem_a,
-        memory_mem_ba => memory_mem_ba,
-        memory_mem_ck => memory_mem_ck,
-        memory_mem_ck_n => memory_mem_ck_n,
-        memory_mem_cke => memory_mem_cke,
-        memory_mem_cs_n => memory_mem_cs_n,
-        memory_mem_ras_n => memory_mem_ras_n,
-        memory_mem_cas_n => memory_mem_cas_n,
-        memory_mem_we_n => memory_mem_we_n,
-        memory_mem_reset_n => memory_mem_reset_n,
-        memory_mem_dq => memory_mem_dq,
-        memory_mem_dqs => memory_mem_dqs,
-        memory_mem_dqs_n => memory_mem_dqs_n,
-        memory_mem_odt => memory_mem_odt,
-        memory_mem_dm => memory_mem_dm,
-        memory_oct_rzqin => memory_oct_rzqin
+        pll_0_refclk_clk    => pll_ref_clock,
+        pll_0_locked_export => vnir_sensor_clock_locked,
+        pll_0_outclk0_clk   => vnir_sensor_clock_s,
+        pll_0_reset_reset   => reset_n
     );
 
     vnir_subsystem_component : vnir_subsystem port map (
