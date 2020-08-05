@@ -17,6 +17,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use std.textio.all;
 
 library std;
 use std.env.stop;
@@ -31,6 +32,7 @@ end entity;
 architecture tests of vnir_subsystem_tb is	   
     signal clock                : std_logic := '0';  -- Main clock
     signal reset_n              : std_logic := '0';  -- Main reset
+    signal sensor_clock_source  : std_logic := '0';
     signal sensor_clock         : std_logic := '0';
     signal sensor_clock_locked  : std_logic;
     signal sensor_power         : std_logic;
@@ -55,6 +57,12 @@ architecture tests of vnir_subsystem_tb is
     );
     
     component vnir_subsystem is
+    generic (
+        power_on_delay_us   : integer := 0;
+        clock_on_delay_us   : integer := 0;
+        reset_off_delay_us  : integer := 0;
+        spi_settle_us       : integer := 0
+    );
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
@@ -83,7 +91,53 @@ architecture tests of vnir_subsystem_tb is
     );
     end component;
 
+    pure function total_rows(config : vnir_config_t) return integer is
+    begin
+        return size(config.window_red) +
+               size(config.window_nir) + 
+               size(config.window_blue);
+    end function total_rows;
+
+    procedure readline(file f : text; row : out vnir_row_t) is
+        variable f_line : line;
+        variable pixel : integer;
+    begin
+        readline(f, f_line);
+        for i in row'range loop
+            read(f_line, pixel);
+            row(i) := to_unsigned(pixel, vnir_pixel_bits);
+        end loop;
+    end procedure readline;
+
+    procedure read(file f : text; config : out vnir_config_t) is
+        variable f_line : line;
+        variable i : integer;
+    begin
+        readline(f, f_line);
+        read(f_line, config.window_red.lo);
+        read(f_line, config.window_red.hi);
+        
+        readline(f, f_line);
+        read(f_line, config.window_nir.lo);
+        read(f_line, config.window_nir.hi);
+
+        readline(f, f_line);
+        read(f_line, config.window_blue.lo);
+        read(f_line, config.window_blue.hi);
+    end procedure read;
+
+    procedure read(file f : text; i : out integer) is
+        variable f_line : line;
+    begin
+        readline(f, f_line);
+        read(f_line, i);
+    end procedure read;
+
+    constant out_dir : string := "../subsystems/vnir/tests/out/vnir_subsystem/";
+
 begin
+
+    sensor_clock <= sensor_clock_source and sensor_clock_locked and sensor_clock_enable;
 
     debug : process (clock)
     begin
@@ -113,24 +167,35 @@ begin
     end process debug;
 
     reciever : process
-        variable n_nir_rows : integer := 0;
-        variable n_blue_rows : integer := 0;
-        variable n_red_rows : integer := 0;
+        file nir_file : text open read_mode is out_dir & "nir.out";
+        file blue_file : text open read_mode is out_dir & "blue.out";
+        file red_file : text open read_mode is out_dir & "red.out";
+        variable file_row : vnir_row_t;
     begin
         wait until rising_edge(clock) and do_imaging = '1';
 
         loop
             wait until rising_edge(clock);
-            if row_available = ROW_NIR then n_nir_rows := n_nir_rows + 1; end if;
-            if row_available = ROW_BLUE then n_blue_rows := n_blue_rows + 1; end if;
-            if row_available = ROW_RED then n_red_rows := n_red_rows + 1; end if;
+            if row_available = ROW_NIR then
+                report "Recieved NIR row";
+                assert not endfile(nir_file) report "Received extra NIR row" severity failure;
+                readline(nir_file, file_row);
+                assert row = file_row report "Received mismatched NIR row" severity failure;
+            elsif row_available = ROW_BLUE then
+                report "Recieved blue row";
+                assert not endfile(blue_file) report "Received extra blue row" severity failure;
+                readline(blue_file, file_row);
+                assert row = file_row report "Received mismatched blue row" severity failure;
+            elsif row_available = ROW_RED then
+                report "Recieved red row";
+                assert not endfile(red_file) report "Received extra red row" severity failure;
+                readline(red_file, file_row);
+                assert row = file_row report "Received mismatched red row" severity failure;
+            end if;
             exit when imaging_done = '1';
         end loop;
 
-        assert num_rows = 1;
-        assert n_nir_rows = num_rows;
-        assert n_blue_rows = num_rows;
-        assert n_red_rows = num_rows;
+        assert endfile(nir_file) and endfile(blue_file) and endfile(red_file);
         stop;
     end process;
 
@@ -145,7 +210,7 @@ begin
         constant sensor_clock_period : time := 20.83 ns;
     begin
         wait for sensor_clock_period / 2;
-        sensor_clock <= not sensor_clock;
+        sensor_clock_source <= not sensor_clock_source;
     end process sensor_clock_gen;
 
     lvds_clock_gen : process
@@ -156,73 +221,79 @@ begin
     end process lvds_clock_gen;
 
     sensor : process
-        type state_t is (IDLE, COLLECTING_FRAME, EMITTING_FRAME);
+        constant fragments_per_row : integer := vnir_row_width / vnir_lvds_n_channels;
+        constant control_idle : vnir_pixel_t := (9 => '1', others => '0');
+        constant control_data : vnir_pixel_t := (0 => '1', 9 => '1', others => '0');
+
+        type state_t is (IDLE, EMITTING_FRAME);
         variable state : state_t := IDLE;
         variable next_state : state_t := IDLE;
 
-        constant fragments_per_row : integer := vnir_row_width / vnir_lvds_n_channels;
-
-        variable i_bit : integer := 0;
-        variable i_fragment : integer := 0;
-        variable i_row : integer := 0;
-        variable zero : std_logic := '1';
+        file row_file : text open read_mode is out_dir & "rows.out";
+        variable row : vnir_row_t;
+        variable i_row : integer;
     begin
-        wait until rising_edge(lvds.clock) or falling_edge(lvds.clock);
+        if state = EMITTING_FRAME then
+            readline(row_file, row);
+        end if;
 
-        case state is
-        when IDLE =>
-            lvds.control <= '1' when i_bit = 9 else '0';
-            if exposure_start = '1' then
-                next_state := COLLECTING_FRAME;
-            end if;
-        when COLLECTING_FRAME =>
-            lvds.control <= '1' when i_bit = 9 else '0';
-            if frame_request = '1' then
-                next_state := EMITTING_FRAME;
-            end if;
-        when EMITTING_FRAME =>
-            lvds.control <= '1' when i_bit = 0 else '0';
-            if i_fragment = fragments_per_row - 1 and i_row = total_rows(config) - 1 then
+        for i_fragment in 0 to fragments_per_row-1 loop
+            for i_bit in 0 to vnir_pixel_bits-1 loop
+                wait until rising_edge(lvds.clock) or falling_edge(lvds.clock);
+                
+                case state is
+                when IDLE =>
+                    lvds.control <= control_idle(i_bit);
+                    if frame_request = '1' then
+                        next_state := EMITTING_FRAME;
+                    end if;
+                when EMITTING_FRAME =>
+                    lvds.control <= control_data(i_bit);
+                    for i_channel in 0 to vnir_lvds_n_channels-1 loop
+                        lvds.data(i_channel) <= row(i_fragment + i_channel * fragments_per_row)(i_bit);
+                    end loop;
+                end case;
+            end loop;
+        end loop;
+
+        if state /= EMITTING_FRAME and next_state = EMITTING_FRAME then
+            i_row := 0;
+        end if;
+
+        if state = EMITTING_FRAME then
+            i_row := i_row + 1;
+            if i_row = total_rows(config) then
                 next_state := IDLE;
-            end if;
-        end case;
-
-        lvds.data <= (others => to_unsigned(i_fragment, fragments_per_row)(vnir_pixel_bits-1-i_bit));
-    
-        i_bit := i_bit + 1;
-        if i_bit = vnir_pixel_bits then
-            i_bit := 0;
-            i_fragment := i_fragment + 1;
-            if i_fragment = fragments_per_row then
-                i_fragment := 0;
-                i_row := i_row + 1;
-            end if;
-
-            if state /= next_state then
-                state := next_state;
-                i_fragment := 0;
-                i_row := 0;
             end if;
         end if;
 
-    end process sensor;
+        state := next_state;
 
-	test : process
+    end process;
+
+    test : process
+        file config_file : text open read_mode is out_dir & "config.out";
+        file image_length_file : text open read_mode is out_dir & "image_length.out";
+
+        variable config_v : vnir_config_t;
+        variable image_length_v : integer;
     begin
+        read(config_file, config_v);
+        read(image_length_file, image_length_v);
         
         wait until rising_edge(clock); reset_n <= '0'; wait until rising_edge(clock); reset_n <= '1';
         wait until rising_edge(clock);
         sensor_clock_locked <= '1';
-        config.window_nir.lo  <= 0; config.window_nir.hi  <= 1;
-        config.window_blue.lo <= 2; config.window_blue.hi <= 3;
-        config.window_red.lo  <= 4; config.window_red.hi  <= 5;
+        config <= config_v;
+        config.flip <= FLIP_NONE;
         config.calibration <= (v_ramp1 => 109, v_ramp2 => 109, offset => 16323, adc_gain => 32);
         start_config <= '1'; wait until rising_edge(clock); start_config <= '0'; 
         wait until rising_edge(clock) and config_done = '1';
 
-        image_config <= (duration => 10, fps => 100, exposure_time => 5);
+        image_config <= (duration => 10, fps => 200, exposure_time => 5);
         start_image_config <= '1';  wait until rising_edge(clock); start_image_config <= '0'; 
         wait until rising_edge(clock) and image_config_done = '1';
+        assert image_length_v = num_rows;
 
         do_imaging <= '1'; wait until rising_edge(clock); do_imaging <= '0';
 
@@ -232,7 +303,7 @@ begin
 	u0 : vnir_subsystem port map(
         clock => clock,
         reset_n => reset_n,
-        sensor_clock => sensor_clock,
+        sensor_clock => sensor_clock_source,
         sensor_clock_locked => sensor_clock_locked,
         sensor_power => sensor_power,
         sensor_clock_enable => sensor_clock_enable,

@@ -24,6 +24,7 @@ use std.env.stop;
 use work.vnir_types.all;
 use work.spi_types.all;
 use work.logic_types.all;
+use work.sensor_configurer_pkg.all;
 
 
 entity sensor_configurer_tb is
@@ -39,7 +40,7 @@ architecture tests of sensor_configurer_tb is
     port (	
         clock               : in std_logic;
         reset_n             : in std_logic;
-        config              : in vnir_config_t;
+        config              : in sensor_configurer_config_t;
         start_config        : in std_logic;
         config_done         : out std_logic;
         spi_out             : out spi_from_master_t;
@@ -54,7 +55,7 @@ architecture tests of sensor_configurer_tb is
 
     signal clock : std_logic := '0';
     signal reset_n : std_logic := '0';
-    signal config : vnir_config_t;
+    signal config : sensor_configurer_config_t;
     signal start_config : std_logic := '0';
     signal config_done : std_logic;
     signal spi : spi_t;
@@ -68,27 +69,27 @@ architecture tests of sensor_configurer_tb is
     type reg_t is array (integer range <>) of logic8_t;
     signal reg : reg_t(0 to spi_max_addr);
 
-    procedure check_register_values(reg : in reg_t; config : in vnir_config_t) is
+    procedure check_register_values(reg : in reg_t; config : in sensor_configurer_config_t) is
         constant undefined : logic8_t := (others => 'U');
     begin
 
         for addr in 0 to spi_max_addr loop
             case addr is
                 when 0 =>           assert reg(addr) = undefined;
-                when 1 =>           assert reg(addr) = to_logic8(total_rows(config));
+                when 1 =>           assert reg(addr) = to_logic8(total_rows(config.windows));
                 when 2 =>           assert reg(addr) = to_logic8(0);
-                when 3 =>           assert reg(addr) = to_logic8(config.window_red.lo);
+                when 3 =>           assert reg(addr) = to_logic8(config.windows(0).lo);
                 when 4 =>           assert reg(addr) = to_logic8(0);
-                when 5 =>           assert reg(addr) = to_logic8(config.window_blue.lo);
+                when 5 =>           assert reg(addr) = to_logic8(config.windows(1).lo);
                 when 6 =>           assert reg(addr) = to_logic8(0);
-                when 7 =>           assert reg(addr) = to_logic8(config.window_nir.lo);
+                when 7 =>           assert reg(addr) = to_logic8(config.windows(2).lo);
                 when 8 =>           assert reg(addr) = to_logic8(0);
                 when 9 to 18 =>     assert reg(addr) = undefined;
-                when 19 =>          assert reg(addr) = to_logic8(size(config.window_red));
+                when 19 =>          assert reg(addr) = to_logic8(size(config.windows(0)));
                 when 20 =>          assert reg(addr) = to_logic8(0);
-                when 21 =>          assert reg(addr) = to_logic8(size(config.window_blue));
+                when 21 =>          assert reg(addr) = to_logic8(size(config.windows(1)));
                 when 22 =>          assert reg(addr) = to_logic8(0);
-                when 23 =>          assert reg(addr) = to_logic8(size(config.window_nir));
+                when 23 =>          assert reg(addr) = to_logic8(size(config.windows(2)));
                 when 24 =>          assert reg(addr) = to_logic8(0);
                 when 25 to 39 =>    assert reg(addr) = undefined;
                 when 40 =>          assert reg(addr) = to_logic8(0);
@@ -165,10 +166,15 @@ begin
         reset_n <= '1';
         wait until rising_edge(clock);
         
-        config.window_nir <= (lo => 11, hi => 15);
-        config.window_blue <= (lo => 16, hi => 26);
-        config.window_red <= (lo => 30, hi => 50);
-        config.calibration <= (v_ramp1 => 109, v_ramp2 => 109, offset => 16323, adc_gain => 32);
+        config <= (
+            windows => (
+                0 => (lo => 11, hi => 15),
+                1 => (lo => 16, hi => 26),
+                2 => (lo => 30, hi => 50)
+            ),
+            calibration => (v_ramp1 => 109, v_ramp2 => 109, offset => 16323, adc_gain => 32),
+            flip => FLIP_NONE
+        );
         start_config <= '1'; wait until rising_edge(clock); start_config <= '0';
         
         wait for 30 us;

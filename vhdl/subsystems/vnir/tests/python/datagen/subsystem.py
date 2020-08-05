@@ -29,16 +29,16 @@ class Window:
         return self.hi - self.lo + 1
 
 
-# WINDOWS = [Window(0, 0), Window(1, 1), Window(2, 2)]
+WINDOWS = [Window(0, 0), Window(1, 1), Window(2, 2)]
 # WINDOWS = [Window(0, 1), Window(2, 3), Window(4, 5)]
-WINDOWS = [Window(10, 15), Window(24, 35), Window(36, 37)]
+# WINDOWS = [Window(10, 15), Window(24, 35), Window(36, 37)]
 ROW_WIDTH = 2048
 BITS = 10
-IMAGE_LENGTH = 10
+IMAGE_LENGTH = 2
 N_FRAMES = IMAGE_LENGTH + WINDOWS[-1].hi
 ROWS_PER_FRAME = sum(w.size for w in WINDOWS)
 
-OUT_DIR = Path('../../out/row_collector/')
+OUT_DIR = Path('../../out/vnir_subsystem/')
 
 
 def get_row_window(row: int) -> Tuple[int, Window]:
@@ -94,12 +94,21 @@ if __name__ == '__main__':
 
     averages = calc_averages(frames)
 
-    for i in range(averages.shape[1]):
-        i_file = open(OUT_DIR / f'colour{i}.out', 'w')
-        for row in averages[:, i, :]:
-            i_file.write(' '.join(str(p) for p in row) + '\n')
+    nir_file = open(OUT_DIR / 'red.out', 'w')
+    for row in averages[:, 0, :]:
+        nir_file.write(' '.join(str(p) for p in row) + '\n')
 
-    config_file = open(OUT_DIR / 'config.out', 'w')
+    nir_file = open(OUT_DIR / 'nir.out', 'w')
+    for row in averages[:, 1, :]:
+        nir_file.write(' '.join(str(p) for p in row) + '\n')
+
+    nir_file = open(OUT_DIR / 'blue.out', 'w')
+    for row in averages[:, 2, :]:
+        nir_file.write(' '.join(str(p) for p in row) + '\n')
+
+    windows_file = open(OUT_DIR / 'config.out', 'w')
     for w in WINDOWS:
-        config_file.write(f'{w.lo} {w.hi}\n')
-    config_file.write(f'{IMAGE_LENGTH}\n')
+        windows_file.write(f'{w.lo} {w.hi}\n')
+
+    n_frames_file = open(OUT_DIR / 'image_length.out', 'w')
+    n_frames_file.write(f'{IMAGE_LENGTH}\n')

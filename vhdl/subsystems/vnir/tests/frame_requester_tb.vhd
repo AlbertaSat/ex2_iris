@@ -23,6 +23,7 @@ use std.env.stop;
 
 use work.spi_types.all;
 use work.vnir_types.all;
+use work.frame_requester_pkg.all;
 
 entity frame_requester_tb is
 end entity;
@@ -31,11 +32,9 @@ end entity;
 architecture tests of frame_requester_tb is	    
     signal clock            : std_logic := '0';  -- Main clock
     signal reset_n          : std_logic := '1';  -- Main reset
-    signal config           : vnir_config_t;
-    signal image_config     : vnir_image_config_t;
+    signal config           : frame_requester_config_t;
     signal start_config     : std_logic := '0';
     signal config_done      : std_logic;
-    signal image_length     : integer;
     signal do_imaging       : std_logic;
     signal imaging_done     : std_logic;
     signal sensor_clock     : std_logic := '0';
@@ -50,12 +49,10 @@ architecture tests of frame_requester_tb is
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
-        config              : in vnir_config_t;
-        image_config        : in vnir_image_config_t;
+        config              : in frame_requester_config_t;
         start_config        : in std_logic;
         config_done         : out std_logic;
         do_imaging          : in std_logic;
-        image_length        : out integer;
         imaging_done        : out std_logic;
         sensor_clock        : in std_logic;
         frame_request       : out std_logic;
@@ -94,10 +91,7 @@ begin
         
         reset_n <= '0'; wait until rising_edge(clock); reset_n <= '1';
         
-        config.window_nir <= (lo => 1, hi => 1);
-        config.window_blue <= (lo => 2, hi => 2);
-        config.window_red <= (lo => 3, hi => 3);
-        image_config <= (duration => 10, fps => 100, exposure_time => 5);
+        config <= (num_frames => 5, fps => 100, exposure_time => 5);
         start_config <= '1'; wait until rising_edge(clock); start_config <= '0';
         wait until rising_edge(clock) and config_done = '1';
 
@@ -114,10 +108,8 @@ begin
         clock => clock,
         reset_n => reset_n,
         config => config,
-        image_config => image_config,
         start_config => start_config,
         config_done => config_done,
-        image_length => image_length,
         do_imaging => do_imaging,
         imaging_done => imaging_done,
         sensor_clock => sensor_clock,

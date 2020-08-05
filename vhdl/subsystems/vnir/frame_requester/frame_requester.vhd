@@ -20,6 +20,7 @@ use ieee.numeric_std.all;
 
 use work.vnir_types.all;
 use work.pulse_generator_pkg.all;
+use work.frame_requester_pkg.all;
 
 entity frame_requester is
 generic (
@@ -30,13 +31,11 @@ port (
     clock               : in std_logic;
     reset_n             : in std_logic;
 
-    config              : in vnir_config_t;
-    image_config        : in vnir_image_config_t;
+    config              : in frame_requester_config_t;
     start_config        : in std_logic;
     config_done         : out std_logic;
     
     do_imaging          : in std_logic;
-    image_length        : out integer;
     imaging_done        : out std_logic;
     
     -- Interface w/ sensor is clocked on the sensor clock
@@ -55,12 +54,10 @@ architecture rtl of frame_requester is
     port (
         sensor_clock        : in std_logic;
         reset_n             : in std_logic;
-        config              : in vnir_config_t;
-        image_config        : in vnir_image_config_t;
+        config              : in frame_requester_config_t;
         start_config        : in std_logic;
         config_done         : out std_logic;
         do_imaging          : in std_logic;
-        image_length        : out integer;
         imaging_done        : out std_logic;
         frame_request       : out std_logic;
         exposure_start      : out std_logic
@@ -93,12 +90,10 @@ begin
         reset_n => reset_n_sensor_clock,
         
         config => config,
-        image_config => image_config,
         start_config => start_config_sensor_clock,
         config_done => config_done_sensor_clock,
         
         do_imaging => do_imaging_sensor_clock,
-        image_length => image_length,
         imaging_done => imaging_done_sensor_clock,
         
         frame_request => frame_request,

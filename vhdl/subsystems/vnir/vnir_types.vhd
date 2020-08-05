@@ -42,6 +42,8 @@ package vnir_types is
         hi  : integer range 0 to vnir_row_width-1;
     end record vnir_window_t;
 
+    type vnir_window_vector_t is array(integer range <>) of vnir_window_t;
+
     type vnir_flip_t is (FLIP_NONE, FLIP_X, FLIP_Y, FLIP_XY);
 
     type vnir_calibration_t is record
@@ -88,7 +90,7 @@ package vnir_types is
     end record vnir_parallel_lvds_t;
 
     pure function size(window : vnir_window_t) return integer;
-    pure function total_rows (config : vnir_config_t) return integer;
+    pure function total_rows (windows : vnir_window_vector_t) return integer;
     pure function to_vnir_control (ctrl_bits : std_logic_vector) return vnir_control_t;
 
 end package vnir_types;
@@ -100,9 +102,13 @@ package body vnir_types is
         return window.hi - window.lo + 1;
     end function size;
 
-    pure function total_rows (config : vnir_config_t) return integer is
+    pure function total_rows (windows : vnir_window_vector_t) return integer is
+        variable sum : integer := 0;
     begin
-        return size(config.window_red) + size(config.window_blue) + size(config.window_nir);
+        for i in windows'range loop
+            sum := sum + size(windows(i));
+        end loop;
+        return sum;
     end function total_rows;
 
     pure function to_vnir_control (ctrl_bits : std_logic_vector) return vnir_control_t is

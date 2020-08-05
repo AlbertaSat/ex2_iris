@@ -29,18 +29,18 @@ port (
     clock               : in std_logic;
     reset_n             : in std_logic;
 
-    config              : in vnir_config_t;
+    config              : in row_collector_config_t;
     read_config         : in std_logic;
 
     start               : in std_logic;
-    image_length        : in integer;
     done                : out std_logic;
 
     fragment            : in fragment_t;
     fragment_available  : in std_logic;
 
     row                 : out vnir_row_t;
-    row_available       : out vnir_row_type_t
+    row_window          : out integer;
+    row_available       : out std_logic
 );
 end entity row_collector;
 
@@ -62,8 +62,6 @@ architecture rtl of row_collector is
         write_enable    : in std_logic
     );
     end component row_buffer;
-
-    type vnir_window_vector_t is array (integer range <>) of vnir_window_t;
 
     constant address_bits : integer := 20;
     subtype address_t is std_logic_vector(address_bits-1 downto 0);
@@ -188,7 +186,8 @@ architecture rtl of row_collector is
     signal write_address : address_t;
     signal write_enable : std_logic;
 
-    signal windows : vnir_window_vector_t(2 downto 0);
+    signal windows : vnir_window_vector_t(num_windows-1 downto 0);
+    signal image_length : integer;
 
 begin
 
@@ -196,19 +195,15 @@ begin
     begin
         wait until rising_edge(clock);
         if read_config = '1' then
-            assert 0 <= config.window_nir.lo;
-            assert config.window_nir.lo <= config.window_nir.hi;
-            assert config.window_nir.hi < config.window_blue.lo;
-            assert config.window_blue.lo <= config.window_blue.hi;
-            assert config.window_blue.hi < config.window_red.lo;
-            assert config.window_red.lo <= config.window_red.hi;
-            assert config.window_red.hi < 2048;
-
-            windows <= (
-                0 => config.window_nir,
-                1 => config.window_blue,
-                2 => config.window_red
-            );
+            for i in config.windows'low to config.windows'high-1 loop
+                assert 0 <= config.windows(i).lo;
+                assert config.windows(i).lo <= config.windows(i).hi;
+                assert config.windows(i).hi < config.windows(i+1).hi;
+                assert config.windows(i+1).hi < 2048;
+            end loop;
+            
+            windows <= config.windows;
+            image_length <= config.image_length;
         end if;
     end process config_process;
 
@@ -308,7 +303,7 @@ begin
     begin
         wait until rising_edge(clock);
 
-        row_available <= ROW_NONE;
+        row_available <= '0';
         done <= '0';
 
         if reset_n = '1' then
@@ -322,13 +317,8 @@ begin
                     row(offset + i * stride) <= fragment_p2(i);
                 end loop;
                 if is_last_fragment(index_p2) then
-                    case index_p2.window is
-                        when 0 => row_available <= ROW_NIR;
-                        when 1 => row_available <= ROW_BLUE;
-                        when 2 => row_available <= ROW_RED;
-                        when others =>
-                            report "Invalid window detected in row_collector.p3" severity failure;
-                    end case;
+                    row_available <= '1';
+                    row_window <= index_p2.window;
                     n_rows(index_p2.window) := n_rows(index_p2.window) + 1;
                     if n_rows = n_rows_target then
                         done <= '1';
