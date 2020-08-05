@@ -6,7 +6,7 @@
    version="1.0"
    description=""
    tags=""
-   categories="" />
+   categories="System" />
  <parameter name="bonusData"><![CDATA[bonusData 
 {
    element clk_0
@@ -15,6 +15,14 @@
       {
          value = "0";
          type = "int";
+      }
+   }
+   element electra
+   {
+      datum _originalDeviceFamily
+      {
+         value = "Cyclone V";
+         type = "String";
       }
    }
    element electra
@@ -113,7 +121,7 @@
  <parameter name="hideFromIPCatalog" value="false" />
  <parameter name="lockedInterfaceDefinition" value="" />
  <parameter name="maxAdditionalLatency" value="1" />
- <parameter name="projectName" value="" />
+ <parameter name="projectName" value="electra.qpf" />
  <parameter name="sopcBorderPoints" value="false" />
  <parameter name="systemHash" value="0" />
  <parameter name="testBenchDutName" value="" />
@@ -123,9 +131,7 @@
  <interface name="clk" internal="clk_0.clk_in" type="clock" dir="end" />
  <interface
    name="electra_fpga_subsystem_0_conduit_end"
-   internal="electra_fpga_subsystem_0.conduit_end"
-   type="conduit"
-   dir="end" />
+   internal="electra_fpga_subsystem_0.conduit_end" />
  <interface name="hps_io" internal="hps_0.hps_io" type="conduit" dir="end" />
  <interface name="memory" internal="hps_0.memory" type="conduit" dir="end" />
  <interface name="reset" internal="clk_0.clk_in_reset" type="reset" dir="end" />
@@ -252,7 +258,7 @@
   <parameter name="F2SCLK_WARMRST_Enable" value="false" />
   <parameter name="F2SDRAM_Type" value="AXI-3" />
   <parameter name="F2SDRAM_Width" value="64" />
-  <parameter name="F2SINTERRUPT_Enable" value="false" />
+  <parameter name="F2SINTERRUPT_Enable" value="true" />
   <parameter name="F2S_Width" value="0" />
   <parameter name="FIX_READ_LATENCY" value="8" />
   <parameter name="FORCED_NON_LDC_ADDR_CMD_MEM_CK_INVERT" value="false" />
@@ -711,6 +717,13 @@
    version="17.0"
    start="clk_0.clk"
    end="hps_0.h2f_lw_axi_clock" />
+ <connection
+   kind="interrupt"
+   version="17.0"
+   start="hps_0.f2h_irq0"
+   end="electra_fpga_subsystem_0.interrupt_sender">
+  <parameter name="irqNumber" value="0" />
+ </connection>
  <connection
    kind="reset"
    version="17.0"

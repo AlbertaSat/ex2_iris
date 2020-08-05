@@ -37,8 +37,7 @@ module electra (
 	memory_mem_odt,
 	memory_mem_dm,
 	memory_oct_rzqin,
-	reset_reset_n,
-	electra_fpga_subsystem_0_conduit_end_export);	
+	reset_reset_n);	
 
 	input		clk_clk;
 	inout		hps_io_hps_io_usb1_inst_D0;
@@ -78,5 +77,4 @@ module electra (
 	output	[3:0]	memory_mem_dm;
 	input		memory_oct_rzqin;
 	input		reset_reset_n;
-	output	[31:0]	electra_fpga_subsystem_0_conduit_end_export;
 endmodule

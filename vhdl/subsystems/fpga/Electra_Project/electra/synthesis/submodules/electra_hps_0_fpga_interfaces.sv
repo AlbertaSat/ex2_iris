@@ -92,6 +92,10 @@ module electra_hps_0_fpga_interfaces(
  ,input wire [8 - 1 : 0 ] f2h_sdram0_WID
 // f2h_sdram0_clock
  ,input wire [1 - 1 : 0 ] f2h_sdram0_clk
+// f2h_irq0
+ ,input wire [32 - 1 : 0 ] f2h_irq_p0
+// f2h_irq1
+ ,input wire [32 - 1 : 0 ] f2h_irq_p1
 );
 
 
@@ -400,6 +404,14 @@ cyclonev_hps_interface_fpga2sdram f2sdram(
   })
 ,.cfg_axi_mm_select({
     6'b000011 // 5:0
+  })
+);
+
+
+cyclonev_hps_interface_interrupts interrupts(
+ .irq({
+    f2h_irq_p1[31:0] // 63:32
+   ,f2h_irq_p0[31:0] // 31:0
   })
 );
 

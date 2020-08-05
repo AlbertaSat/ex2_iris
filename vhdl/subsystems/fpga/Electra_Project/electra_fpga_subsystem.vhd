@@ -33,19 +33,14 @@ entity electra_fpga_subsystem is
 		avalon_slave_write_n   : in  std_logic                     := '0';                   -- avalon_slave.write_n
 		avalon_slave_writedata : in  std_logic_vector(31 downto 0) := (others => '0');       --             .writedata
 		avalon_slave_read_n    : in  std_logic                     := '0';                   --             .read_n
-		avalon_slave_readdata  : out std_logic_vector(31 downto 0)                          --             .readdata
+		avalon_slave_readdata  : out std_logic_vector(31 downto 0);                          --             .readdata
+	
+		interrupt_sender_irq   : out std_logic                     := '0'
 	);
 end entity electra_fpga_subsystem;
 
 architecture rtl of electra_fpga_subsystem is
-	-- TODO:
-		-- pass VNIR config information to subsystem [DONE]
-		-- pass SDRAM config information to subsystem [DONE]
-		-- pass SWIR config information to subsystem
-		-- pass image config information to subsystems [DONE, not for SWIR]
-		-- add clock to system
-		-- write timestamp code
-		-- put this into ClickUp
+	
 	component vnir_subsystem is
 	port (
 		clock               : in std_logic;
@@ -127,6 +122,10 @@ signal vnir_image_config: vnir_image_config_t;
 signal vnir_start_image_config: std_logic;
 signal vnir_image_config_done: std_logic;
 
+-- confirmation signals
+signal config_confirmed: std_logic;
+signal image_config_confirmed: std_logic;
+
 begin
 	vnir_subsystem_component: vnir_subsystem port map (
 		clock               => clock
@@ -191,86 +190,110 @@ begin
 	-- process for assigning data to subsystems based on identifier bits
 	-- this program knows which bits to expect over the Avalon MM interface based on
 	-- 8 identifier bits which comprise bits [7..0] of every transfer.
-	avalon_write_process: process (write_n, clock)
-	begin
-		if (reset_n = '0') then -- do something, maybe? Or not.	
+avalon_write_process: process (avalon_slave_write_n)
+begin
+	if (reset_n = '0') then -- do something, maybe? Or not.	
+	else
+		
+	case avalon_write_data(7 downto 0) is 
+			
+	-- VNIR subsystem configuration
+	when "00000001" =>
+		vnir_config.window_blue.lo <= to_integer(unsigned(avalon_write_data(18 downto 8)));
+		vnir_config.window_blue.hi <= to_integer(unsigned(avalon_write_data(29 downto 9)));
+		
+	when "00000010" => 
+		vnir_config.window_red.lo <= to_integer(unsigned(avalon_write_data(18 downto 8)));
+		vnir_config.window_red.hi <= to_integer(unsigned(avalon_write_data(29 downto 9)));
+		
+	when "00000011" => 
+		vnir_config.window_nir.lo <= to_integer(unsigned(avalon_write_data(18 downto 8)));
+		vnir_config.window_nir.hi <= to_integer(unsigned(avalon_write_data(29 downto 9)));				
+		
+	when "00000100" =>
+		vnir_config.calibration.vramp1 <= to_integer(unsigned(avalon_write_data(14 downto 8)));
+		vnir_config.calibration.vramp2 <= to_integer(unsigned(avalon_write_data(21 downto 15)));
+		vnir_config.calibration.adc_gain <= to_integer(unsigned(avalon_write_data(29 downto 22)));				
+		if (avalon_write_data(31 downto 30) = "00") then
+			vnir_config.flip <= FLIP_NONE;
+		elsif (avalon_write_data(31 downto 30) = "01") then
+			vnir_config.flip <= FLIP_X;
+		elsif (avalon_write_data(31 downto 30) = "10") then
+			vnir_config.flip <= FLIP_Y;
 		else
-			
-		case avalon_write_data(7 downto 0) is 
-				
-		-- VNIR subsystem configuration
-		when "00000001" =>
-			vnir_config.window_blue.lo <= to_integer(unsigned(avalon_write_data(18 downto 8)));
-			vnir_config.window_blue.hi <= to_integer(unsigned(avalon_write_data(29 downto 9)));
-			
-		when "00000010" => 
-			vnir_config.window_red.lo <= to_integer(unsigned(avalon_write_data(18 downto 8)));
-			vnir_config.window_red.hi <= to_integer(unsigned(avalon_write_data(29 downto 9)));
-			
-		when "00000011" => 
-			vnir_config.window_nir.lo <= to_integer(unsigned(avalon_write_data(18 downto 8)));
-			vnir_config.window_nir.hi <= to_integer(unsigned(avalon_write_data(29 downto 9)));				
-			
-		when "00000100" =>
-			vnir_config.calibration.vramp1 <= to_integer(unsigned(avalon_write_data(14 downto 8)));
-			vnir_config.calibration.vramp2 <= to_integer(unsigned(avalon_write_data(21 downto 15)));
-			vnir_config.calibration.adc_gain <= to_integer(unsigned(avalon_write_data(29 downto 22)));				
-			if (avalon_write_data(31 downto 30) = "00") then
-				vnir_config.flip <= FLIP_NONE;
-			elsif (avalon_write_data(31 downto 30) = "01") then
-				vnir_config.flip <= FLIP_X;
-			elsif (avalon_write_data(31 downto 30) = "10") then
-				vnir_config.flip <= FLIP_Y;
-			else
-				vnir_config.flip <= FLIP_XY;
-			end if;
-		
-		when "00000101" =>
-			vnir_config.calibration.offset <= to_integer(unsigned(avalon_write_data(21 downto 8)));
-			vnir_start_config <= avalon_write_data(22); -- will be a '1' to start config
-			
-		-- SDRAM subsystem configuration 
-		-- Note that Avalon MM 32-bit wide interface not large enough with identifier bits, so
-		-- we need to split up the memory base and bounds into multiple transfers
-		when "00000110" =>
-			sdram_config_out.memory_base(23 downto 0) <= unsigned(avalon_write_data(31 downto 8));
-		
-		when "00000111" =>
-			sdram_config_out.memory_base(27 downto 24) <= unsigned(avalon_write_data(11 downto 8));
-			sdram_config_out.memory_bounds(19 downto 0) <= unsigned(avalon_write_data(31 downto 12));
-			
-		when "00001000" =>
-			sdram_config_out.memory_base(27 downto 20) <= unsigned(avalon_write_data(15 downto 8));
-				
-			sdram_start_config <= avalon_write_data(16); -- will be a '1' to start config
-		
-		-- SWIR subsystem configuration 
-		-- TO DO: add all SWIR
-
-		-- image config
-		-- TO DO: add SWIR code for image config data	
-		when "00001001" =>
-			vnir_image_config.duration <= to_integer(unsigned(avalon_write_data(23 downto 8)));
-			vnir_image_config.exposure_time <= to_integer(unsigned(avalon_write_data(31 downto 24)));
-					
-		when "00001010" =>	
-			vnir_image_config.fps <= to_integer(unsigned(avalon_write_data(17 downto 8)));
-			vnir_start_image_config <= avalon_write_data(18); -- will be a '1' to start config
-		
-		-- general signals
-		
-		when "00010000" =>
-			-- init_timestamp (write this code)
-			
-		when "00010001" =>
-			vnir_do_imaging <= avalon_write_data(8);		
-			
-		when others =>
-			unexpected_identifier <= '1';
-			
-			end case;
+			vnir_config.flip <= FLIP_XY;
 		end if;
-	end process;
-	-- BELOW: auto-generated grounding of outputs
-	avalon_slave_readdata <= "00000000000000000000000000000000";
+		
+	when "00000101" =>
+		vnir_config.calibration.offset <= to_integer(unsigned(avalon_write_data(21 downto 8)));
+		vnir_start_config <= avalon_write_data(22); -- will be a '1' to start config
+			
+	-- SDRAM subsystem configuration 
+	-- Note that Avalon MM 32-bit wide interface not large enough with identifier bits, so
+	-- we need to split up the memory base and bounds into multiple transfers
+	when "00000110" =>
+		sdram_config_out.memory_base(23 downto 0) <= unsigned(avalon_write_data(31 downto 8));
+	
+	when "00000111" =>
+		sdram_config_out.memory_base(27 downto 24) <= unsigned(avalon_write_data(11 downto 8));
+		sdram_config_out.memory_bounds(19 downto 0) <= unsigned(avalon_write_data(31 downto 12));
+		
+	when "00001000" =>
+		sdram_config_out.memory_base(27 downto 20) <= unsigned(avalon_write_data(15 downto 8));
+			
+		sdram_start_config <= avalon_write_data(16); -- will be a '1' to start config
+		
+	-- SWIR subsystem configuration 
+	-- TO DO: add all SWIR
+
+	-- image config
+	-- TO DO: add SWIR code for image config data	
+	when "00001001" =>
+		vnir_image_config.duration <= to_integer(unsigned(avalon_write_data(23 downto 8)));
+		vnir_image_config.exposure_time <= to_integer(unsigned(avalon_write_data(31 downto 24)));
+					
+	when "00001010" =>	
+		vnir_image_config.fps <= to_integer(unsigned(avalon_write_data(17 downto 8)));
+		vnir_start_image_config <= avalon_write_data(18); -- will be a '1' to start config
+		
+	-- general signals
+		
+	when "00010000" =>
+		-- init_timestamp (write this code)
+		
+	when "00010001" =>
+		vnir_do_imaging <= avalon_write_data(8);		
+			
+	when "00010010" =>
+		config_confirmed <= avalon_write_data(8); 
+
+	when "00010001" =>
+		image_config_confirmed <= avalon_write_data(8); 
+
+	when others =>
+		unexpected_identifier <= '1';
+			
+	end case;
+	end if;
+end process;
+
+configs_done_flag_process: process
+begin
+	if (not(config_confirmed)) then
+		if (vnir_config_done AND sdram_config_done) then
+			interrupt_sender_irq <= '1';
+			avalon_slave_readdata <="00000000000000000000000100010100" -- transfer to indicate config_done
+		end if;
+	elsif (not(vnir_image_config_done AND sdram_image_config_done)) then
+		interrupt_sender_irq <= '0';
+		avalon_slave_readdata <= "00000000000000000000000000000000";   -- is this needed?
+	elsif(not(image_config_confirmed)) then
+		interrupt_sender_irq <= '1';
+		avalon_slave_readdata <="00000000000000000000000100010101"     -- transfer to indicate image_config_done
+	else 
+		interrupt_sender_irq <= '0';
+		avalon_slave_readdata <= "00000000000000000000000000000000";   -- is this needed?
+	end if ;
+end process;
+
 end architecture rtl; -- of electra_fpga_subsystem

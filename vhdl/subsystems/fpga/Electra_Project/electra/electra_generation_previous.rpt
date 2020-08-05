@@ -1,5 +1,5 @@
 Info: Starting: Create block symbol file (.bsf)
-Info: qsys-generate C:\Users\elliotsaive\Documents\AlbertaSat_nonSVN\Electronics\Electra_Project\electra.qsys --block-symbol-file --output-directory=C:\Users\elliotsaive\Documents\AlbertaSat_nonSVN\Electronics\Electra_Project\electra --family="Cyclone V" --part=5CSEBA6U23I7DK
+Info: qsys-generate C:\Users\elliotsaive\Documents\ex2_iris\vhdl\subsystems\fpga\Electra_Project\electra.qsys --block-symbol-file --output-directory=C:\Users\elliotsaive\Documents\ex2_iris\vhdl\subsystems\fpga\Electra_Project\electra --family="Cyclone V" --part=5CSEBA6U23I7DK
 Progress: Loading Electra_Project/electra.qsys
 Progress: Reading input file
 Progress: Adding clk_0 [clock_source 17.0]
@@ -20,7 +20,7 @@ Info: qsys-generate succeeded.
 Info: Finished: Create block symbol file (.bsf)
 Info: 
 Info: Starting: Create HDL design files for synthesis
-Info: qsys-generate C:\Users\elliotsaive\Documents\AlbertaSat_nonSVN\Electronics\Electra_Project\electra.qsys --synthesis=VHDL --output-directory=C:\Users\elliotsaive\Documents\AlbertaSat_nonSVN\Electronics\Electra_Project\electra\synthesis --family="Cyclone V" --part=5CSEBA6U23I7DK
+Info: qsys-generate C:\Users\elliotsaive\Documents\ex2_iris\vhdl\subsystems\fpga\Electra_Project\electra.qsys --synthesis=VHDL --output-directory=C:\Users\elliotsaive\Documents\ex2_iris\vhdl\subsystems\fpga\Electra_Project\electra\synthesis --family="Cyclone V" --part=5CSEBA6U23I7DK
 Progress: Loading Electra_Project/electra.qsys
 Progress: Reading input file
 Progress: Adding clk_0 [clock_source 17.0]
@@ -38,6 +38,10 @@ Progress: Done reading input file
 Info: electra.sysid_qsys_0: System ID is not assigned automatically. Edit the System ID parameter to provide a unique ID
 Info: electra.sysid_qsys_0: Time stamp will be automatically updated when this component is generated.
 Info: electra: Generating electra "electra" for QUARTUS_SYNTH
+Warning: hps_0.f2h_irq0: Cannot connect clock for irq_mapper.sender
+Warning: hps_0.f2h_irq0: Cannot connect reset for irq_mapper.sender
+Warning: hps_0.f2h_irq1: Cannot connect clock for irq_mapper_001.sender
+Warning: hps_0.f2h_irq1: Cannot connect reset for irq_mapper_001.sender
 Info: electra_fpga_subsystem_0: "electra" instantiated electra_fpga_subsystem "electra_fpga_subsystem_0"
 Info: hps_0: "Running  for module: hps_0"
 Info: hps_0: "electra" instantiated altera_hps "hps_0"
@@ -45,6 +49,8 @@ Info: sysid_qsys_0: "electra" instantiated altera_avalon_sysid_qsys "sysid_qsys_
 Info: avalon_st_adapter: Inserting error_adapter: error_adapter_0
 Info: avalon_st_adapter_001: Inserting error_adapter: error_adapter_0
 Info: mm_interconnect_0: "electra" instantiated altera_mm_interconnect "mm_interconnect_0"
+Info: irq_mapper: "electra" instantiated altera_irq_mapper "irq_mapper"
+Info: irq_mapper_001: "electra" instantiated altera_irq_mapper "irq_mapper_001"
 Info: rst_controller: "electra" instantiated altera_reset_controller "rst_controller"
 Info: fpga_interfaces: "hps_0" instantiated altera_interface_generator "fpga_interfaces"
 Info: hps_io: "hps_0" instantiated altera_hps_io "hps_io"
@@ -55,18 +61,18 @@ Info: electra_fpga_subsystem_0_avalon_slave_agent_rsp_fifo: "mm_interconnect_0" 
 Info: router: "mm_interconnect_0" instantiated altera_merlin_router "router"
 Info: router_002: "mm_interconnect_0" instantiated altera_merlin_router "router_002"
 Info: hps_0_h2f_lw_axi_master_wr_limiter: "mm_interconnect_0" instantiated altera_merlin_traffic_limiter "hps_0_h2f_lw_axi_master_wr_limiter"
-Info: Reusing file C:/Users/elliotsaive/Documents/AlbertaSat_nonSVN/Electronics/Electra_Project/electra/synthesis/submodules/altera_avalon_sc_fifo.v
+Info: Reusing file C:/Users/elliotsaive/Documents/ex2_iris/vhdl/subsystems/fpga/Electra_Project/electra/synthesis/submodules/altera_avalon_sc_fifo.v
 Info: electra_fpga_subsystem_0_avalon_slave_burst_adapter: "mm_interconnect_0" instantiated altera_merlin_burst_adapter "electra_fpga_subsystem_0_avalon_slave_burst_adapter"
-Info: Reusing file C:/Users/elliotsaive/Documents/AlbertaSat_nonSVN/Electronics/Electra_Project/electra/synthesis/submodules/altera_merlin_address_alignment.sv
-Info: Reusing file C:/Users/elliotsaive/Documents/AlbertaSat_nonSVN/Electronics/Electra_Project/electra/synthesis/submodules/altera_avalon_st_pipeline_base.v
+Info: Reusing file C:/Users/elliotsaive/Documents/ex2_iris/vhdl/subsystems/fpga/Electra_Project/electra/synthesis/submodules/altera_merlin_address_alignment.sv
+Info: Reusing file C:/Users/elliotsaive/Documents/ex2_iris/vhdl/subsystems/fpga/Electra_Project/electra/synthesis/submodules/altera_avalon_st_pipeline_base.v
 Info: cmd_demux: "mm_interconnect_0" instantiated altera_merlin_demultiplexer "cmd_demux"
 Info: cmd_mux: "mm_interconnect_0" instantiated altera_merlin_multiplexer "cmd_mux"
 Info: rsp_demux: "mm_interconnect_0" instantiated altera_merlin_demultiplexer "rsp_demux"
 Info: rsp_mux: "mm_interconnect_0" instantiated altera_merlin_multiplexer "rsp_mux"
-Info: Reusing file C:/Users/elliotsaive/Documents/AlbertaSat_nonSVN/Electronics/Electra_Project/electra/synthesis/submodules/altera_merlin_arbitrator.sv
+Info: Reusing file C:/Users/elliotsaive/Documents/ex2_iris/vhdl/subsystems/fpga/Electra_Project/electra/synthesis/submodules/altera_merlin_arbitrator.sv
 Info: avalon_st_adapter: "mm_interconnect_0" instantiated altera_avalon_st_adapter "avalon_st_adapter"
 Info: border: "hps_io" instantiated altera_interface_generator "border"
 Info: error_adapter_0: "avalon_st_adapter" instantiated error_adapter "error_adapter_0"
-Info: electra: Done "electra" with 23 modules, 83 files
+Info: electra: Done "electra" with 25 modules, 85 files
 Info: qsys-generate succeeded.
 Info: Finished: Create HDL design files for synthesis

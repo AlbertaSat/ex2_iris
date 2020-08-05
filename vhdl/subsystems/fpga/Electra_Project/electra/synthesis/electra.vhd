@@ -57,7 +57,8 @@ architecture rtl of electra is
 			avalon_slave_read_n    : in  std_logic                     := 'X';             -- read_n
 			avalon_slave_readdata  : out std_logic_vector(31 downto 0);                    -- readdata
 			reset_n                : in  std_logic                     := 'X';             -- reset_n
-			clock                  : in  std_logic                     := 'X'              -- clk
+			clock                  : in  std_logic                     := 'X';             -- clk
+			interrupt_sender_irq   : out std_logic                                         -- irq
 		);
 	end component electra_fpga_subsystem;
 
@@ -177,7 +178,9 @@ architecture rtl of electra is
 			h2f_lw_RRESP           : in    std_logic_vector(1 downto 0)  := (others => 'X'); -- rresp
 			h2f_lw_RLAST           : in    std_logic                     := 'X';             -- rlast
 			h2f_lw_RVALID          : in    std_logic                     := 'X';             -- rvalid
-			h2f_lw_RREADY          : out   std_logic                                         -- rready
+			h2f_lw_RREADY          : out   std_logic;                                        -- rready
+			f2h_irq_p0             : in    std_logic_vector(31 downto 0) := (others => 'X'); -- irq
+			f2h_irq_p1             : in    std_logic_vector(31 downto 0) := (others => 'X')  -- irq
 		);
 	end component electra_hps_0;
 
@@ -239,6 +242,23 @@ architecture rtl of electra is
 			sysid_qsys_0_control_slave_readdata                                 : in  std_logic_vector(31 downto 0) := (others => 'X')  -- readdata
 		);
 	end component electra_mm_interconnect_0;
+
+	component electra_irq_mapper is
+		port (
+			clk           : in  std_logic                     := 'X'; -- clk
+			reset         : in  std_logic                     := 'X'; -- reset
+			receiver0_irq : in  std_logic                     := 'X'; -- irq
+			sender_irq    : out std_logic_vector(31 downto 0)         -- irq
+		);
+	end component electra_irq_mapper;
+
+	component electra_irq_mapper_001 is
+		port (
+			clk        : in  std_logic                     := 'X'; -- clk
+			reset      : in  std_logic                     := 'X'; -- reset
+			sender_irq : out std_logic_vector(31 downto 0)         -- irq
+		);
+	end component electra_irq_mapper_001;
 
 	component electra_rst_controller is
 		generic (
@@ -414,6 +434,9 @@ architecture rtl of electra is
 	signal mm_interconnect_0_electra_fpga_subsystem_0_avalon_slave_writedata       : std_logic_vector(31 downto 0); -- mm_interconnect_0:electra_fpga_subsystem_0_avalon_slave_writedata -> electra_fpga_subsystem_0:avalon_slave_writedata
 	signal mm_interconnect_0_sysid_qsys_0_control_slave_readdata                   : std_logic_vector(31 downto 0); -- sysid_qsys_0:readdata -> mm_interconnect_0:sysid_qsys_0_control_slave_readdata
 	signal mm_interconnect_0_sysid_qsys_0_control_slave_address                    : std_logic_vector(0 downto 0);  -- mm_interconnect_0:sysid_qsys_0_control_slave_address -> sysid_qsys_0:address
+	signal irq_mapper_receiver0_irq                                                : std_logic;                     -- electra_fpga_subsystem_0:interrupt_sender_irq -> irq_mapper:receiver0_irq
+	signal hps_0_f2h_irq0_irq                                                      : std_logic_vector(31 downto 0); -- irq_mapper:sender_irq -> hps_0:f2h_irq_p0
+	signal hps_0_f2h_irq1_irq                                                      : std_logic_vector(31 downto 0); -- irq_mapper_001:sender_irq -> hps_0:f2h_irq_p1
 	signal rst_controller_reset_out_reset                                          : std_logic;                     -- rst_controller:reset_out -> [mm_interconnect_0:electra_fpga_subsystem_0_reset_reset_bridge_in_reset_reset, rst_controller_reset_out_reset:in]
 	signal hps_0_h2f_reset_reset                                                   : std_logic;                     -- hps_0:h2f_rst_n -> hps_0_h2f_reset_reset:in
 	signal rst_controller_001_reset_out_reset                                      : std_logic;                     -- rst_controller_001:reset_out -> mm_interconnect_0:hps_0_h2f_lw_axi_master_agent_clk_reset_reset_bridge_in_reset_reset
@@ -427,12 +450,13 @@ begin
 
 	electra_fpga_subsystem_0 : component electra_fpga_subsystem
 		port map (
-			avalon_slave_write_n   => mm_interconnect_0_electra_fpga_subsystem_0_avalon_slave_write_ports_inv, -- avalon_slave.write_n
-			avalon_slave_writedata => mm_interconnect_0_electra_fpga_subsystem_0_avalon_slave_writedata,       --             .writedata
-			avalon_slave_read_n    => mm_interconnect_0_electra_fpga_subsystem_0_avalon_slave_read_ports_inv,  --             .read_n
-			avalon_slave_readdata  => mm_interconnect_0_electra_fpga_subsystem_0_avalon_slave_readdata,        --             .readdata
-			reset_n                => rst_controller_reset_out_reset_ports_inv,                                --        reset.reset_n
-			clock                  => clk_clk                                                                  --        clock.clk
+			avalon_slave_write_n   => mm_interconnect_0_electra_fpga_subsystem_0_avalon_slave_write_ports_inv, --     avalon_slave.write_n
+			avalon_slave_writedata => mm_interconnect_0_electra_fpga_subsystem_0_avalon_slave_writedata,       --                 .writedata
+			avalon_slave_read_n    => mm_interconnect_0_electra_fpga_subsystem_0_avalon_slave_read_ports_inv,  --                 .read_n
+			avalon_slave_readdata  => mm_interconnect_0_electra_fpga_subsystem_0_avalon_slave_readdata,        --                 .readdata
+			reset_n                => rst_controller_reset_out_reset_ports_inv,                                --            reset.reset_n
+			clock                  => clk_clk,                                                                 --            clock.clk
+			interrupt_sender_irq   => irq_mapper_receiver0_irq                                                 -- interrupt_sender.irq
 		);
 
 	hps_0 : component electra_hps_0
@@ -551,7 +575,9 @@ begin
 			h2f_lw_RRESP           => hps_0_h2f_lw_axi_master_rresp,   --                  .rresp
 			h2f_lw_RLAST           => hps_0_h2f_lw_axi_master_rlast,   --                  .rlast
 			h2f_lw_RVALID          => hps_0_h2f_lw_axi_master_rvalid,  --                  .rvalid
-			h2f_lw_RREADY          => hps_0_h2f_lw_axi_master_rready   --                  .rready
+			h2f_lw_RREADY          => hps_0_h2f_lw_axi_master_rready,  --                  .rready
+			f2h_irq_p0             => hps_0_f2h_irq0_irq,              --          f2h_irq0.irq
+			f2h_irq_p1             => hps_0_f2h_irq1_irq               --          f2h_irq1.irq
 		);
 
 	sysid_qsys_0 : component electra_sysid_qsys_0
@@ -609,6 +635,21 @@ begin
 			electra_fpga_subsystem_0_avalon_slave_writedata                     => mm_interconnect_0_electra_fpga_subsystem_0_avalon_slave_writedata, --                                                              .writedata
 			sysid_qsys_0_control_slave_address                                  => mm_interconnect_0_sysid_qsys_0_control_slave_address,              --                                    sysid_qsys_0_control_slave.address
 			sysid_qsys_0_control_slave_readdata                                 => mm_interconnect_0_sysid_qsys_0_control_slave_readdata              --                                                              .readdata
+		);
+
+	irq_mapper : component electra_irq_mapper
+		port map (
+			clk           => open,                     --       clk.clk
+			reset         => open,                     -- clk_reset.reset
+			receiver0_irq => irq_mapper_receiver0_irq, -- receiver0.irq
+			sender_irq    => hps_0_f2h_irq0_irq        --    sender.irq
+		);
+
+	irq_mapper_001 : component electra_irq_mapper_001
+		port map (
+			clk        => open,               --       clk.clk
+			reset      => open,               -- clk_reset.reset
+			sender_irq => hps_0_f2h_irq1_irq  --    sender.irq
 		);
 
 	rst_controller : component electra_rst_controller
