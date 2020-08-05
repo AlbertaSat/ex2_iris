@@ -77,34 +77,34 @@ architecture rtl of electra_fpga_subsystem is
 	end component;
 
 	component sdram_subsystem is
-		port (
-			--Control signals
-			clock               : in std_logic;
-			reset_n             : in std_logic;
+	port (
+		--Control signals
+		clock               : in std_logic;
+		reset_n             : in std_logic;
 	
-			--VNIR row signals
-			vnir_rows_available : in std_logic;
-			vnir_num_rows       : in integer;
-			vnir_rows           : in vnir_rows_t;
+		--VNIR row signals
+		vnir_rows_available : in std_logic;
+		vnir_num_rows       : in integer;
+		vnir_rows           : in vnir_rows_t;
 			
-			--SWIR row signals
-			swir_row_available  : in std_logic;
-			swir_num_rows       : in integer;
-			swir_row            : in swir_row_t;
+		--SWIR row signals
+		swir_row_available  : in std_logic;
+		swir_num_rows       : in integer;
+		swir_row            : in swir_row_t;
 			
-			timestamp           : in timestamp_t;
-			mpu_memory_change   : in sdram_address_block_t;
-			config_in           : in sdram_config_to_sdram_t;
-			start_config        : in std_logic
-			config_out          : out sdram_partitions_t;
-			config_done         : out std_logic;
-			img_config_done     : out std_logic;
+		timestamp           : in timestamp_t;
+		mpu_memory_change   : in sdram_address_block_t;
+		config_in           : in sdram_config_to_sdram_t;
+		start_config        : in std_logic
+		config_out          : out sdram_partitions_t;
+		config_done         : out std_logic;
+		img_config_done     : out std_logic;
 			
-			sdram_busy          : out std_logic;
-			sdram_error         : out stdram_error_t;
+		sdram_busy          : out std_logic;
+		sdram_error         : out stdram_error_t;
 			
-			sdram_avalon_out    : out avalonmm_rw_from_master_t;
-			sdram_avalon_in     : in avalonmm_rw_to_master_t
+		sdram_avalon_out    : out avalonmm_rw_from_master_t;
+		sdram_avalon_in     : in avalonmm_rw_to_master_t
 		);
 	end component sdram_subsystem;
 
@@ -127,65 +127,65 @@ signal config_confirmed: std_logic;
 signal image_config_confirmed: std_logic;
 
 begin
-	vnir_subsystem_component: vnir_subsystem port map (
-		clock               => clock
-		reset_n             => reset_n
+vnir_subsystem_component: vnir_subsystem port map (
+	clock               => clock
+	reset_n             => reset_n
 	
-		sensor_clock        => sensor_clock
-		sensor_clock_locked => sensor_clock_locked
-		sensor_power        => sensor_power
-		sensor_clock_enable => sensor_clock_enable
-		sensor_reset_n      => sensor_reset_n
+	sensor_clock        => sensor_clock
+	sensor_clock_locked => sensor_clock_locked
+	sensor_power        => sensor_power
+	sensor_clock_enable => sensor_clock_enable
+	sensor_reset_n      => sensor_reset_n
 	
-		config              => vnir_config 
-		start_config        => vnir_start_config
-		config_done         => vnir_config_done
+	config              => vnir_config 
+	start_config        => vnir_start_config
+	config_done         => vnir_config_done
 		
-		image_config        => vnir_image_config 
-		start_image_config  => vnir_start_image_config
-		image_config_done   => vnir_image_config_done
-		num_rows            => num_rows
+	image_config        => vnir_image_config 
+	start_image_config  => vnir_start_image_config
+	image_config_done   => vnir_image_config_done
+	num_rows            => num_rows
 		
-		do_imaging          => vnir_do_imaging 
-		imaging_done        => vnir_imaging_done
+	do_imaging          => vnir_do_imaging 
+	imaging_done        => vnir_imaging_done
 	
-		row                 => row 
-		row_available       => row_available
+	row                 => row 
+	row_available       => row_available
 		
-		spi_out             => spi_out
-		spi_in              => spi_in 
+	spi_out             => spi_out
+	spi_in              => spi_in 
 		
-		frame_request       => frame_request
-		exposure_start      => exposure_start
-		lvds                => lvds  
-	);
+	frame_request       => frame_request
+	exposure_start      => exposure_start
+	lvds                => lvds  
+);
 	
-	sdram_subsystem_component: sdram_subsystem port map (
-		clock               => clock,
-		reset_n             => reset_n,
+sdram_subsystem_component: sdram_subsystem port map (
+	clock               => clock,
+	reset_n             => reset_n,
 	
-		vnir_rows_available => vnir_rows_available,
-		vnir_num_rows       => vnir_num_rows,
-		vnir_rows           => vnir_rows,
+	vnir_rows_available => vnir_rows_available,
+	vnir_num_rows       => vnir_num_rows,
+	vnir_rows           => vnir_rows,
 
-		swir_row_available  => siwr_row_available,
-		swir_num_rows       => swir_num_rows,
-		swir_row            => swir_row,
+	swir_row_available  => siwr_row_available,
+	swir_num_rows       => swir_num_rows,
+	swir_row            => swir_row,
 			
-		timestamp           => timestamp,
-		mpu_memory_change   => mpu_memory_change,
-		config_in           => sdram_config_out,   -- sdram_config_out for "out" of FPGA subsystem
-		start_config        => sdram_start_config,
-		config_out          => sdram_config_in,    -- sdram_config_in for "in" to FPGA subsystem
-		config_done         => sdram_config_done,
-		img_config_done     => sdram_img_config_done,
+	timestamp           => timestamp,
+	mpu_memory_change   => mpu_memory_change,
+	config_in           => sdram_config_out,   -- sdram_config_out for "out" of FPGA subsystem
+	start_config        => sdram_start_config,
+	config_out          => sdram_config_in,    -- sdram_config_in for "in" to FPGA subsystem
+	config_done         => sdram_config_done,
+	img_config_done     => sdram_img_config_done,
 			
-		sdram_busy          => sdram_busy,
-		sdram_error         => sdram_error,
+	sdram_busy          => sdram_busy,
+	sdram_error         => sdram_error,
 			
-		sdram_avalon_out    => sdram_avalon_in,    -- sdram_avalon_in for "in" to FPGA subsystem
-		sdram_avalon_in     => sdram_avalon_out    -- sdram_avalon_out for "out" of FPGA subsystem
-	);
+	sdram_avalon_out    => sdram_avalon_in,    -- sdram_avalon_in for "in" to FPGA subsystem
+	sdram_avalon_in     => sdram_avalon_out    -- sdram_avalon_out for "out" of FPGA subsystem
+);
 	
 	-- process for assigning data to subsystems based on identifier bits
 	-- this program knows which bits to expect over the Avalon MM interface based on
@@ -271,7 +271,7 @@ begin
 		image_config_confirmed <= avalon_write_data(8); 
 
 	when others =>
-		unexpected_identifier <= '1';
+		unexpected_identifier <= '1'; -- and then what
 			
 	end case;
 	end if;
@@ -281,8 +281,8 @@ configs_done_flag_process: process
 begin
 	if (not(config_confirmed)) then
 		if (vnir_config_done AND sdram_config_done) then
-			interrupt_sender_irq <= '1';
-			avalon_slave_readdata <="00000000000000000000000100010100" -- transfer to indicate config_done
+		interrupt_sender_irq <= '1';
+		avalon_slave_readdata <="00000000000000000000000100010100" -- transfer to indicate config_done
 		end if;
 	elsif (not(vnir_image_config_done AND sdram_image_config_done)) then
 		interrupt_sender_irq <= '0';
