@@ -23,9 +23,8 @@ library std;
 use std.env.stop;
 
 use work.spi_types.all;
-use work.vnir_types.all;
+use work.vnir_common.all;
 use work.test_util.all;
-
 use work.row_collector_pkg.all;
 
 
@@ -35,44 +34,42 @@ end entity row_collector_tb;
 architecture tests of row_collector_tb is
     signal clock                : std_logic := '0';
     signal reset_n              : std_logic := '0';
-	signal config               : row_collector_config_t;
+	signal config               : config_t;
     signal read_config          : std_logic := '0';
     signal start                : std_logic := '0';
     signal done                 : std_logic := '0';
     signal fragment             : fragment_t;
 	signal fragment_available   : std_logic := '0';
-    signal row                  : vnir_row_t;
+    signal row                  : row_t;
     signal row_window           : integer;
-	signal row_available        : std_logic;
 
     component row_collector is
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
-        config              : in row_collector_config_t;
+        config              : in config_t;
         read_config         : in std_logic;
         start               : in std_logic;
         done                : out std_logic;
         fragment            : in fragment_t;
         fragment_available  : in std_logic;
-        row                 : out vnir_row_t;
-        row_window          : out integer;
-        row_available       : out std_logic
+        row                 : out row_t;
+        row_window          : out integer
     );
     end component row_collector;
 
-    procedure readline(file f : text; row : out vnir_row_t) is
+    procedure readline(file f : text; row : out row_t) is
         variable f_line : line;
         variable pixel : integer;
     begin
         readline(f, f_line);
         for i in row'range loop
             read(f_line, pixel);
-            row(i) := to_unsigned(pixel, vnir_pixel_bits);
+            row(i) := to_unsigned(pixel, PIXEL_BITS);
         end loop;
     end procedure readline;
 
-    procedure read(file f : text; config : out row_collector_config_t) is
+    procedure read(file f : text; config : out config_t) is
         variable f_line : line;
         variable i : integer;
     begin
@@ -93,29 +90,29 @@ architecture tests of row_collector_tb is
         read(f_line, i);
     end procedure read;
 
-    constant out_dir : string := "../subsystems/vnir/tests/out/row_collector/";
+    constant OUT_DIR : string := "../subsystems/vnir/tests/out/row_collector/";
 
 begin
 
 	-- Generate main clock signal
     clock_gen : process
-        constant clock_period : time := 20 ns;
+        constant CLOCK_PERIOD : time := 20 ns;
 	begin
-		wait for clock_period / 2;
+		wait for CLOCK_PERIOD / 2;
 		clock <= not clock;
 	end process clock_gen;
 
     check_output : process
-        file colour0_file : text open read_mode is out_dir & "colour0.out";
-        file colour1_file : text open read_mode is out_dir & "colour1.out";
-        file colour2_file : text open read_mode is out_dir & "colour2.out";
-        variable file_row : vnir_row_t;
+        file colour0_file : text open read_mode is OUT_DIR & "colour0.out";
+        file colour1_file : text open read_mode is OUT_DIR & "colour1.out";
+        file colour2_file : text open read_mode is OUT_DIR & "colour2.out";
+        variable file_row : row_t;
     begin
         assert config.windows'length = 3;
         wait until reset_n = '1';
 
         loop
-            wait until rising_edge(clock) and row_available = '1';
+            wait until rising_edge(clock) and row_window >= 0;
             report "Recieved row " & integer'image(row_window);
 
             case row_window is
@@ -138,13 +135,13 @@ begin
     end process;
 
     gen_input : process
-        constant n_fragments : integer := vnir_row_width / vnir_lvds_n_channels;
+        constant N_FRAGMENTS : integer := ROW_WIDTH / FRAGMENT_WIDTH;
         variable tests_passed : boolean := true;
-        variable row : vnir_row_t;
-        file row_file : text open read_mode is out_dir & "rows.out";
-        file config_file : text open read_mode is out_dir & "config.out";
+        variable row : row_t;
+        file row_file : text open read_mode is OUT_DIR & "rows.out";
+        file config_file : text open read_mode is OUT_DIR & "config.out";
         
-        variable config_v : row_collector_config_t;
+        variable config_v : config_t;
     begin
         read(config_file, config_v);
 
@@ -166,9 +163,9 @@ begin
         while not endfile(row_file) loop
             readline(row_file, row);
 
-            for f in 0 to n_fragments-1 loop
-                for i in 0 to vnir_lvds_n_channels-1 loop
-                    fragment(i) <= row(f + n_fragments * i);
+            for f in 0 to N_FRAGMENTS-1 loop
+                for i in 0 to FRAGMENT_WIDTH-1 loop
+                    fragment(i) <= row(f + N_FRAGMENTS * i);
                 end loop;
                 wait until rising_edge(clock);
             end loop;
@@ -188,8 +185,7 @@ begin
         fragment => fragment,
         fragment_available => fragment_available,
         row => row,
-        row_window => row_window,
-        row_available => row_available
+        row_window => row_window
     );
 
 end tests;

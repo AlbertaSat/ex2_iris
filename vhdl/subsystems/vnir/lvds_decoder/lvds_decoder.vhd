@@ -18,18 +18,19 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.vnir_types.all;
+use work.vnir_common.all;
 use work.lvds_decoder_pkg.all;
 
 entity lvds_decoder is
 port (
-    clock          : in std_logic;
-    reset_n        : in std_logic;
-    start_align    : in std_logic;
-    align_done     : out std_logic;
-    lvds_in        : in vnir_lvds_t;
-    parallel_out   : out vnir_parallel_lvds_t;
-    data_available : out std_logic
+    clock               : in std_logic;
+    reset_n             : in std_logic;
+    start_align         : in std_logic;
+    align_done          : out std_logic;
+    lvds                : in lvds_t;
+    fragment            : out fragment_t;
+    fragment_control    : out control_t;
+    fragment_available  : out std_logic
 );
 end entity lvds_decoder;
 
@@ -48,7 +49,7 @@ architecture rtl of lvds_decoder is
     port (
         clock       : out std_logic;
         reset_n     : in std_logic;
-        lvds_in     : in vnir_lvds_t;
+        lvds        : in lvds_t;
         start_align : in std_logic;
         to_fifo     : out fifo_data_t
     );
@@ -56,16 +57,16 @@ architecture rtl of lvds_decoder is
 
     component lvds_decoder_fifo is
     generic (
-        breadth : integer
+        BREADTH : integer
     );
     port (
         aclr		: in std_logic;
-        data		: in std_logic_vector(breadth-1 downto 0);
+        data		: in std_logic_vector;
         rdclk		: in std_logic;
         rdreq		: in std_logic;
         wrclk		: in std_logic;
         wrreq		: in std_logic;
-        q		    : out std_logic_vector(breadth-1 downto 0);
+        q		    : out std_logic_vector;
         rdempty		: out std_logic;
         wrfull		: out std_logic 
     );
@@ -87,8 +88,9 @@ architecture rtl of lvds_decoder is
         data_in_available   : in std_logic;
         from_fifo           : in fifo_data_t;
         align_done          : out std_logic;
-        data_out_available  : out std_logic;
-        parallel_out        : out vnir_parallel_lvds_t
+        fragment            : out fragment_t;
+        fragment_control    : out control_t;
+        fragment_available  : out std_logic
     );
     end component lvds_decoder_out;
 
@@ -97,11 +99,16 @@ architecture rtl of lvds_decoder is
     signal start_align_inclock : std_logic;
     signal start_align_outclock : std_logic;
     signal to_fifo : fifo_data_t;
+    signal to_fifo_flat : std_logic_vector(FIFO_DATA_BITS-1 downto 0);
     signal from_fifo : fifo_data_t;
+    signal from_fifo_flat : std_logic_vector(FIFO_DATA_BITS-1 downto 0);
     signal fifo_did_read : std_logic;
     signal rdempty : std_logic;
     signal wrfull : std_logic;
 begin
+
+    to_fifo_flat <= flatten(to_fifo);
+    from_fifo <= unpack_to_fifo_data(from_fifo_flat);
 
     start_align_outclock <= start_align;
     start_align_bridge : cmd_cross_clock port map (
@@ -115,21 +122,21 @@ begin
     decoder_in_component : lvds_decoder_in port map (
         clock => inclock,
         reset_n => reset_n,  -- TODO: how should a reset cross a clock boundary?
-        lvds_in => lvds_in,
+        lvds => lvds,
         start_align => start_align_inclock,
         to_fifo => to_fifo
     );
 
     fifo_component : lvds_decoder_fifo generic map (
-        breadth => n_fifo_channels * vnir_pixel_bits
+        BREADTH => FIFO_DATA_BITS
     ) port map (
         aclr => not reset_n,
-        data => to_fifo,
+        data => to_fifo_flat,
         rdclk => outclock,
         rdreq => not rdempty,
         wrclk => inclock,
         wrreq => not wrfull,
-        q => from_fifo,
+        q => from_fifo_flat,
         rdempty => rdempty,
         wrfull => wrfull  -- TODO: if this is ever high, throw an exception or something
     );
@@ -148,8 +155,9 @@ begin
         data_in_available => fifo_did_read,
         from_fifo => from_fifo,
         align_done => align_done,
-        data_out_available => data_available,
-        parallel_out => parallel_out
+        fragment => fragment,
+        fragment_control => fragment_control,
+        fragment_available => fragment_available
     );
 
 end architecture rtl;

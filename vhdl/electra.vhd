@@ -20,7 +20,8 @@ use ieee.numeric_std.all;
 
 use work.spi_types.all;
 use work.avalonmm_types.all;
-use work.vnir_types.all;
+use work.vnir_top;
+use work.vnir_common;
 use work.swir_types.all;
 use work.sdram_types.all;
 use work.fpga_types.all;
@@ -38,7 +39,7 @@ port (
     vnir_spi_in              : in spi_to_master_t;
     vnir_frame_request       : out std_logic;
     vnir_exposure_start      : out std_logic;
-    vnir_lvds                : in vnir_lvds_t
+    vnir_lvds                : in vnir_common.lvds_t
 );
 end entity electra;
 
@@ -62,77 +63,17 @@ architecture rtl of electra is
         sensor_power        : out std_logic;
         sensor_clock_enable : out std_logic;
         sensor_reset_n      : out std_logic;
-        config              : in vnir_config_t;
+        config              : in vnir_top.config_t;
         config_done         : out std_logic;
         do_imaging          : in std_logic;
         num_rows            : out integer;
-        row                 : out vnir_row_t;
-        row_available       : out vnir_row_type_t;
+        row                 : out vnir_common.row_t;
+        row_available       : out vnir_common.row_type_t;
         spi_out             : out spi_from_master_t;
         spi_in              : in spi_to_master_t;
         frame_request       : out std_logic;
         exposure_start      : out std_logic;
-        lvds                : in vnir_lvds_t
-    );
-    end component;
-
-    component swir_subsystem
-    port (
-        clock           : in std_logic;
-        reset_n         : in std_logic;
-        config          : in swir_config_t;
-        control         : out swir_control_t;
-        config_done     : out std_logic;
-        do_imaging      : in std_logic;
-        num_rows        : out integer;
-        row             : out swir_row_t;
-        row_available   : out std_logic;
-        sensor_clock    : out std_logic;
-        sensor_reset    : out std_logic;
-        video           : in std_logic
-    );
-    end component;
-
-    component sdram_subsystem
-    port (
-        clock               : in std_logic;
-        reset_n             : in std_logic;
-        vnir_row_available  : in vnir_row_type_t;
-        vnir_num_rows       : in integer;
-        vnir_row            : in vnir_row_t;
-        swir_row_available  : in std_logic;
-        swir_num_rows       : in integer;
-        swir_row            : in swir_row_t;
-        timestamp           : in timestamp_t;
-        mpu_memory_change   : in sdram_address_list_t;
-        config_in           : in sdram_config_to_sdram_t;
-        config_out          : out sdram_config_from_sdram_t;
-        config_done         : out std_logic;
-        sdram_busy          : out std_logic;
-        sdram_error         : out sdram_error_t;
-        sdram_avalon_out    : out avalonmm_rw_from_master_t;
-        sdram_avalon_in     : in avalonmm_rw_to_master_t
-    );
-    end component;
-
-    component fpga_subsystem
-    port (
-        clock               : in std_logic;
-        reset_n             : in std_logic;
-        vnir_config         : out vnir_config_t;
-        vnir_config_done    : in std_logic;
-        swir_config         : out swir_config_t;
-        swir_config_done    : in std_logic;
-        sdram_config_in     : in sdram_config_from_sdram_t;
-        sdram_config_out    : out sdram_config_to_sdram_t;
-        sdram_config_done   : in std_logic;
-        vnir_num_rows       : in integer;
-        swir_num_rows       : in integer;
-        do_imaging          : out std_logic;
-        timestamp           : out timestamp_t;
-        init_timestamp      : in timestamp_t;
-        image_request       : in std_logic;
-        imaging_duration    : in integer
+        lvds                : in vnir_common.lvds_t
     );
     end component;
 
@@ -147,49 +88,15 @@ architecture rtl of electra is
     signal vnir_sensor_clock_enable : std_logic;
 
     -- fpga <=> vnir
-    signal vnir_config : vnir_config_t;
+    signal vnir_config : vnir_top.config_t;
     signal vnir_config_done : std_logic;
     
     -- vnir <=> sdram
-    signal vnir_row : vnir_row_t;
-    signal vnir_row_available : vnir_row_type_t;
+    signal vnir_row : vnir_common.row_t;
+    signal vnir_row_available : vnir_common.row_type_t;
 
     -- vnir <=> sdram, fpga
     signal vnir_num_rows : integer;
-
-    -- swir <=> sdram, fpga
-    signal swir_num_rows : integer;
-
-    -- fpga <=> swir
-    signal swir_config : swir_config_t;
-    signal swir_config_done : std_logic;
-
-    -- swir <=> sdram
-    signal swir_row : swir_row_t;
-    signal swir_row_available : std_logic;
-
-    -- swir <=> sensor
-    signal swir_sensor_clock : std_logic;
-    signal swir_sensor_reset : std_logic;
-    signal swir_control      : swir_control_t;
-    signal swir_video        : std_logic;
-
-    -- fpga <=> sdram
-    signal timestamp : timestamp_t;
-    signal mpu_memory_change : sdram_address_list_t;
-    signal sdram_config : sdram_config_t;
-    signal sdram_config_done : std_logic;
-    signal sdram_busy : std_logic;
-    signal sdram_error : sdram_error_t;
-
-    -- sdram <=> RAM
-    signal sdram_avalon : avalonmm_rw_t;
-
-    -- fpga <=> microcontroller
-    signal init_timestamp : timestamp_t;
-    signal image_request : std_logic;
-    signal imaging_duration : integer;
-    -- TODO: add on to this
 
 begin
     soc_system_component : soc_system port map (
@@ -218,60 +125,6 @@ begin
         frame_request => vnir_frame_request,
         exposure_start => vnir_exposure_start,
         lvds => vnir_lvds
-    );
-
-    swir_subsystem_component : swir_subsystem port map (
-        clock => clock,
-        reset_n => reset_n,
-        config => swir_config,
-        control => swir_control,
-        config_done => swir_config_done,
-        do_imaging => do_imaging,
-        num_rows => swir_num_rows,
-        row => swir_row,
-        row_available => swir_row_available,
-        sensor_clock => swir_sensor_clock,
-        sensor_reset => swir_sensor_reset,
-        video => swir_video
-    );
-
-    sdram_subsystem_component : sdram_subsystem port map (
-        clock => clock,
-        reset_n => reset_n,
-        vnir_row_available => vnir_row_available,
-        vnir_num_rows => vnir_num_rows,
-        vnir_row => vnir_row,
-        swir_row_available => swir_row_available,
-        swir_num_rows => swir_num_rows,
-        swir_row => swir_row,
-        timestamp => timestamp,
-        mpu_memory_change => mpu_memory_change,
-        config_in => sdram_config.to_sdram,
-        config_out => sdram_config.from_sdram,
-        config_done => sdram_config_done,
-        sdram_busy => sdram_busy,
-        sdram_error => sdram_error,
-        sdram_avalon_out => sdram_avalon.from_master,
-        sdram_avalon_in => sdram_avalon.to_master
-    );
-
-    fpga_subsystem_component : fpga_subsystem port map (
-        clock => clock,
-        reset_n => reset_n,
-        vnir_config => vnir_config,
-        vnir_config_done => vnir_config_done,
-        swir_config => swir_config,
-        swir_config_done => swir_config_done,
-        sdram_config_in => sdram_config.from_sdram,
-        sdram_config_out => sdram_config.to_sdram,
-        sdram_config_done => sdram_config_done,
-        vnir_num_rows => vnir_num_rows,
-        swir_num_rows => swir_num_rows,
-        do_imaging => do_imaging,
-        timestamp => timestamp,
-        init_timestamp => init_timestamp,
-        image_request => image_request,
-        imaging_duration => imaging_duration
     );
 
     vnir_sensor_clock <= vnir_sensor_clock_s and vnir_sensor_clock_enable;

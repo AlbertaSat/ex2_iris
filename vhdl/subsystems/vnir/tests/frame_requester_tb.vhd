@@ -22,7 +22,7 @@ library std;
 use std.env.stop;
 
 use work.spi_types.all;
-use work.vnir_types.all;
+use work.vnir_common.all;
 use work.frame_requester_pkg.all;
 
 entity frame_requester_tb is
@@ -32,13 +32,12 @@ end entity;
 architecture tests of frame_requester_tb is	    
     signal clock            : std_logic := '0';  -- Main clock
     signal reset_n          : std_logic := '1';  -- Main reset
-    signal config           : frame_requester_config_t;
+    signal config           : config_t;
     signal start_config     : std_logic := '0';
     signal config_done      : std_logic;
     signal do_imaging       : std_logic;
     signal imaging_done     : std_logic;
     signal sensor_clock     : std_logic := '0';
-    signal sensor_reset     : std_logic := '0';
     signal frame_request    : std_logic;
     signal exposure_start   : std_logic;
     
@@ -49,7 +48,7 @@ architecture tests of frame_requester_tb is
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
-        config              : in frame_requester_config_t;
+        config              : in config_t;
         start_config        : in std_logic;
         config_done         : out std_logic;
         do_imaging          : in std_logic;
@@ -73,16 +72,16 @@ begin
     end process debug;
 
     clock_gen : process
-        constant period : time := 20 ns;
+        constant PERIOD : time := 20 ns;
 	begin
-		wait for period / 2;
+		wait for PERIOD / 2;
 		clock <= not clock;
     end process clock_gen;
     
     sensor_clock_gen : process
-        constant period : time := 0.02083 us;
+        constant PERIOD : time := 0.02083 us;
     begin
-        wait for period / 2;
+        wait for PERIOD / 2;
         sensor_clock <= not sensor_clock;
     end process sensor_clock_gen;
     

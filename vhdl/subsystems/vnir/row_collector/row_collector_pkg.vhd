@@ -19,16 +19,14 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.vnir_types.all;
+use work.vnir_common.all;
 use work.integer_types.all;
 
 package row_collector_pkg is
-    constant num_windows : integer := 3;
-
-    type row_collector_config_t is record
-        windows : vnir_window_vector_t(num_windows-1 downto 0);
+    type config_t is record
+        windows : window_vector_t(N_WINDOWS-1 downto 0);
         image_length : integer;
-    end record row_collector_config_t;
+    end record config_t;
 
     type fragment_idx_t is record
         fragment : integer;
@@ -37,11 +35,9 @@ package row_collector_pkg is
         frame    : integer;
 
         fragments_per_row : integer;
-        rows_per_window : integer_vector_t(num_windows-1 downto 0);
+        rows_per_window : integer_vector_t(N_WINDOWS-1 downto 0);
         windows_per_frame : integer;
     end record fragment_idx_t;
-
-    subtype fragment_t is vnir_pixel_vector_t(vnir_lvds_n_channels-1 downto 0);
 
     pure function is_last_fragment (idx : fragment_idx_t) return boolean;
     pure function is_last_row (idx : fragment_idx_t) return boolean;

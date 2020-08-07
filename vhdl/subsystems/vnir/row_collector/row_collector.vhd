@@ -20,16 +20,17 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.vnir_types.all;
-use work.row_collector_pkg.all;
 use work.integer_types.all;
+
+use work.vnir_common.all;
+use work.row_collector_pkg.all;
 
 entity row_collector is
 port (
     clock               : in std_logic;
     reset_n             : in std_logic;
 
-    config              : in row_collector_config_t;
+    config              : in config_t;
     read_config         : in std_logic;
 
     start               : in std_logic;
@@ -38,9 +39,8 @@ port (
     fragment            : in fragment_t;
     fragment_available  : in std_logic;
 
-    row                 : out vnir_row_t;
-    row_window          : out integer;
-    row_available       : out std_logic
+    row                 : out row_t;
+    row_window          : out integer
 );
 end entity row_collector;
 
@@ -49,28 +49,28 @@ architecture rtl of row_collector is
 
     component row_buffer is
     generic (
-        word_size : integer;
-        address_size : integer
+        WORD_SIZE       : integer;
+        ADDRESS_SIZE    : integer
     );
     port (
         clock           : in std_logic;
-        read_data       : out std_logic_vector(word_size-1 downto 0);
-        read_address    : in std_logic_vector(address_size-1 downto 0);
+        read_data       : out std_logic_vector;
+        read_address    : in std_logic_vector;
         read_enable     : in std_logic;
-        write_data      : in std_logic_vector(word_size-1 downto 0);
-        write_address   : in std_logic_vector(address_size-1 downto 0);
+        write_data      : in std_logic_vector;
+        write_address   : in std_logic_vector;
         write_enable    : in std_logic
     );
     end component row_buffer;
 
-    constant address_bits : integer := 20;
-    subtype address_t is std_logic_vector(address_bits-1 downto 0);
+    constant ADDRESS_BITS : integer := 20;
+    subtype address_t is std_logic_vector(ADDRESS_BITS-1 downto 0);
 
-    constant sum_bits : integer := 21;  -- 2048 10-bit integers added together take 21 bits.
-    subtype sum_pixel_t is std_logic_vector(sum_bits-1 downto 0);
+    constant SUM_BITS : integer := 21;  -- 2048 10-bit integers added together take 21 bits.
+    subtype sum_pixel_t is std_logic_vector(SUM_BITS-1 downto 0);
     type sum_pixel_vector_t is array(integer range <>) of sum_pixel_t;
 
-    pure function sizes(windows : vnir_window_vector_t) return integer_vector_t is
+    pure function sizes(windows : window_vector_t) return integer_vector_t is
         variable sizes : integer_vector_t(windows'range);
     begin
         for i in windows'range loop
@@ -79,29 +79,29 @@ architecture rtl of row_collector is
         return sizes;
     end function sizes;
 
-    pure function initial_index(windows : vnir_window_vector_t) return fragment_idx_t is
+    pure function initial_index(windows : window_vector_t) return fragment_idx_t is
         variable index : fragment_idx_t;
     begin
         index := (
             fragment => 0, row => 0, window => 0, frame => 0,
-            fragments_per_row => vnir_row_width / vnir_lvds_n_channels,
+            fragments_per_row => ROW_WIDTH / FRAGMENT_WIDTH,
             rows_per_window => sizes(windows),
             windows_per_frame => 3
         );
         return index;
     end function initial_index;
 
-    pure function x_pos(index : fragment_idx_t; windows : vnir_window_vector_t) return integer is
+    pure function x_pos(index : fragment_idx_t; windows : window_vector_t) return integer is
     begin
         return index.frame - windows(index.window).lo - index.row;
     end function x_pos;
 
     pure function to_address(i : integer) return address_t is
     begin
-        return std_logic_vector(to_unsigned(i, address_bits));
+        return std_logic_vector(to_unsigned(i, ADDRESS_BITS));
     end function to_address;
 
-    pure function to_address(index : fragment_idx_t; windows : vnir_window_vector_t) return address_t is
+    pure function to_address(index : fragment_idx_t; windows : window_vector_t) return address_t is
         variable row_position : integer;
         variable row_index : integer;
         variable row_index_range : integer;
@@ -124,7 +124,7 @@ architecture rtl of row_collector is
         return p;
     end function to_sum_pixel;
 
-    pure function to_sum_pixels(v : vnir_pixel_vector_t) return sum_pixel_vector_t is
+    pure function to_sum_pixels(v : pixel_vector_t) return sum_pixel_vector_t is
         variable ret : sum_pixel_vector_t(v'range);
     begin
         for i in v'range loop
@@ -151,19 +151,19 @@ architecture rtl of row_collector is
         return quotient;
     end function "/";
 
-    pure function to_vnir_pixel(p : sum_pixel_t) return vnir_pixel_t is
+    pure function to_pixel(p : sum_pixel_t) return pixel_t is
     begin
-        return vnir_pixel_t(p(vnir_pixel_bits-1 downto 0));
-    end function to_vnir_pixel;
+        return pixel_t(p(pixel_bits-1 downto 0));
+    end function to_pixel;
 
-    pure function to_vnir_pixels(v : sum_pixel_vector_t) return vnir_pixel_vector_t is
-        variable ret : vnir_pixel_vector_t(v'range);
+    pure function to_pixels(v : sum_pixel_vector_t) return pixel_vector_t is
+        variable ret : pixel_vector_t(v'range);
     begin
         for i in v'range loop
-            ret(i) := to_vnir_pixel(v(i));
+            ret(i) := to_pixel(v(i));
         end loop;
         return ret;
-    end function to_vnir_pixels;
+    end function to_pixels;
 
     -- Pipeline stage 0 output
     signal fragment_p0 : fragment_t;
@@ -179,14 +179,14 @@ architecture rtl of row_collector is
     signal p2_done : std_logic;
 
     -- RAM signals
-    signal read_data : sum_pixel_vector_t(vnir_lvds_n_channels-1 downto 0);
+    signal read_data : sum_pixel_vector_t(FRAGMENT_WIDTH-1 downto 0);
     signal read_address : address_t;
     signal read_enable : std_logic;
-    signal write_data : sum_pixel_vector_t(vnir_lvds_n_channels-1 downto 0);
+    signal write_data : sum_pixel_vector_t(FRAGMENT_WIDTH-1 downto 0);
     signal write_address : address_t;
     signal write_enable : std_logic;
 
-    signal windows : vnir_window_vector_t(num_windows-1 downto 0);
+    signal windows : window_vector_t(N_WINDOWS-1 downto 0);
     signal image_length : integer;
 
 begin
@@ -285,7 +285,7 @@ begin
 
                 -- If this is the last row of the window, compute the average from the sum
                 if is_last_row(index_p1) then
-                    fragment_p2 <= to_vnir_pixels(sum / window_size(index_p1));
+                    fragment_p2 <= to_pixels(sum / window_size(index_p1));
                     index_p2 <= index_p1;
                     p2_done <= '1';
                 end if;
@@ -303,7 +303,7 @@ begin
     begin
         wait until rising_edge(clock);
 
-        row_available <= '0';
+        row_window <= -1;
         done <= '0';
 
         if reset_n = '1' then
@@ -317,7 +317,6 @@ begin
                     row(offset + i * stride) <= fragment_p2(i);
                 end loop;
                 if is_last_fragment(index_p2) then
-                    row_available <= '1';
                     row_window <= index_p2.window;
                     n_rows(index_p2.window) := n_rows(index_p2.window) + 1;
                     if n_rows = n_rows_target then
@@ -330,11 +329,11 @@ begin
 
     -- Use multiple RAMs in parallel, so that reading or writing a fragment
     -- takes a single clock cycle
-    generate_RAM : for i in 0 to vnir_lvds_n_channels-1 generate
+    generate_RAM : for i in 0 to FRAGMENT_WIDTH-1 generate
 
         RAM : row_buffer generic map (
-            word_size => sum_bits,
-            address_size => address_bits
+            WORD_SIZE => SUM_BITS,
+            ADDRESS_SIZE => ADDRESS_BITS
         ) port map (
             clock => clock,
             read_data => read_data(i),

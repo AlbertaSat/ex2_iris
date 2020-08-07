@@ -22,14 +22,14 @@ USE altera_mf.all;
 
 entity lvds_decoder_ser_to_par is
 generic (
-    n_channels : integer;
-    bit_width  : integer
+    N_CHANNELS : integer;
+    BIT_WIDTH  : integer
 );
 port (
-    rx_channel_data_align   : in std_logic_vector (n_channels-1 downto 0);
-    rx_in                   : in std_logic_vector (n_channels-1 downto 0);
+    rx_channel_data_align   : in std_logic_vector (N_CHANNELS-1 downto 0);
+    rx_in                   : in std_logic_vector (N_CHANNELS-1 downto 0);
     rx_inclock              : in std_logic;
-    rx_out                  : out std_logic_vector (bit_width*n_channels-1 downto 0);
+    rx_out                  : out std_logic_vector (BIT_WIDTH*N_CHANNELS-1 downto 0);
     rx_outclock             : out std_logic
 );
 end entity lvds_decoder_ser_to_par;
@@ -86,10 +86,10 @@ architecture rtl of lvds_decoder_ser_to_par is
         clk_src_is_pll                          : string
     );
     port (
-        rx_channel_data_align   : in std_logic_vector (n_channels-1 downto 0);
-        rx_in                   : in std_logic_vector (n_channels-1 downto 0);
+        rx_channel_data_align   : in std_logic_vector (N_CHANNELS-1 downto 0);
+        rx_in                   : in std_logic_vector (N_CHANNELS-1 downto 0);
         rx_inclock              : in std_logic;
-        rx_out                  : out std_logic_vector (bit_width*n_channels-1 downto 0);
+        rx_out                  : out std_logic_vector (BIT_WIDTH*N_CHANNELS-1 downto 0);
         rx_outclock             : out std_logic 
     );
     end component;
@@ -98,9 +98,9 @@ begin
 		buffer_implementation => "RAM",
 		cds_mode => "UNUSED",
 		common_rx_tx_pll => "OFF",
-		data_align_rollover => bit_width,
+		data_align_rollover => BIT_WIDTH,
 		data_rate => "480.0 Mbps",
-		deserialization_factor => bit_width,
+		deserialization_factor => BIT_WIDTH,
 		dpa_initial_phase_value => 0,
 		dpll_lock_count => 0,
 		dpll_lock_window => 0,
@@ -122,7 +122,7 @@ begin
 		lose_lock_on_one_change => "UNUSED",
 		lpm_hint => "CBX_MODULE_PREFIX=lvds_rx_10_17",
 		lpm_type => "altlvds_rx",
-		number_of_channels => n_channels,
+		number_of_channels => N_CHANNELS,
 		outclock_resource => "Dual-Regional clock",
 		pll_operation_mode => "NORMAL",
 		pll_self_reset_on_loss_lock => "UNUSED",

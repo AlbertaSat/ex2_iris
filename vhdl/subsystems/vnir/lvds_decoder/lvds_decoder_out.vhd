@@ -19,7 +19,7 @@ use ieee.std_logic_1164.all;
 use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
 
-use work.vnir_types.all;
+use work.vnir_common.all;
 use work.lvds_decoder_pkg.all;
 
 
@@ -30,21 +30,14 @@ port (
     data_in_available   : in std_logic;
     from_fifo           : in fifo_data_t;
     align_done          : out std_logic;
-    data_out_available  : out std_logic;
-    parallel_out        : out vnir_parallel_lvds_t
+    fragment            : out fragment_t;
+    fragment_control    : out control_t;
+    fragment_available  : out std_logic
 );
 end entity lvds_decoder_out;
 
 
 architecture rtl of lvds_decoder_out is
-    signal aligned_in : std_logic;
-    signal control_in : vnir_pixel_t;
-    signal data_in : vnir_pixel_vector_t(vnir_lvds_n_channels-1 downto 0);
-
-    pure function is_aligned(fifo_data : fifo_data_t) return boolean is
-    begin
-        return or_reduce(get(fifo_data, 0)) = '1';
-    end function is_aligned;
 begin
     
     fsm : process
@@ -53,7 +46,7 @@ begin
     begin
         wait until rising_edge(clock);
         align_done <= '0';
-        data_out_available <= '0';
+        fragment_available <= '0';
 
         if reset_n = '0' then
             state := RESET;
@@ -63,23 +56,21 @@ begin
         when RESET =>
             state := NONALIGNED;
         when NONALIGNED =>
-            if is_aligned(from_fifo) then
+            if from_fifo.is_aligned = '1' then
                 state := ALIGNED;
                 align_done <= '1';
             end if;
         when ALIGNED =>
-            if not is_aligned(from_fifo) then
+            if from_fifo.is_aligned /= '1' then
                 state := NONALIGNED;
             end if;
         end case;
 
         if state = ALIGNED then
             if data_in_available = '1' then
-                data_out_available <= '1';
-                parallel_out.control <= to_vnir_control(get(from_fifo, 1));
-                for channel in 2 to n_fifo_channels-1 loop
-                    parallel_out.data(channel-2) <= unsigned(get(from_fifo, channel));
-                end loop;
+                fragment_available <= '1';
+                fragment_control <= from_fifo.control;
+                fragment <= from_fifo.fragment;
             end if;
         end if;
     end process fsm;

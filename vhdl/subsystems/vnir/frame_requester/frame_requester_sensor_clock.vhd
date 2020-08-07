@@ -18,20 +18,21 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.vnir_types.all;
 use work.pulse_generator_pkg.all;
+
+use work.vnir_common.all;
 use work.frame_requester_pkg.all;
 
 entity frame_requester_sensor_clock is
 generic (
-    clocks_per_sec      : integer
+    CLOCKS_PER_SEC      : integer
 );
 port (
     -- All signals clocked on the sensor clock
     sensor_clock        : in std_logic;
     reset_n             : in std_logic;
     
-    config              : in frame_requester_config_t;
+    config              : in config_t;
     start_config        : in std_logic;
     config_done         : out std_logic;
     
@@ -56,25 +57,25 @@ architecture rtl of frame_requester_sensor_clock is
     --
     -- which allows us to go backward from the desired exposure time to get the
     -- needed frame request offset.
-    pure function calc_frame_request_offset(config : frame_requester_config_t) return integer is
-        constant extra_exposure_time : integer := 1110;
-        constant clocks_per_fot : integer := 20 + 2 * 16 / vnir_lvds_n_channels;
+    pure function calc_frame_request_offset(config : config_t) return integer is
+        constant EXTRA_EXPOSURE_TIME : integer := 1110;
+        constant CLOCKS_PER_FOT : integer := 20 + 2 * 16 / FRAGMENT_WIDTH;
         variable clocks_per_frame : integer;
         variable clocks_per_exposure : integer;
         variable frame_request_offset : integer;
     begin
-        clocks_per_frame := clocks_per_sec / config.fps;
-        clocks_per_exposure := clocks_per_sec * config.exposure_time / 1000;
-        frame_request_offset := clocks_per_exposure - extra_exposure_time;
+        clocks_per_frame := CLOCKS_PER_SEC / config.fps;
+        clocks_per_exposure := CLOCKS_PER_SEC * config.exposure_time / 1000;
+        frame_request_offset := clocks_per_exposure - EXTRA_EXPOSURE_TIME;
         
         if frame_request_offset <= 0 then
             report "Can't compute frame_request_offset: requested exposure is too low" severity failure;
             return 1;
         end if;
         
-        if frame_request_offset + clocks_per_fot > clocks_per_frame then
+        if frame_request_offset + CLOCKS_PER_FOT > clocks_per_frame then
             report "Can't compute frame_request_offset: requested exposure is too high" severity failure;
-            return clocks_per_frame - clocks_per_fot;
+            return clocks_per_frame - CLOCKS_PER_FOT;
         end if;
         
         return frame_request_offset;
@@ -89,7 +90,6 @@ begin
 
         variable frame_request_gen : pulse_generator_t;
         variable exposure_start_gen : pulse_generator_t;
-        variable config_v : vnir_config_t;
     begin
         wait until rising_edge(sensor_clock);
 
@@ -116,13 +116,13 @@ begin
                     config.fps,
                     calc_frame_request_offset(config),                
                     config.num_frames,
-                    clocks_per_sec
+                    CLOCKS_PER_SEC
                 );
                 exposure_start_gen := pulse_generator_new (
                     config.fps,
                     0,
                     config.num_frames,
-                    clocks_per_sec
+                    CLOCKS_PER_SEC
                 );
                 config_done <= '1';
             end if;

@@ -18,25 +18,26 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.vnir_types.all;
+use work.vnir_common.all;
 use work.spi_types.all;
 use work.logic_types.all;
 use work.sensor_configurer_pkg.all;
-
+use work.sensor_configurer_defaults;
 
 entity sensor_configurer is
 generic (
-    clocks_per_sec      : integer;
-    power_on_delay_us   : integer := 1;  -- TODO: find out power stability time
-    clock_on_delay_us   : integer := 1;  -- From figure 7 of the user guide
-    reset_off_delay_us  : integer := 1;  -- From figure 7 of the user guide
-    spi_settle_us       : integer := 20000  -- Overkill probably. From section 3.7 of the user guide
+    CLOCKS_PER_SEC      : integer;
+
+    POWER_ON_DELAY_us   : integer := sensor_configurer_defaults.POWER_ON_DELAY_us;
+    CLOCK_ON_DELAY_us   : integer := sensor_configurer_defaults.CLOCK_ON_DELAY_us;
+    RESET_OFF_DELAY_us  : integer := sensor_configurer_defaults.RESET_OFF_DELAY_us;
+    SPI_SETTLE_us       : integer := sensor_configurer_defaults.SPI_SETTLE_us
 );
 port (
     clock               : in std_logic;
     reset_n             : in std_logic;
 
-    config              : in sensor_configurer_config_t;
+    config              : in config_t;
     start_config        : in std_logic;
     config_done         : out std_logic;
     
@@ -76,8 +77,8 @@ architecture rtl of sensor_configurer is
 
     component timer is
     generic (
-        clocks_per_sec  : integer;
-        delay_us        : integer
+        CLOCKS_PER_SEC  : integer;
+        DELAY_us        : integer
     );
     port (
         clock   : in std_logic;
@@ -113,8 +114,8 @@ begin
         variable i : integer;
         variable spi_busy_prev : std_logic;
 
-        constant n_spi_instructions : integer := 39;  -- Length of all_instructions() output
-        variable spi_instructions : logic16_vector_t(n_spi_instructions-1 downto 0);
+        constant N_SPI_INSTRUCTIONS : integer := 39;  -- Length of all_instructions() output
+        variable spi_instructions : logic16_vector_t(N_SPI_INSTRUCTIONS-1 downto 0);
     begin
         wait until rising_edge(clock);
 
@@ -172,7 +173,7 @@ begin
             spi_enable <= '1';
             spi_cont <= '1';
             if (spi_busy = '1' and spi_busy_prev = '0') then
-                if (i = n_spi_instructions - 1) then
+                if (i = N_SPI_INSTRUCTIONS - 1) then
                     state := CONFIG_TRANSMIT_FINISH;
                 else
                     i := i + 1;
@@ -220,8 +221,8 @@ begin
     );
 
     power_on_timer_cmp : timer generic map (
-        clocks_per_sec => clocks_per_sec,
-        delay_us => power_on_delay_us
+        CLOCKS_PER_SEC => CLOCKS_PER_SEC,
+        DELAY_us => POWER_ON_DELAY_us
     ) port map (
         clock => clock,
         reset_n => reset_n,
@@ -230,8 +231,8 @@ begin
     );
 
     clock_on_timer_cmp : timer generic map (
-        clocks_per_sec => clocks_per_sec,
-        delay_us => clock_on_delay_us
+        CLOCKS_PER_SEC => CLOCKS_PER_SEC,
+        DELAY_us => CLOCK_ON_DELAY_us
     ) port map (
         clock => clock,
         reset_n => reset_n,
@@ -240,8 +241,8 @@ begin
     );
 
     reset_off_timer_cmp : timer generic map (
-        clocks_per_sec => clocks_per_sec,
-        delay_us => reset_off_delay_us
+        CLOCKS_PER_SEC => CLOCKS_PER_SEC,
+        DELAY_us => RESET_OFF_DELAY_us
     ) port map (
         clock => clock,
         reset_n => reset_n,
@@ -250,8 +251,8 @@ begin
     );
 
     spi_settle_timer_cmp : timer generic map (
-        clocks_per_sec => clocks_per_sec,
-        delay_us => spi_settle_us
+        CLOCKS_PER_SEC => CLOCKS_PER_SEC,
+        DELAY_us => SPI_SETTLE_us
     ) port map (
         clock => clock,
         reset_n => reset_n,

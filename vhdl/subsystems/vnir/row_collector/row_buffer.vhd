@@ -23,16 +23,16 @@ use altera_mf.altera_mf_components.all;
 
 entity row_buffer is
 generic (
-    word_size : integer;
-    address_size : integer
+    WORD_SIZE : integer;
+    ADDRESS_SIZE : integer
 );
 port (
     clock           : in std_logic;
-    read_data       : out std_logic_vector(word_size-1 downto 0);
-    read_address    : in std_logic_vector(address_size-1 downto 0);
+    read_data       : out std_logic_vector(WORD_SIZE-1 downto 0);
+    read_address    : in std_logic_vector(ADDRESS_SIZE-1 downto 0);
     read_enable     : in std_logic;
-    write_data      : in std_logic_vector(word_size-1 downto 0);
-    write_address   : in std_logic_vector(address_size-1 downto 0);
+    write_data      : in std_logic_vector(WORD_SIZE-1 downto 0);
+    write_address   : in std_logic_vector(ADDRESS_SIZE-1 downto 0);
     write_enable    : in std_logic
 );
 end entity row_buffer;
@@ -49,17 +49,17 @@ begin
         clock_enable_output_b => "BYPASS",
         intended_device_family => "Cyclone V",
         lpm_type => "altsyncram",
-        numwords_a => 2 ** address_size,
-        numwords_b => 2 ** address_size,
+        numwords_a => 2 ** ADDRESS_SIZE,
+        numwords_b => 2 ** ADDRESS_SIZE,
         operation_mode => "DUAL_PORT",
         outdata_aclr_b => "NONE",
         power_up_uninitialized => "TRUE",
         rdcontrol_reg_b => "CLOCK0",
         read_during_write_mode_mixed_ports => "DONT_CARE",
-        widthad_a => address_size,
-        widthad_b => address_size,
-        width_a => word_size,
-        width_b => word_size,
+        widthad_a => ADDRESS_SIZE,
+        widthad_b => ADDRESS_SIZE,
+        width_a => WORD_SIZE,
+        width_b => WORD_SIZE,
         width_byteena_a => 1
     ) port map (
         address_a => write_address,

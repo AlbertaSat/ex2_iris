@@ -1,37 +1,50 @@
 library ieee;
+use ieee.numeric_std.all;
+
+package sensor_configurer_defaults is
+    
+    constant POWER_ON_DELAY_us   : integer := 1;
+    constant CLOCK_ON_DELAY_us   : integer := 1;
+    constant RESET_OFF_DELAY_us  : integer := 1;
+    constant SPI_SETTLE_us       : integer := 20000;
+
+end package sensor_configurer_defaults;
+
+
+library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.vnir_types.all;
 use work.logic_types.all;
+use work.vnir_common.all;
 
 
 package sensor_configurer_pkg is
-    constant num_windows : integer := 3;
 
-    type sensor_configurer_config_t is record
-        flip        : vnir_flip_t;
-        calibration : vnir_calibration_t;
-        windows     : vnir_window_vector_t(num_windows-1 downto 0);
-    end record sensor_configurer_config_t;
+    type config_t is record
+        flip        : flip_t;
+        calibration : calibration_t;
+        windows     : window_vector_t(N_WINDOWS-1 downto 0);
+    end record config_t;
 
     pure function l8_instructions(l8 : logic8_t; addr : integer) return logic16_vector_t;
     pure function i8_instructions(i8 : integer; addr : integer) return logic16_vector_t;
     pure function l16_instructions(l16 : logic16_t; addr : integer) return logic16_vector_t;
     pure function i16_instructions(i16 : integer; addr : integer) return logic16_vector_t;
     
-    pure function window_instructions(window : vnir_window_t; index : integer) return logic16_vector_t;
-    pure function window_instructions(config : sensor_configurer_config_t) return logic16_vector_t;
-    pure function flip_instructions(flip : vnir_flip_t) return logic16_vector_t;
+    pure function window_instructions(window : window_t; index : integer) return logic16_vector_t;
+    pure function window_instructions(config : config_t) return logic16_vector_t;
+    pure function flip_instructions(flip : flip_t) return logic16_vector_t;
     pure function misc_instructions(flags : std_logic_vector) return logic16_vector_t;
     pure function n_channels_instructions(n_channels : integer) return logic16_vector_t;
-    pure function calibration_instructions(calibration : vnir_calibration_t) return logic16_vector_t;
+    pure function calibration_instructions(calibration : calibration_t) return logic16_vector_t;
     pure function bit_mode_instructions(pixel_bits : integer) return logic16_vector_t;
     pure function pll_instructions(sensor_clock_MHz : integer; pixel_bits : integer) return logic16_vector_t;
     pure function undocumented_instructions return logic16_vector_t;
-    pure function all_instructions (config : sensor_configurer_config_t) return logic16_vector_t;
+    pure function all_instructions (config : config_t) return logic16_vector_t;
 
 end package sensor_configurer_pkg;
+
 
 package body sensor_configurer_pkg is
 
@@ -60,33 +73,33 @@ package body sensor_configurer_pkg is
         return l16_instructions(to_logic16(i16), addr);
     end function i16_instructions;
 
-    pure function window_instructions(window : vnir_window_t; index : integer) return logic16_vector_t is
-        constant addr_low_base : integer := 3;
-        constant addr_size_base : integer := 19;
-        constant addr_stride : integer := 2;
+    pure function window_instructions(window : window_t; index : integer) return logic16_vector_t is
+        constant ADDR_LOW_BASE : integer := 3;
+        constant ADDR_SIZE_BASE : integer := 19;
+        constant ADDR_STRIDE : integer := 2;
     begin
-        return i16_instructions(window.lo, addr_low_base + addr_stride * index)
-             & i16_instructions(size(window), addr_size_base + addr_stride * index);
+        return i16_instructions(window.lo, ADDR_LOW_BASE + ADDR_STRIDE * index)
+             & i16_instructions(size(window), ADDR_SIZE_BASE + ADDR_STRIDE * index);
     end function window_instructions;
 
-    pure function window_instructions(config : sensor_configurer_config_t) return logic16_vector_t is
-        constant addr_total_rows : integer := 1;
+    pure function window_instructions(config : config_t) return logic16_vector_t is
+        constant ADDR_TOTAL_ROWS : integer := 1;
     begin
         assert config.windows'length = 3;
-        return i16_instructions(total_rows(config.windows), addr_total_rows)
+        return i16_instructions(total_rows(config.windows), ADDR_TOTAL_ROWS)
              & window_instructions(config.windows(0), 0)
              & window_instructions(config.windows(1), 1)
              & window_instructions(config.windows(2), 2);
     end function window_instructions;
 
-    pure function flip_instructions(flip : vnir_flip_t) return logic16_vector_t is
-        constant addr_flip : integer := 40;
+    pure function flip_instructions(flip : flip_t) return logic16_vector_t is
+        constant ADDR_FLIP : integer := 40;
     begin
         case flip is
-        when FLIP_NONE => return i8_instructions(0, addr_flip);
-        when FLIP_X => return i8_instructions(1, addr_flip);
-        when FLIP_Y => return i8_instructions(2, addr_flip);
-        when FLIP_XY => return i8_instructions(3, addr_flip);
+        when FLIP_NONE => return i8_instructions(0, ADDR_FLIP);
+        when FLIP_X => return i8_instructions(1, ADDR_FLIP);
+        when FLIP_Y => return i8_instructions(2, ADDR_FLIP);
+        when FLIP_XY => return i8_instructions(3, ADDR_FLIP);
         end case;
     end function flip_instructions;
 
@@ -100,7 +113,7 @@ package body sensor_configurer_pkg is
     end function to_std_logic;
 
     pure function misc_instructions(flags : std_logic_vector) return logic16_vector_t is
-        constant addr_misc : integer := 41;
+        constant ADDR_MISC : integer := 41;
         variable dummy_insertion_bit : std_logic;
         variable dual_exposure_bit : std_logic;
         variable external_exposure_bit : std_logic;
@@ -111,39 +124,39 @@ package body sensor_configurer_pkg is
         external_exposure_bit := to_std_logic(bitwise_contains(flags, EXTERNAL_EXPOSURE));
 
         encoded_flags := "00000" & dummy_insertion_bit & dual_exposure_bit & external_exposure_bit;
-        return l8_instructions(encoded_flags, addr_misc);
+        return l8_instructions(encoded_flags, ADDR_MISC);
     end function misc_instructions;
 
     pure function n_channels_instructions(n_channels : integer) return logic16_vector_t is
         -- For now this function leaves all channels enabled
-        constant addr_n_channels : integer := 72;
+        constant ADDR_N_CHANNELS : integer := 72;
     begin
         case n_channels is
-        when 16 => return i8_instructions(0, addr_n_channels);
-        when  8 => return i8_instructions(1, addr_n_channels);
-        when  4 => return i8_instructions(2, addr_n_channels);
-        when  2 => return i8_instructions(3, addr_n_channels);
+        when 16 => return i8_instructions(0, ADDR_N_CHANNELS);
+        when  8 => return i8_instructions(1, ADDR_N_CHANNELS);
+        when  4 => return i8_instructions(2, ADDR_N_CHANNELS);
+        when  2 => return i8_instructions(3, ADDR_N_CHANNELS);
         when others =>
             report "Invalid number of channels detected in n_channels_instructions()" severity failure;
-            return i8_instructions(0, addr_n_channels);
+            return i8_instructions(0, ADDR_N_CHANNELS);
         end case;
     end function n_channels_instructions;
 
-    pure function calibration_instructions(calibration : vnir_calibration_t) return logic16_vector_t is
-        constant addr_adc_gain : integer := 103;
-        constant addr_v_ramp1 : integer := 98;
-        constant addr_v_ramp2 : integer := 99;
-        constant addr_offset : integer := 100;
+    pure function calibration_instructions(calibration : calibration_t) return logic16_vector_t is
+        constant ADDR_ADC_GAIN : integer := 103;
+        constant ADDR_V_RAMP1 : integer := 98;
+        constant ADDR_V_RAMP2 : integer := 99;
+        constant ADDR_OFFSET : integer := 100;
     begin
-        return i8_instructions(calibration.adc_gain, addr_adc_gain)
-             & i8_instructions(calibration.v_ramp1, addr_v_ramp1)
-             & i8_instructions(calibration.v_ramp2, addr_v_ramp2)
-             & i16_instructions(calibration.offset, addr_offset);
+        return i8_instructions(calibration.adc_gain, ADDR_ADC_GAIN)
+             & i8_instructions(calibration.v_ramp1, ADDR_V_RAMP1)
+             & i8_instructions(calibration.v_ramp2, ADDR_V_RAMP2)
+             & i16_instructions(calibration.offset, ADDR_OFFSET);
     end;
 
     pure function bit_mode_instructions(pixel_bits : integer) return logic16_vector_t is
-        constant addr_bit_mode : integer := 111;
-        constant addr_adc_res : integer := 112;
+        constant ADDR_BIT_MODE : integer := 111;
+        constant ADDR_ADC_RES : integer := 112;
         variable bit_mode : integer;
         variable adc_res : integer;
     begin
@@ -154,14 +167,14 @@ package body sensor_configurer_pkg is
         if pixel_bits = 10 then bit_mode := 1; else bit_mode := 0; end if;
         if pixel_bits = 10 then adc_res := 0; else adc_res := 2; end if;
 
-        return i8_instructions(bit_mode, addr_bit_mode)
-                & i8_instructions(adc_res, addr_adc_res);
+        return i8_instructions(bit_mode, ADDR_BIT_MODE)
+                & i8_instructions(adc_res, ADDR_ADC_RES);
     end function bit_mode_instructions;
 
     pure function pll_instructions(sensor_clock_MHz : integer; pixel_bits : integer) return logic16_vector_t is
-        constant addr_pll_range : integer := 116;
-        constant addr_pll_load : integer := 117;
-        constant addr_pll_in_freq : integer := 114;
+        constant ADDR_PLL_RANGE : integer := 116;
+        constant ADDR_PLL_LOAD : integer := 117;
+        constant ADDR_PLL_IN_FREQ : integer := 114;
         variable pll_load : integer;
         variable pll_div : integer;
         variable pll_range : integer;
@@ -187,9 +200,9 @@ package body sensor_configurer_pkg is
             pll_range := 1; pll_out_freq := 5; pll_in_freq := 0;
         end case;
 
-        return l8_instructions(to_logic1(pll_range) & to_logic3(pll_out_freq) & to_logic4(pll_div), addr_pll_range)
-                & i8_instructions(pll_load, addr_pll_load)
-                & i8_instructions(pll_in_freq, addr_pll_in_freq);
+        return l8_instructions(to_logic1(pll_range) & to_logic3(pll_out_freq) & to_logic4(pll_div), ADDR_PLL_RANGE)
+                & i8_instructions(pll_load, ADDR_PLL_LOAD)
+                & i8_instructions(pll_in_freq, ADDR_PLL_IN_FREQ);
     end function pll_instructions;
 
     pure function undocumented_instructions return logic16_vector_t is
@@ -210,16 +223,16 @@ package body sensor_configurer_pkg is
              & i8_instructions(98, 123);
     end function undocumented_instructions;
 
-    pure function all_instructions (config : sensor_configurer_config_t) return logic16_vector_t is
+    pure function all_instructions (config : config_t) return logic16_vector_t is
         -- TODO: check out i_lvds
     begin
         return window_instructions(config)
              & flip_instructions(config.flip)
              & misc_instructions(EXTERNAL_EXPOSURE or DUMMY_INSERTION)
-             & n_channels_instructions(vnir_lvds_n_channels)
+             & n_channels_instructions(FRAGMENT_WIDTH)
              & calibration_instructions(config.calibration)
-             & bit_mode_instructions(vnir_pixel_bits)
-             & pll_instructions(48, vnir_pixel_bits)  -- TODO: set this properly
+             & bit_mode_instructions(pixel_bits)
+             & pll_instructions(48, pixel_bits)  -- TODO: set this properly
              & undocumented_instructions;
     end function all_instructions;
 

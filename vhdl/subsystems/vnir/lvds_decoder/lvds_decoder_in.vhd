@@ -18,14 +18,14 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.vnir_types.all;
+use work.vnir_common.all;
 use work.lvds_decoder_pkg.all;
 
 entity lvds_decoder_in is
 port (
     clock       : out std_logic;
     reset_n     : in std_logic;
-    lvds_in     : in vnir_lvds_t;
+    lvds        : in lvds_t;
     start_align : in std_logic;
     to_fifo     : out fifo_data_t
 );
@@ -35,100 +35,77 @@ end entity lvds_decoder_in;
 architecture rtl of lvds_decoder_in is
     component lvds_decoder_ser_to_par is
     generic (
-        n_channels : integer;
-        bit_width  : integer
+        N_CHANNELS : integer;
+        BIT_WIDTH  : integer
     );
     port (
-        rx_channel_data_align   : in std_logic_vector (n_channels-1 downto 0);
-        rx_in                   : in std_logic_vector (n_channels-1 downto 0);
+        rx_channel_data_align   : in std_logic_vector(N_CHANNELS-1 downto 0);
+        rx_in                   : in std_logic_vector(N_CHANNELS-1 downto 0);
         rx_inclock              : in std_logic;
-        rx_out                  : out std_logic_vector (bit_width*n_channels-1 downto 0);
+        rx_out                  : out std_logic_vector(BIT_WIDTH*N_CHANNELS-1 downto 0);
         rx_outclock             : out std_logic
     );
     end component lvds_decoder_ser_to_par;
+
+    subtype lpixel_t is std_logic_vector(PIXEL_BITS-1 downto 0);
+    subtype lcontrol_t is std_logic_vector(FRAGMENT_BITS-1 downto 0);
+
+    constant LCONTROL_TARGET : lpixel_t := (PIXEL_BITS-9-1 => '1', others => '0');
     
-    pure function calc_align_offset(control : vnir_pixel_t; control_target : vnir_pixel_t)
-                                    return integer is
-    begin
-        for i in 0 to vnir_pixel_bits-1 loop
-            if rotate_right(control, i) = control_target then
-                return i;
-            end if;
-        end loop;
-
-        report "Can't cumpute align offset" severity failure;
-        return 0;  -- TODO: trigger some kind of error if we get here
-    end function calc_align_offset;
-
-    pure function lsb_to_msb(v : unsigned) return unsigned is
-        variable v2 : unsigned(v'range);
-    begin
-        for i in v'range loop
-            v2(v2'high - i) := v(i);
-        end loop;
-        return v2;
-    end function lsb_to_msb;
-
-    constant n_decoder_channels : integer := vnir_lvds_n_channels + 1; -- Add control
-    constant control_target_lsb : vnir_pixel_t := (9 => '1', others => '0');
-    constant control_target_msb : vnir_pixel_t := lsb_to_msb(control_target_lsb);
     signal data_align : std_logic;
-    signal decoder_out_msb : std_logic_vector(n_decoder_channels*vnir_pixel_bits-1 downto 0);
-    signal decoder_out_lsb : std_logic_vector(n_decoder_channels*vnir_pixel_bits-1 downto 0);
     signal decoder_outclock : std_logic;
+
+    signal fragment  : fragment_t;
+    signal control   : control_t;
+    signal lfragment : lcontrol_t;
+    signal lcontrol  : lpixel_t;
 begin
     ser_to_par : lvds_decoder_ser_to_par generic map (
-        n_channels => n_decoder_channels,
-        bit_width => vnir_pixel_bits
+        N_CHANNELS => FRAGMENT_WIDTH + 1,
+        BIT_WIDTH => PIXEL_BITS
     ) port map (
-        rx_channel_data_align => (n_decoder_channels-1 downto 0 => data_align),
-        rx_in(n_decoder_channels-1 downto 1) => lvds_in.data,
-        rx_in(0) => lvds_in.control,
-        rx_inclock => lvds_in.clock,
-        rx_out => decoder_out_msb,
+        rx_channel_data_align => (FRAGMENT_WIDTH downto 0 => data_align),
+        rx_in(FRAGMENT_WIDTH downto 1) => lvds.data,
+        rx_in(0) => lvds.control,
+        rx_inclock => lvds.clock,
+        rx_out(FRAGMENT_BITS + PIXEL_BITS - 1 downto PIXEL_BITS) => lfragment,
+        rx_out(PIXEL_BITS - 1 downto 0) => lcontrol,
         rx_outclock => decoder_outclock
     );
     clock <= decoder_outclock;
 
-    -- ALTLVDS assumes the input is given MSB first, but the sensor gives input LBS first.
-    -- Therefore, we need to flip the bit ordering of ALTLVDS's output.
-    gen : for i_channel in 0 to n_decoder_channels-1 generate
-        gen : for i_bit in 0 to vnir_pixel_bits-1 generate
-            decoder_out_lsb(vnir_pixel_bits * i_channel + i_bit) <= 
-                decoder_out_msb(vnir_pixel_bits * i_channel + vnir_pixel_bits - 1 - i_bit);
-        end generate;
-    end generate;
+    fragment <= bitreverse(unpack_to_fragment(lfragment));
+    control <= to_control(bitreverse(lcontrol));
 
     fsm : process (decoder_outclock)
         type state_t is (RESET, IDLE, READOUT, ALIGN_HIGH, ALIGN_LOW, ALIGN_WAIT);
         variable state : state_t;
         variable offset : integer;
-        variable control_msb : vnir_pixel_t;
+        variable control_msb : pixel_t;
     begin
         if rising_edge(decoder_outclock) then
-            to_fifo <= (others => '0');
+            to_fifo.is_aligned <= '0';
             data_align <= '0';
             if reset_n = '0' then
                 state := RESET;
             end if;
-
-            control_msb := unsigned(decoder_out_msb(vnir_pixel_bits-1 downto 0));
 
             case state is
             when RESET =>
                 state := IDLE;
             when IDLE =>
                 if start_align = '1' then
-                    offset := calc_align_offset(control_msb, control_target_msb);
+                    offset := calc_align_offset(lcontrol, LCONTROL_TARGET);
                     if offset = 0 then state := READOUT; else state := ALIGN_HIGH; end if;
                 end if;
             when READOUT =>
                 if start_align = '1' then
-                    offset := calc_align_offset(control_msb, control_target_msb);
+                    offset := calc_align_offset(lcontrol, LCONTROL_TARGET);
                     if offset = 0 then state := READOUT; else state := ALIGN_HIGH; end if;
                 else
-                    to_fifo <= (others => '1');
-                    to_fifo(vnir_pixel_bits*n_fifo_channels-1 downto vnir_pixel_bits) <= decoder_out_lsb;
+                    to_fifo.is_aligned <= '1';
+                    to_fifo.fragment <= fragment;
+                    to_fifo.control  <= control;
                 end if;
             when ALIGN_HIGH =>
                 state := ALIGN_LOW;
@@ -141,7 +118,7 @@ begin
                     state := ALIGN_HIGH;
                 end if;
             when ALIGN_WAIT =>
-                if control_msb = control_target_msb then  -- TODO: might fail due to unset output
+                if lcontrol = LCONTROL_TARGET then  -- TODO: might fail due to unset output
                     state := READOUT;
                 end if;
             end case;

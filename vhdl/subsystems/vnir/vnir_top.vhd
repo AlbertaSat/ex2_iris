@@ -18,19 +18,22 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-package swir_types is
-    type swir_config_t is record
-        start_config     : std_logic;
-        imaging_duration : integer;
-        fps              : integer;
-    end record swir_config_t;
+use work.vnir_common.all;
 
-    type swir_control_t is record
-        volt_conv : std_logic;
-    end record swir_control_t;
+package vnir_top is
 
-    constant SWIR_PIXEL_BITS : integer := 16;
-    constant SWIR_ROW_WIDTH : integer := 512;
-    subtype swir_pixel_t is unsigned(0 to SWIR_PIXEL_BITS-1);
-    type swir_row_t is array(0 to SWIR_ROW_WIDTH-1) of swir_pixel_t;
-end package swir_types;
+    type config_t is record
+        window_blue      : window_t;
+        window_red       : window_t;
+        window_nir       : window_t;
+        flip             : flip_t;
+        calibration      : calibration_t;
+    end record config_t;
+
+    type image_config_t is record
+        duration        : integer;
+        fps             : integer;
+        exposure_time   : integer;
+    end record image_config_t;
+    
+end package vnir_top;

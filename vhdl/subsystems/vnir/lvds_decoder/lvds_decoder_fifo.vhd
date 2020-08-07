@@ -24,18 +24,18 @@ use altera_mf.all;
 
 entity lvds_decoder_fifo is
 generic (
-    breadth     : integer;
-    depth       : integer := 8;
-    show_ahead  : boolean := false
+    BREADTH     : integer;
+    DEPTH       : integer := 8;
+    SHOW_AHEAD  : boolean := false
 );
 port (
     aclr        : in std_logic;
-    data        : in std_logic_vector(breadth-1 downto 0);
+    data        : in std_logic_vector(BREADTH-1 downto 0);
     rdclk       : in std_logic;
     rdreq       : in std_logic;
     wrclk       : in std_logic;
     wrreq       : in std_logic;
-    q           : out std_logic_vector(breadth-1 downto 0);
+    q           : out std_logic_vector(BREADTH-1 downto 0);
     rdempty     : out std_logic;
     wrfull      : out std_logic 
 );
@@ -60,12 +60,12 @@ architecture rtl of lvds_decoder_fifo is
     );
     port (
         aclr    : in std_logic;
-        data    : in std_logic_vector (breadth-1 downto 0);
+        data    : in std_logic_vector (BREADTH-1 downto 0);
         rdclk   : in std_logic;
         rdreq   : in std_logic;
         wrclk   : in std_logic;
         wrreq   : in std_logic;
-        q       : out std_logic_vector (breadth-1 downto 0);
+        q       : out std_logic_vector (BREADTH-1 downto 0);
         rdempty : out std_logic;
         wrfull  : out std_logic 
     );
@@ -76,15 +76,15 @@ architecture rtl of lvds_decoder_fifo is
         if b then return "ON"; else return "OFF"; end if;
     end function to_on_off;
 
-    constant lpm_showahead : string := to_on_off(show_ahead);
+    constant lpm_showahead : string := to_on_off(SHOW_AHEAD);
 begin
     dcfifo_component : dcfifo generic map (
         intended_device_family => "Cyclone V",
-        lpm_numwords => depth,
+        lpm_numwords => DEPTH,
         lpm_showahead => lpm_showahead,
         lpm_type => "dcfifo",
-        lpm_width => breadth,
-        lpm_widthu => integer(ceil(log2(real(depth)))),
+        lpm_width => BREADTH,
+        lpm_widthu => integer(ceil(log2(real(DEPTH)))),
         overflow_checking => "ON",
         rdsync_delaypipe => 5,
         read_aclr_synch => "ON",

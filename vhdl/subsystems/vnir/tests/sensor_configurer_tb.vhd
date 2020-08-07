@@ -21,7 +21,7 @@ use ieee.numeric_std.all;
 library std;
 use std.env.stop;
 
-use work.vnir_types.all;
+use work.vnir_common.all;
 use work.spi_types.all;
 use work.logic_types.all;
 use work.sensor_configurer_pkg.all;
@@ -40,7 +40,7 @@ architecture tests of sensor_configurer_tb is
     port (	
         clock               : in std_logic;
         reset_n             : in std_logic;
-        config              : in sensor_configurer_config_t;
+        config              : in config_t;
         start_config        : in std_logic;
         config_done         : out std_logic;
         spi_out             : out spi_from_master_t;
@@ -51,11 +51,11 @@ architecture tests of sensor_configurer_tb is
     );
     end component sensor_configurer;
 
-    constant clock_period : time := 20 ns;
+    constant CLOCK_PERIOD : time := 20 ns;
 
     signal clock : std_logic := '0';
     signal reset_n : std_logic := '0';
-    signal config : sensor_configurer_config_t;
+    signal config : config_t;
     signal start_config : std_logic := '0';
     signal config_done : std_logic;
     signal spi : spi_t;
@@ -63,19 +63,19 @@ architecture tests of sensor_configurer_tb is
     signal sensor_clock_enable : std_logic;
     signal sensor_reset_n : std_logic;
 
-    constant n_spi_instructions : integer := 33;
-    constant spi_max_addr : integer := 127;
+    constant N_SPI_INSTRUCTIONS : integer := 33;
+    constant SPI_MAX_ADDR : integer := 127;
 
     type reg_t is array (integer range <>) of logic8_t;
-    signal reg : reg_t(0 to spi_max_addr);
+    signal reg : reg_t(0 to SPI_MAX_ADDR);
 
-    procedure check_register_values(reg : in reg_t; config : in sensor_configurer_config_t) is
-        constant undefined : logic8_t := (others => 'U');
+    procedure check_register_values(reg : in reg_t; config : in config_t) is
+        constant UNDEFINED : logic8_t := (others => 'U');
     begin
 
-        for addr in 0 to spi_max_addr loop
+        for addr in 0 to SPI_MAX_ADDR loop
             case addr is
-                when 0 =>           assert reg(addr) = undefined;
+                when 0 =>           assert reg(addr) = UNDEFINED;
                 when 1 =>           assert reg(addr) = to_logic8(total_rows(config.windows));
                 when 2 =>           assert reg(addr) = to_logic8(0);
                 when 3 =>           assert reg(addr) = to_logic8(config.windows(0).lo);
@@ -84,50 +84,50 @@ architecture tests of sensor_configurer_tb is
                 when 6 =>           assert reg(addr) = to_logic8(0);
                 when 7 =>           assert reg(addr) = to_logic8(config.windows(2).lo);
                 when 8 =>           assert reg(addr) = to_logic8(0);
-                when 9 to 18 =>     assert reg(addr) = undefined;
+                when 9 to 18 =>     assert reg(addr) = UNDEFINED;
                 when 19 =>          assert reg(addr) = to_logic8(size(config.windows(0)));
                 when 20 =>          assert reg(addr) = to_logic8(0);
                 when 21 =>          assert reg(addr) = to_logic8(size(config.windows(1)));
                 when 22 =>          assert reg(addr) = to_logic8(0);
                 when 23 =>          assert reg(addr) = to_logic8(size(config.windows(2)));
                 when 24 =>          assert reg(addr) = to_logic8(0);
-                when 25 to 39 =>    assert reg(addr) = undefined;
+                when 25 to 39 =>    assert reg(addr) = UNDEFINED;
                 when 40 =>          assert reg(addr) = to_logic8(0);
                 when 41 =>          assert reg(addr) = to_logic8(5);
-                when 42 to 71 =>    assert reg(addr) = undefined;
+                when 42 to 71 =>    assert reg(addr) = UNDEFINED;
                 when 72 =>          assert reg(addr) = to_logic8(0);
-                when 73 to 76 =>    assert reg(addr) = undefined;
+                when 73 to 76 =>    assert reg(addr) = UNDEFINED;
                 when 77 =>          assert reg(addr) = to_logic8(0);
-                when 78 to 83 =>    assert reg(addr) = undefined;
+                when 78 to 83 =>    assert reg(addr) = UNDEFINED;
                 when 84 =>          assert reg(addr) = to_logic8(4);
                 when 85 =>          assert reg(addr) = to_logic8(1);
                 when 86 =>          assert reg(addr) = to_logic8(14);
                 when 87 =>          assert reg(addr) = to_logic8(12);
                 when 88 =>          assert reg(addr) = to_logic8(64);
-                when 89 to 90 =>    assert reg(addr) = undefined;
+                when 89 to 90 =>    assert reg(addr) = UNDEFINED;
                 when 91 =>          assert reg(addr) = to_logic8(64);
-                when 92 to 93 =>    assert reg(addr) = undefined;
+                when 92 to 93 =>    assert reg(addr) = UNDEFINED;
                 when 94 =>          assert reg(addr) = to_logic8(101);
                 when 95 =>          assert reg(addr) = to_logic8(106);
-                when 96 to 97 =>    assert reg(addr) = undefined;
+                when 96 to 97 =>    assert reg(addr) = UNDEFINED;
                 when 98 =>          assert reg(addr) = to_logic8(config.calibration.v_ramp1);
                 when 99 =>          assert reg(addr) = to_logic8(config.calibration.v_ramp2);
                 when 100 =>         assert reg(addr) = to_logic8(config.calibration.offset);
                 when 101 =>         assert reg(addr) = to_logic8(config.calibration.offset / (2**8));
                 when 102 =>         assert reg(addr) = to_logic8(1);
                 when 103 =>         assert reg(addr) = to_logic8(config.calibration.adc_gain);
-                when 104 to 110 =>  assert reg(addr) = undefined;
+                when 104 to 110 =>  assert reg(addr) = UNDEFINED;
                 when 111 =>         assert reg(addr) = to_logic8(1);
                 when 112 =>         assert reg(addr) = to_logic8(0);
-                when 113 =>         assert reg(addr) = to_logic8(1) or reg(addr) = undefined;
+                when 113 =>         assert reg(addr) = to_logic8(1) or reg(addr) = UNDEFINED;
                 when 114 =>         assert reg(addr) = to_logic8(0);
-                when 115 =>         assert reg(addr) = to_logic8(0) or reg(addr) = undefined;
+                when 115 =>         assert reg(addr) = to_logic8(0) or reg(addr) = UNDEFINED;
                 when 116 =>         assert reg(addr)(3 downto 0) = to_logic4(9) and reg(addr)(6 downto 4) = to_logic3(5) and reg(addr)(7) = '1';
                 when 117 =>         assert reg(addr) = to_logic8(8);
                 when 118 =>         assert reg(addr) = to_logic8(1);
-                when 119 to 122 =>  assert reg(addr) = undefined;
+                when 119 to 122 =>  assert reg(addr) = UNDEFINED;
                 when 123 =>         assert reg(addr) = to_logic8(98);
-                when 124 to 127 =>  assert reg(addr) = undefined;
+                when 124 to 127 =>  assert reg(addr) = UNDEFINED;
                 when others =>      report "Invalid address" severity failure;
             end case;
         end loop;
@@ -137,7 +137,7 @@ begin
 
     clock_gen : process
     begin
-        wait for clock_period / 2;
+        wait for CLOCK_PERIOD / 2;
         clock <= not clock;
     end process clock_gen;
 

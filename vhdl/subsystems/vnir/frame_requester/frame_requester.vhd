@@ -18,8 +18,6 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.vnir_types.all;
-use work.pulse_generator_pkg.all;
 use work.frame_requester_pkg.all;
 
 entity frame_requester is
@@ -31,7 +29,7 @@ port (
     clock               : in std_logic;
     reset_n             : in std_logic;
 
-    config              : in frame_requester_config_t;
+    config              : in config_t;
     start_config        : in std_logic;
     config_done         : out std_logic;
     
@@ -54,7 +52,7 @@ architecture rtl of frame_requester is
     port (
         sensor_clock        : in std_logic;
         reset_n             : in std_logic;
-        config              : in frame_requester_config_t;
+        config              : in config_t;
         start_config        : in std_logic;
         config_done         : out std_logic;
         do_imaging          : in std_logic;

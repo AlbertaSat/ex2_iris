@@ -19,20 +19,22 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.spi_types.all;
-use work.vnir_types.all;
 
-use work.row_collector_pkg.all;
-use work.sensor_configurer_pkg.all;
-use work.frame_requester_pkg.all;
-
+use work.vnir_common.all;
+use work.row_collector_pkg;
+use work.sensor_configurer_pkg;
+use work.sensor_configurer_defaults;
+use work.frame_requester_pkg;
+use work.vnir_top.all;
 
 entity vnir_subsystem is
 generic (
-    clocks_per_sec      : integer := 50000000;
-    power_on_delay_us   : integer := 1;
-    clock_on_delay_us   : integer := 1;
-    reset_off_delay_us  : integer := 1;
-    spi_settle_us       : integer := 20000
+    CLOCKS_PER_SEC      : integer := 50000000;
+
+    POWER_ON_DELAY_us   : integer := sensor_configurer_defaults.POWER_ON_DELAY_us;
+    CLOCK_ON_DELAY_us   : integer := sensor_configurer_defaults.CLOCK_ON_DELAY_us;
+    RESET_OFF_DELAY_us  : integer := sensor_configurer_defaults.RESET_OFF_DELAY_us;
+    SPI_SETTLE_us       : integer := sensor_configurer_defaults.SPI_SETTLE_us
 );
 port (
     clock               : in std_logic;
@@ -44,11 +46,11 @@ port (
     sensor_clock_enable : out std_logic;
     sensor_reset_n      : out std_logic;
 
-    config              : in vnir_config_t;
+    config              : in config_t;
     start_config        : in std_logic;
     config_done         : out std_logic;
     
-    image_config        : in vnir_image_config_t;
+    image_config        : in image_config_t;
     start_image_config  : in std_logic;
     image_config_done   : out std_logic;
     num_rows            : out integer;
@@ -56,15 +58,15 @@ port (
     do_imaging          : in std_logic;
     imaging_done        : out std_logic;
 
-    row                 : out vnir_row_t;
-    row_available       : out vnir_row_type_t;
+    row                 : out row_t;
+    row_available       : out row_type_t;
     
     spi_out             : out spi_from_master_t;
     spi_in              : in spi_to_master_t;
     
     frame_request       : out std_logic;
     exposure_start      : out std_logic;
-    lvds                : in vnir_lvds_t
+    lvds                : in lvds_t
 );
 end entity vnir_subsystem;
 
@@ -83,16 +85,16 @@ architecture rtl of vnir_subsystem is
 
     component sensor_configurer is
     generic (
-        clocks_per_sec      : integer;
-        power_on_delay_us   : integer;
-        clock_on_delay_us   : integer;
+        CLOCKS_PER_SEC      : integer;
+        POWER_ON_DELAY_us   : integer;
+        CLOCK_ON_DELAY_us   : integer;
         reset_off_delay_us  : integer;
-        spi_settle_us       : integer
+        SPI_SETTLE_us       : integer
     );
     port (	
         clock               : in std_logic;
         reset_n             : in std_logic;
-        config              : in sensor_configurer_config_t;
+        config              : in sensor_configurer_pkg.config_t;
         start_config        : in std_logic;
         config_done         : out std_logic;
         spi_out             : out spi_from_master_t;
@@ -105,24 +107,25 @@ architecture rtl of vnir_subsystem is
 
     component lvds_decoder is
     port (
-        clock           : in std_logic;
-        reset_n         : in std_logic;
-        start_align     : in std_logic;
-        align_done      : out std_logic;
-        lvds_in         : in vnir_lvds_t;
-        parallel_out    : out vnir_parallel_lvds_t;
-        data_available  : out std_logic
+        clock               : in std_logic;
+        reset_n             : in std_logic;
+        start_align         : in std_logic;
+        align_done          : out std_logic;
+        lvds                : in lvds_t;
+        fragment            : out fragment_t;
+        fragment_control    : out control_t;
+        fragment_available  : out std_logic
     );
     end component lvds_decoder;
 
     component frame_requester is
     generic (
-        clocks_per_sec  : integer
+        CLOCKS_PER_SEC  : integer
     );
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
-        config              : in frame_requester_config_t;
+        config              : in frame_requester_pkg.config_t;
         start_config        : in std_logic;
         config_done         : out std_logic;
         do_imaging          : in std_logic;
@@ -137,49 +140,46 @@ architecture rtl of vnir_subsystem is
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
-        config              : in row_collector_config_t;
+        config              : in row_collector_pkg.config_t;
         read_config         : in std_logic;
         start               : in std_logic;
         done                : out std_logic;
         fragment            : in fragment_t;
         fragment_available  : in std_logic;
-        row                 : out vnir_row_t;
-        row_window          : out integer;
-        row_available       : out std_logic
+        row                 : out row_t;
+        row_window          : out integer
     );
     end component row_collector;
 
-    signal config_reg : vnir_config_t;
-    signal image_config_reg : vnir_image_config_t;
+    signal config_reg       : config_t;
+    signal image_config_reg : image_config_t;
 
     signal imaging_done_s : std_logic;
 
     signal start_frame_requester_config : std_logic;
-    signal frame_requester_config : frame_requester_config_t;
-    signal frame_requester_config_done : std_logic;
+    signal frame_requester_config       : frame_requester_pkg.config_t;
+    signal frame_requester_config_done  : std_logic;
 
-    signal start_sensor_config : std_logic;
-    signal sensor_configurer_config : sensor_configurer_config_t;
-    signal sensor_config_done : std_logic;
+    signal start_sensor_config      : std_logic;
+    signal sensor_configurer_config : sensor_configurer_pkg.config_t;
+    signal sensor_config_done       : std_logic;
 
     signal start_align : std_logic;
-    signal align_done : std_logic;
+    signal align_done  : std_logic;
     
     signal start_locking : std_logic;
-    signal locking_done : std_logic;
+    signal locking_done  : std_logic;
 
-    signal row_collector_config : row_collector_config_t;
+    signal row_collector_config : row_collector_pkg.config_t;
 
-    signal parallel_lvds : vnir_parallel_lvds_t;
-    signal parallel_lvds_available : std_logic;
-    signal pixels : vnir_pixel_vector_t(vnir_lvds_n_channels-1 downto 0);
-    signal pixels_available : std_logic;
+    signal fragment                 : fragment_t;
+    signal fragment_control         : control_t;
+    signal fragment_available       : std_logic;
     
     signal image_length : integer;
-    signal num_frames : integer;
+    signal num_frames  : integer;
 
-    signal row_window : integer;
-    signal is_row_available : std_logic;
+    signal row_window       : integer;
 
 begin
 
@@ -193,7 +193,6 @@ begin
         start_frame_requester_config <= '0';
         config_done <= '0';
         image_config_done <= '0';
-        pixels_available <= '0';
 
         if reset_n = '0' then
             state := RESET;
@@ -258,10 +257,6 @@ begin
             assert start_config = '0';
             assert start_image_config = '0';
             assert do_imaging = '0';
-            if parallel_lvds_available = '1' and parallel_lvds.control.dval = '1' then
-                pixels_available <= '1';
-                pixels <= parallel_lvds.data;
-            end if;
             if imaging_done_s = '1' then -- TODO: might want to make sure row_collator is finished
                 state := IDLE; 
             end if;
@@ -280,11 +275,11 @@ begin
     );
 
     sensor_configurer_component : sensor_configurer generic map (
-        clocks_per_sec => clocks_per_sec,
-        power_on_delay_us => power_on_delay_us,
-        clock_on_delay_us => clock_on_delay_us,
-        reset_off_delay_us => reset_off_delay_us,
-        spi_settle_us => spi_settle_us
+        CLOCKS_PER_SEC => CLOCKS_PER_SEC,
+        POWER_ON_DELAY_us => POWER_ON_DELAY_us,
+        CLOCK_ON_DELAY_us => CLOCK_ON_DELAY_us,
+        reset_off_delay_us => RESET_OFF_DELAY_us,
+        SPI_SETTLE_us => SPI_SETTLE_us
     ) port map (
         clock => clock,
         reset_n => reset_n,
@@ -299,7 +294,7 @@ begin
     );
     
     frame_requester_component : frame_requester generic map (
-        clocks_per_sec => clocks_per_sec
+        CLOCKS_PER_SEC => CLOCKS_PER_SEC
     ) port map (
         clock => clock,
         reset_n => reset_n,
@@ -317,9 +312,10 @@ begin
         reset_n => reset_n,
         start_align => start_align,
         align_done => align_done,
-        lvds_in => lvds,
-        parallel_out => parallel_lvds,
-        data_available => parallel_lvds_available
+        lvds => lvds,
+        fragment => fragment,
+        fragment_control => fragment_control,
+        fragment_available => fragment_available
     );
 
     row_collector_component : row_collector port map (
@@ -329,16 +325,15 @@ begin
         read_config => start_frame_requester_config,
         start => do_imaging,
         done => imaging_done_s,
-        fragment => pixels,
-        fragment_available => pixels_available,
+        fragment => fragment,
+        fragment_available => fragment_available and fragment_control.dval,
         row => row,
-        row_window => row_window,
-        row_available => is_row_available
+        row_window => row_window
     );
     imaging_done <= imaging_done_s;
 
     image_length <= image_config_reg.duration * image_config_reg.fps / 1000;
-    num_frames <= image_length + config_reg.window_blue.hi;
+    num_frames <= image_length + config_reg.window_blue.hi; -- TODO: move into row_collector
     
     sensor_configurer_config <= (
         flip => config_reg.flip,
@@ -363,11 +358,10 @@ begin
         )
     );
 
-    row_available <= ROW_RED when is_row_available = '1' and row_window = 0 else
-                     ROW_NIR when is_row_available = '1' and row_window = 1 else
-                     ROW_BLUE when is_row_available = '1' and row_window = 2 else
+    row_available <= ROW_RED when row_window = 0 else
+                     ROW_NIR when row_window = 1 else
+                     ROW_BLUE when row_window = 2 else
                      ROW_NONE;
     num_rows <= image_length;
-
 
 end architecture rtl;
