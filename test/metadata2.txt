@@ -1,9 +1,0 @@
-Image width, x: 1024
-Image length, y: 2048
-Image bands, z: 4
-Signed samples: 1
-Dynamic range: 16
-Signed samples: 1
-Raster format: 0
-Interleaving depth: 0
-Byte ordering: 0
