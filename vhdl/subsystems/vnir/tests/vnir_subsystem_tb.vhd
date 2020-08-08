@@ -139,7 +139,7 @@ architecture tests of vnir_subsystem_tb is
     end procedure read;
 
     pure function "=" (lhs : pixel_t; rhs : pixel_t) return boolean is
-        variable re : boolean;
+        variable re : boolean := true;
     begin
         for i in lhs'range loop
            re := re and (lhs(i) = rhs(i));
@@ -149,7 +149,7 @@ architecture tests of vnir_subsystem_tb is
 
 
     pure function "=" (lhs : row_t; rhs : row_t) return boolean is
-        variable re : boolean;
+        variable re : boolean := true;
     begin
         for i in lhs'range loop
             re := re and (lhs(i) = rhs(i));
