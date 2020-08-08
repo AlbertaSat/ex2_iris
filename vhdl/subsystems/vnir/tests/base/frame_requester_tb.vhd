@@ -22,8 +22,10 @@ library std;
 use std.env.stop;
 
 use work.spi_types.all;
-use work.vnir_common.all;
+use work.vnir_base.all;
 use work.frame_requester_pkg.all;
+
+use work.vnir.FRAGMENT_WIDTH;
 
 entity frame_requester_tb is
 end entity;
@@ -43,6 +45,7 @@ architecture tests of frame_requester_tb is
     
     component frame_requester is
     generic (
+        FRAGMENT_WIDTH      : integer := FRAGMENT_WIDTH;
         clocks_per_sec      : integer
     );
     port (

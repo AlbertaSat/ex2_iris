@@ -209,6 +209,7 @@ package integer_types is
 
     pure function max(a : integer; b : integer) return integer;
     pure function max(v : integer_vector_t) return integer;
+    pure function zeros(length : integer) return integer_vector_t;
 
     procedure increment_rollover(
         i : inout integer;
@@ -247,6 +248,11 @@ package body integer_types is
         end loop;
         return ret;
     end function max;
+
+    pure function zeros(length : integer) return integer_vector_t is
+    begin
+        return (length-1 downto 0 => 0);
+    end function zeros;
 
     procedure increment_rollover(
         i : inout integer;

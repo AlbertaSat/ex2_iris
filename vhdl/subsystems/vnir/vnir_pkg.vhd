@@ -18,9 +18,23 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.vnir_common.all;
+use work.vnir_base;
 
-package vnir_top is
+package vnir is
+
+    -- TODO: this shouldn't be here
+    type flip_t is (FLIP_NONE, FLIP_X, FLIP_Y, FLIP_XY);
+
+    constant ROW_WIDTH : integer := 2048;
+    constant FRAGMENT_WIDTH : integer := 16;
+    constant PIXEL_BITS : integer := 10;
+    constant N_WINDOWS : integer := 3;
+
+    subtype pixel_t is vnir_base.pixel_t(PIXEL_BITS-1 downto 0);
+    subtype row_t is vnir_base.row_t(ROW_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+    
+    subtype window_t is vnir_base.window_t;
+    subtype calibration_t is vnir_base.calibration_t;
 
     type config_t is record
         window_blue      : window_t;
@@ -35,5 +49,13 @@ package vnir_top is
         fps             : integer;
         exposure_time   : integer;
     end record image_config_t;
+
+    type row_type_t is (ROW_NONE, ROW_NIR, ROW_BLUE, ROW_RED);
     
-end package vnir_top;
+    type lvds_t is record
+        clock   : std_logic;
+        control : std_logic;
+        data    : std_logic_vector(FRAGMENT_WIDTH-1 downto 0);
+    end record lvds_t;
+
+end package vnir;

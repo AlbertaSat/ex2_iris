@@ -23,27 +23,39 @@ library std;
 use std.env.stop;
 
 use work.spi_types.all;
-use work.vnir_common.all;
+use work.vnir_base.all;
 use work.test_util.all;
 use work.row_collector_pkg.all;
+
+use work.vnir.ROW_WIDTH;
+use work.vnir.FRAGMENT_WIDTH;
+use work.vnir.PIXEL_BITS;
+use work.vnir.N_WINDOWS;
 
 
 entity row_collector_tb is
 end entity row_collector_tb;
 
 architecture tests of row_collector_tb is
+
     signal clock                : std_logic := '0';
     signal reset_n              : std_logic := '0';
 	signal config               : config_t;
     signal read_config          : std_logic := '0';
     signal start                : std_logic := '0';
     signal done                 : std_logic := '0';
-    signal fragment             : fragment_t;
+    signal fragment             : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
 	signal fragment_available   : std_logic := '0';
-    signal row                  : row_t;
+    signal row                  : row_t(ROW_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     signal row_window           : integer;
 
     component row_collector is
+    generic (
+        ROW_WIDTH           : integer := ROW_WIDTH;
+        FRAGMENT_WIDTH      : integer := FRAGMENT_WIDTH;
+        PIXEL_BITS          : integer := PIXEL_BITS;
+        N_WINDOWS           : integer := N_WINDOWS
+    );
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
@@ -73,7 +85,7 @@ architecture tests of row_collector_tb is
         variable f_line : line;
         variable i : integer;
     begin
-        for i in config.windows'low to config.windows'high loop
+        for i in 0 to N_WINDOWS-1 loop
             readline(f, f_line);
             read(f_line, config.windows(i).lo);
             read(f_line, config.windows(i).hi);
@@ -106,9 +118,9 @@ begin
         file colour0_file : text open read_mode is OUT_DIR & "colour0.out";
         file colour1_file : text open read_mode is OUT_DIR & "colour1.out";
         file colour2_file : text open read_mode is OUT_DIR & "colour2.out";
-        variable file_row : row_t;
+        variable file_row : row_t(ROW_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     begin
-        assert config.windows'length = 3;
+        assert N_WINDOWS = 3;
         wait until reset_n = '1';
 
         loop
@@ -137,7 +149,7 @@ begin
     gen_input : process
         constant N_FRAGMENTS : integer := ROW_WIDTH / FRAGMENT_WIDTH;
         variable tests_passed : boolean := true;
-        variable row : row_t;
+        variable row : row_t(ROW_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
         file row_file : text open read_mode is OUT_DIR & "rows.out";
         file config_file : text open read_mode is OUT_DIR & "config.out";
         

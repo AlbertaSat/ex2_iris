@@ -20,8 +20,7 @@ use ieee.numeric_std.all;
 
 use work.spi_types.all;
 use work.avalonmm_types.all;
-use work.vnir_top;
-use work.vnir_common;
+use work.vnir;
 use work.swir_types.all;
 use work.sdram_types.all;
 use work.fpga_types.all;
@@ -39,7 +38,7 @@ port (
     vnir_spi_in              : in spi_to_master_t;
     vnir_frame_request       : out std_logic;
     vnir_exposure_start      : out std_logic;
-    vnir_lvds                : in vnir_common.lvds_t
+    vnir_lvds                : in vnir.lvds_t
 );
 end entity electra;
 
@@ -63,17 +62,17 @@ architecture rtl of electra is
         sensor_power        : out std_logic;
         sensor_clock_enable : out std_logic;
         sensor_reset_n      : out std_logic;
-        config              : in vnir_top.config_t;
+        config              : in vnir.config_t;
         config_done         : out std_logic;
         do_imaging          : in std_logic;
         num_rows            : out integer;
-        row                 : out vnir_common.row_t;
-        row_available       : out vnir_common.row_type_t;
+        row                 : out vnir.row_t;
+        row_available       : out vnir.row_type_t;
         spi_out             : out spi_from_master_t;
         spi_in              : in spi_to_master_t;
         frame_request       : out std_logic;
         exposure_start      : out std_logic;
-        lvds                : in vnir_common.lvds_t
+        lvds                : in vnir.lvds_t
     );
     end component;
 
@@ -88,12 +87,12 @@ architecture rtl of electra is
     signal vnir_sensor_clock_enable : std_logic;
 
     -- fpga <=> vnir
-    signal vnir_config : vnir_top.config_t;
+    signal vnir_config : vnir.config_t;
     signal vnir_config_done : std_logic;
     
     -- vnir <=> sdram
-    signal vnir_row : vnir_common.row_t;
-    signal vnir_row_available : vnir_common.row_type_t;
+    signal vnir_row : vnir.row_t;
+    signal vnir_row_available : vnir.row_type_t;
 
     -- vnir <=> sdram, fpga
     signal vnir_num_rows : integer;

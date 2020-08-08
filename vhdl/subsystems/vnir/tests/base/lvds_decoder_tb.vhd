@@ -23,12 +23,36 @@ library std;
 use std.env.stop;
 
 use work.spi_types.all;
-use work.vnir_common.all;
+use work.vnir_base.all;
 
 entity lvds_decoder_tb is
 end entity lvds_decoder_tb;
 
 architecture tests of lvds_decoder_tb is
+    component lvds_decoder is
+    generic (
+        FRAGMENT_WIDTH      : integer;
+        PIXEL_BITS          : integer
+    );
+    port (
+        clock               : in std_logic;
+        reset_n             : in std_logic;
+    
+        start_align         : in std_logic;
+        align_done          : out std_logic;
+        
+        lvds_data           : in std_logic_vector(FRAGMENT_WIDTH-1 downto 0);
+        lvds_control        : in std_logic;
+        lvds_clock          : in std_logic;
+        
+        fragment            : out fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+        fragment_control    : out control_t;
+        fragment_available  : out std_logic
+    );
+    end component lvds_decoder;
+    
+    constant FRAGMENT_WIDTH : integer := 16;
+    constant PIXEL_BITS : integer := 10;
     constant OUT_DIR : string := "../subsystems/vnir/tests/out/lvds_decoder/";
 
     type state_t is (IDLE, TRANSMIT);
@@ -75,48 +99,39 @@ architecture tests of lvds_decoder_tb is
     constant LVDS_CLOCK_PERIOD : time := 4.167 ns;
     constant CLOCK_PERIOD      : time := 20 ns;
 
-    signal clock       : std_logic   := '0';
-    signal reset_n     : std_logic   := '0';
-    signal start_align : std_logic   := '0';
-    signal align_done  : std_logic;
-    signal lvds        : lvds_t := (
-        clock => '0', 
-        control => '0',
-        data => (others => '0')
-    );
-    signal fragment           : fragment_t;
+    signal clock        : std_logic   := '0';
+    signal reset_n      : std_logic   := '0';
+    
+    signal start_align  : std_logic   := '0';
+    signal align_done   : std_logic;
+    
+    signal lvds_clock   : std_logic   := '0';
+    signal lvds_control : std_logic := '0';
+    signal lvds_data    : std_logic_vector(FRAGMENT_WIDTH-1 downto 0);
+    
+    signal fragment           : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     signal fragment_control   : control_t;
     signal fragment_available : std_logic;
 
     procedure lvds_transmit(
         control : in lpixel_t;
         data : in lpixel_vector_t;
-        signal lvds : inout lvds_t
+        signal lvds_clock : inout std_logic;
+        signal lvds_control : inout std_logic;
+        signal lvds_data : inout std_logic_vector
     ) is
     begin
         -- Data is sent LSB first
         for i in 0 to control'length-1 loop
-            lvds.control <= control(i);
+            lvds_control <= control(i);
             for j in data'range loop
-                lvds.data(j) <= data(j)(i);
+                lvds_data(j) <= data(j)(i);
             end loop;
             wait for LVDS_CLOCK_PERIOD / 2;
-            lvds.clock <= not lvds.clock;
+            lvds_clock <= not lvds_clock;
         end loop;
     end procedure lvds_transmit;
 
-    component lvds_decoder is
-    port (
-        clock               : in std_logic;
-        reset_n             : in std_logic;
-        start_align         : in std_logic;
-        align_done          : out std_logic;
-        lvds                : in lvds_t;
-        fragment            : out fragment_t;
-        fragment_control    : out control_t;
-        fragment_available  : out std_logic
-    );
-    end component lvds_decoder;
 begin
     
     clock_process : process
@@ -141,10 +156,10 @@ begin
     begin
         case state is
         when IDLE =>
-            lvds_transmit(CONTROL_IDLE, data_idle, lvds);
+            lvds_transmit(CONTROL_IDLE, data_idle, lvds_clock, lvds_control, lvds_data);
         when TRANSMIT =>
             for word in data_transmit'range loop
-                lvds_transmit(CONTROL_READOUT, data_transmit(word), lvds);
+                lvds_transmit(CONTROL_READOUT, data_transmit(word), lvds_clock, lvds_control, lvds_data);
             end loop;
         end case;
     end process lvds_out_process;
@@ -188,12 +203,17 @@ begin
 
     end process tests_process;
 
-    decoder : lvds_decoder port map (
+    decoder : lvds_decoder generic map (
+        FRAGMENT_WIDTH => FRAGMENT_WIDTH,
+        PIXEL_BITS => PIXEL_BITS
+    ) port map (
         clock => clock,
         reset_n => reset_n,
         start_align => start_align,
         align_done => align_done,
-        lvds => lvds,
+        lvds_data => lvds_data,
+        lvds_control => lvds_control,
+        lvds_clock => lvds_clock,
         fragment => fragment,
         fragment_control => fragment_control,
         fragment_available => fragment_available

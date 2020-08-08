@@ -18,28 +18,13 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.vnir_common.all;
+use work.vnir_base.all;
 
 package lvds_decoder_pkg is
 
-    constant FRAGMENT_BITS : integer := FRAGMENT_WIDTH * PIXEL_BITS;
-
-    type fifo_data_t is record
-        fragment    : fragment_t;
-        control     : control_t;
-        is_aligned  : std_logic;
-    end record fifo_data_t;
-
-    constant FIFO_DATA_BITS : integer := FRAGMENT_WIDTH*PIXEL_BITS  -- fragment
-                                        + 8  -- control
-                                        + 1;  -- is_aligned
-
     pure function flatten(fragment : fragment_t) return std_logic_vector;
-    pure function unpack_to_fragment(fragment_flat : std_logic_vector) return fragment_t;
+    pure function unflatten_to_fragment(fragment_flat : std_logic_vector; PIXEL_BITS : integer) return fragment_t;
 
-    pure function flatten(data : fifo_data_t) return std_logic_vector;
-    pure function unpack_to_fifo_data(data : std_logic_vector) return fifo_data_t;
-    
     pure function rotate_right(bits : std_logic_vector; i : integer) return std_logic_vector;
     pure function calc_align_offset(control : std_logic_vector;
                                     control_target : std_logic_vector)
@@ -55,18 +40,21 @@ end package lvds_decoder_pkg;
 package body lvds_decoder_pkg is
 
     pure function flatten(fragment : fragment_t) return std_logic_vector is
+        constant FRAGMENT_BITS : integer := fragment'length*fragment(0)'length;
         variable fragment_flat : std_logic_vector(FRAGMENT_BITS-1 downto 0);
     begin
         for i_pixel in fragment'range loop
             for i_bit in fragment(0)'range loop
-                fragment_flat(i_bit + i_pixel * PIXEL_BITS) := fragment(i_pixel)(i_bit);
+                fragment_flat(i_bit + i_pixel * fragment(0)'length) := fragment(i_pixel)(i_bit);
             end loop;
         end loop;
         return fragment_flat;
     end function flatten;
 
-    pure function unpack_to_fragment(fragment_flat : std_logic_vector) return fragment_t is
-        variable fragment : fragment_t;
+    pure function unflatten_to_fragment(fragment_flat : std_logic_vector; PIXEL_BITS : integer
+    ) return fragment_t is
+        constant FRAGMENT_WIDTH : integer := fragment_flat'length / PIXEL_BITS;
+        variable fragment : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     begin
         for i_pixel in fragment'range loop
             for i_bit in fragment(0)'range loop
@@ -74,25 +62,7 @@ package body lvds_decoder_pkg is
             end loop;
         end loop;
         return fragment;
-    end function unpack_to_fragment;
-
-    pure function flatten(data : fifo_data_t) return std_logic_vector is
-        variable data_flat : std_logic_vector(FIFO_DATA_BITS-1 downto 0);
-    begin
-        data_flat(FRAGMENT_BITS + 8) := data.is_aligned;
-        data_flat(FRAGMENT_BITS + 7 downto FRAGMENT_BITS) := to_logic8(data.control);
-        data_flat(FRAGMENT_BITS - 1 downto 0) := flatten(data.fragment);
-        return data_flat;
-    end function flatten;
-
-    pure function unpack_to_fifo_data(data : std_logic_vector) return fifo_data_t is
-        variable fifo_data : fifo_data_t;
-    begin
-        fifo_data.is_aligned := data(FRAGMENT_BITS + 8);
-        fifo_data.control    := to_control(data(FRAGMENT_BITS + 7 downto FRAGMENT_BITS));
-        fifo_data.fragment   := unpack_to_fragment(data(FRAGMENT_BITS - 1 downto 0));
-        return fifo_data;
-    end function unpack_to_fifo_data;
+    end function unflatten_to_fragment;
 
     pure function rotate_right(bits : std_logic_vector; i : integer) return std_logic_vector is
     begin
@@ -127,7 +97,7 @@ package body lvds_decoder_pkg is
     end function bitreverse;
 
     pure function bitreverse(fragment : fragment_t) return fragment_t is
-        variable fragment_reversed : fragment_t;
+        variable fragment_reversed : fragment_t(fragment'range)(fragment(0)'range);
     begin
         for i_pixel in fragment'range loop
             fragment_reversed(i_pixel) := bitreverse(fragment(i_pixel));

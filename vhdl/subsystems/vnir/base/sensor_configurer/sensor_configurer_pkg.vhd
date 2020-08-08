@@ -16,15 +16,24 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.logic_types.all;
-use work.vnir_common.all;
+use work.vnir_base.all;
+
+-- TODO: bad practice, fix this
+use work.vnir.flip_t;
+use work.vnir.FLIP_NONE;
+use work.vnir.FLIP_X;
+use work.vnir.FLIP_Y;
+use work.vnir.FLIP_XY;
 
 
 package sensor_configurer_pkg is
 
+    constant MAX_N_WINDOWS : integer := 10;
+
     type config_t is record
         flip        : flip_t;
         calibration : calibration_t;
-        windows     : window_vector_t(N_WINDOWS-1 downto 0);
+        windows     : window_vector_t(MAX_N_WINDOWS-1 downto 0);
     end record config_t;
 
     pure function l8_instructions(l8 : logic8_t; addr : integer) return logic16_vector_t;
@@ -33,7 +42,7 @@ package sensor_configurer_pkg is
     pure function i16_instructions(i16 : integer; addr : integer) return logic16_vector_t;
     
     pure function window_instructions(window : window_t; index : integer) return logic16_vector_t;
-    pure function window_instructions(config : config_t) return logic16_vector_t;
+    pure function window_instructions(config : config_t; N_WINDOWS : integer) return logic16_vector_t;
     pure function flip_instructions(flip : flip_t) return logic16_vector_t;
     pure function misc_instructions(flags : std_logic_vector) return logic16_vector_t;
     pure function n_channels_instructions(n_channels : integer) return logic16_vector_t;
@@ -41,7 +50,9 @@ package sensor_configurer_pkg is
     pure function bit_mode_instructions(pixel_bits : integer) return logic16_vector_t;
     pure function pll_instructions(sensor_clock_MHz : integer; pixel_bits : integer) return logic16_vector_t;
     pure function undocumented_instructions return logic16_vector_t;
-    pure function all_instructions (config : config_t) return logic16_vector_t;
+    pure function all_instructions (config : config_t;  FRAGMENT_WIDTH : integer;
+                                    PIXEL_BITS : integer; N_WINDOWS : integer
+                                   ) return logic16_vector_t;
 
 end package sensor_configurer_pkg;
 
@@ -82,14 +93,16 @@ package body sensor_configurer_pkg is
              & i16_instructions(size(window), ADDR_SIZE_BASE + ADDR_STRIDE * index);
     end function window_instructions;
 
-    pure function window_instructions(config : config_t) return logic16_vector_t is
+    pure function window_instructions(config : config_t; N_WINDOWS : integer) return logic16_vector_t is
         constant ADDR_TOTAL_ROWS : integer := 1;
+        variable w : logic16_vector_t(4 + 4 * N_WINDOWS - 1 downto 0);
     begin
-        assert config.windows'length = 3;
-        return i16_instructions(total_rows(config.windows), ADDR_TOTAL_ROWS)
-             & window_instructions(config.windows(0), 0)
-             & window_instructions(config.windows(1), 1)
-             & window_instructions(config.windows(2), 2);
+        assert N_WINDOWS <= MAX_N_WINDOWS;
+        w(w'high downto w'high-1) :=i16_instructions(total_rows(config.windows), ADDR_TOTAL_ROWS);
+        for i in 0 to N_WINDOWS-1 loop
+            w(4*i+3 downto 4*i) := window_instructions(config.windows(i), i);
+        end loop;
+        return w;
     end function window_instructions;
 
     pure function flip_instructions(flip : flip_t) return logic16_vector_t is
@@ -223,16 +236,16 @@ package body sensor_configurer_pkg is
              & i8_instructions(98, 123);
     end function undocumented_instructions;
 
-    pure function all_instructions (config : config_t) return logic16_vector_t is
+    pure function all_instructions (config : config_t; FRAGMENT_WIDTH : integer; PIXEL_BITS : integer; N_WINDOWS : integer) return logic16_vector_t is
         -- TODO: check out i_lvds
     begin
-        return window_instructions(config)
+        return window_instructions(config, N_WINDOWS)
              & flip_instructions(config.flip)
              & misc_instructions(EXTERNAL_EXPOSURE or DUMMY_INSERTION)
              & n_channels_instructions(FRAGMENT_WIDTH)
              & calibration_instructions(config.calibration)
-             & bit_mode_instructions(pixel_bits)
-             & pll_instructions(48, pixel_bits)  -- TODO: set this properly
+             & bit_mode_instructions(PIXEL_BITS)
+             & pll_instructions(48, PIXEL_BITS)  -- TODO: set this properly
              & undocumented_instructions;
     end function all_instructions;
 

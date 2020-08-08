@@ -20,11 +20,12 @@ use ieee.numeric_std.all;
 
 use work.pulse_generator_pkg.all;
 
-use work.vnir_common.all;
+use work.vnir_base.all;
 use work.frame_requester_pkg.all;
 
 entity frame_requester_sensor_clock is
 generic (
+    FRAGMENT_WIDTH      : integer;
     CLOCKS_PER_SEC      : integer
 );
 port (

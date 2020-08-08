@@ -18,16 +18,26 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.vnir_common.all;
+use work.vnir_base.all;
 use work.spi_types.all;
 use work.logic_types.all;
 use work.sensor_configurer_pkg.all;
 use work.sensor_configurer_defaults;
 
+-- TODO: bad practice, fix this
+use work.vnir.flip_t;
+use work.vnir.FLIP_NONE;
+use work.vnir.FLIP_X;
+use work.vnir.FLIP_Y;
+use work.vnir.FLIP_XY;
+
+
 entity sensor_configurer is
 generic (
+    FRAGMENT_WIDTH      : integer;
+    PIXEL_BITS          : integer;
+    N_WINDOWS           : integer;
     CLOCKS_PER_SEC      : integer;
-
     POWER_ON_DELAY_us   : integer := sensor_configurer_defaults.POWER_ON_DELAY_us;
     CLOCK_ON_DELAY_us   : integer := sensor_configurer_defaults.CLOCK_ON_DELAY_us;
     RESET_OFF_DELAY_us  : integer := sensor_configurer_defaults.RESET_OFF_DELAY_us;
@@ -104,6 +114,17 @@ architecture rtl of sensor_configurer is
     signal reset_off_timer  : timer_t;
     signal spi_settle_timer : timer_t;
 
+    pure function all_instructions(config : config_t) return logic16_vector_t is
+    begin
+        return all_instructions(config, FRAGMENT_WIDTH, PIXEL_BITS, N_WINDOWS);
+    end function all_instructions;
+
+    pure function calc_n_spi_instructions return integer is
+        constant config : config_t := (flip => FLIP_NONE, calibration => (others => 0), windows => (others => (others => 0))) ;
+    begin
+        return all_instructions(config)'length;
+    end function calc_n_spi_instructions;
+
 begin
 
     main_process : process
@@ -114,7 +135,7 @@ begin
         variable i : integer;
         variable spi_busy_prev : std_logic;
 
-        constant N_SPI_INSTRUCTIONS : integer := 39;  -- Length of all_instructions() output
+        constant N_SPI_INSTRUCTIONS : integer := calc_n_spi_instructions;
         variable spi_instructions : logic16_vector_t(N_SPI_INSTRUCTIONS-1 downto 0);
     begin
         wait until rising_edge(clock);

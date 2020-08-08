@@ -21,11 +21,13 @@ use ieee.numeric_std.all;
 library std;
 use std.env.stop;
 
-use work.vnir_common.all;
+use work.vnir_base.all;
 use work.spi_types.all;
 use work.logic_types.all;
 use work.sensor_configurer_pkg.all;
 
+-- TODO: fix this
+use work.vnir.flip_t;
 
 entity sensor_configurer_tb is
 end entity sensor_configurer_tb;
@@ -34,8 +36,11 @@ architecture tests of sensor_configurer_tb is
 
     component sensor_configurer is
     generic (
-        clocks_per_sec      : integer;
-        spi_settle_us       : integer
+        FRAGMENT_WIDTH      : integer;
+        PIXEL_BITS          : integer;
+        N_WINDOWS           : integer;
+        CLOCKS_PER_SEC      : integer;
+        SPI_SETTLE_us       : integer
     );
     port (	
         clock               : in std_logic;
@@ -170,7 +175,8 @@ begin
             windows => (
                 0 => (lo => 11, hi => 15),
                 1 => (lo => 16, hi => 26),
-                2 => (lo => 30, hi => 50)
+                2 => (lo => 30, hi => 50),
+                others => (lo => 0, hi => 0)
             ),
             calibration => (v_ramp1 => 109, v_ramp2 => 109, offset => 16323, adc_gain => 32),
             flip => FLIP_NONE
@@ -185,8 +191,11 @@ begin
     end process test;
 
     sensor_configurer_component : sensor_configurer generic map (
-        clocks_per_sec => 50000000,
-        spi_settle_us => 1   -- Decrease SPI settle time for faster testing
+        FRAGMENT_WIDTH => 16,
+        PIXEL_BITS => 10,
+        N_WINDOWS => 3,
+        CLOCKS_PER_SEC => 50000000,
+        SPI_SETTLE_us => 1   -- Decrease SPI settle time for faster testing
     ) port map (
         clock => clock,
         reset_n => reset_n,

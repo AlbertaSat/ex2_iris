@@ -22,10 +22,17 @@ use ieee.numeric_std.all;
 
 use work.integer_types.all;
 
-use work.vnir_common.all;
+use work.vnir_base.all;
 use work.row_collector_pkg.all;
 
 entity row_collector is
+generic (
+    ROW_WIDTH           : integer;
+    FRAGMENT_WIDTH      : integer;
+    PIXEL_BITS          : integer;
+    N_WINDOWS           : integer range 1 to MAX_N_WINDOWS;
+    SUM_BITS            : integer := 21  -- 2048 10-bit integers added together take 21 bits.
+);
 port (
     clock               : in std_logic;
     reset_n             : in std_logic;
@@ -66,55 +73,8 @@ architecture rtl of row_collector is
     constant ADDRESS_BITS : integer := 20;
     subtype address_t is std_logic_vector(ADDRESS_BITS-1 downto 0);
 
-    constant SUM_BITS : integer := 21;  -- 2048 10-bit integers added together take 21 bits.
     subtype sum_pixel_t is std_logic_vector(SUM_BITS-1 downto 0);
     type sum_pixel_vector_t is array(integer range <>) of sum_pixel_t;
-
-    pure function sizes(windows : window_vector_t) return integer_vector_t is
-        variable sizes : integer_vector_t(windows'range);
-    begin
-        for i in windows'range loop
-            sizes(i) := size(windows(i));
-        end loop;
-        return sizes;
-    end function sizes;
-
-    pure function initial_index(windows : window_vector_t) return fragment_idx_t is
-        variable index : fragment_idx_t;
-    begin
-        index := (
-            fragment => 0, row => 0, window => 0, frame => 0,
-            fragments_per_row => ROW_WIDTH / FRAGMENT_WIDTH,
-            rows_per_window => sizes(windows),
-            windows_per_frame => 3
-        );
-        return index;
-    end function initial_index;
-
-    pure function x_pos(index : fragment_idx_t; windows : window_vector_t) return integer is
-    begin
-        return index.frame - windows(index.window).lo - index.row;
-    end function x_pos;
-
-    pure function to_address(i : integer) return address_t is
-    begin
-        return std_logic_vector(to_unsigned(i, ADDRESS_BITS));
-    end function to_address;
-
-    pure function to_address(index : fragment_idx_t; windows : window_vector_t) return address_t is
-        variable row_position : integer;
-        variable row_index : integer;
-        variable row_index_range : integer;
-        variable address_i : integer;
-    begin
-        assert x_pos(index, windows) >= 0;
-        row_index_range := max(index.rows_per_window);
-        row_index := x_pos(index, windows) rem row_index_range;
-        address_i :=  row_index_range * index.fragments_per_row * index.window
-                    + index.fragments_per_row * row_index
-                    + index.fragment;
-        return to_address(address_i);
-    end function to_address;
 
     pure function to_sum_pixel(u : unsigned) return sum_pixel_t is
         variable p : sum_pixel_t;
@@ -153,11 +113,11 @@ architecture rtl of row_collector is
 
     pure function to_pixel(p : sum_pixel_t) return pixel_t is
     begin
-        return pixel_t(p(pixel_bits-1 downto 0));
+        return pixel_t(p(PIXEL_BITS-1 downto 0));  -- TODO: fix this
     end function to_pixel;
 
     pure function to_pixels(v : sum_pixel_vector_t) return pixel_vector_t is
-        variable ret : pixel_vector_t(v'range);
+        variable ret : pixel_vector_t(v'range)(PIXEL_BITS-1 downto 0);  -- TODO: fix this
     begin
         for i in v'range loop
             ret(i) := to_pixel(v(i));
@@ -165,16 +125,53 @@ architecture rtl of row_collector is
         return ret;
     end function to_pixels;
 
+    pure function initial_index(windows : window_vector_t) return fragment_idx_t is
+        variable index : fragment_idx_t;
+    begin
+        index := (
+            fragment => 0, row => 0, window => 0, frame => 0,
+            fragments_per_row => ROW_WIDTH / FRAGMENT_WIDTH,
+            rows_per_window => zeros(MAX_N_WINDOWS-windows'length) & sizes(windows),
+            windows_per_frame => 3
+        );
+        return index;
+    end function initial_index;
+
+    pure function x_pos(index : fragment_idx_t; windows : window_vector_t) return integer is
+    begin
+        return index.frame - windows(index.window).lo - index.row;
+    end function x_pos;
+
+    pure function to_address(i : integer) return address_t is
+        begin
+            return std_logic_vector(to_unsigned(i, ADDRESS_BITS));
+        end function to_address;
+    
+        pure function to_address(index : fragment_idx_t; windows : window_vector_t) return address_t is
+            variable row_position : integer;
+            variable row_index : integer;
+            variable row_index_range : integer;
+            variable address_i : integer;
+        begin
+            assert x_pos(index, windows) >= 0;
+            row_index_range := max(index.rows_per_window);
+            row_index := x_pos(index, windows) rem row_index_range;
+            address_i :=  row_index_range * index.fragments_per_row * index.window
+                        + index.fragments_per_row * row_index
+                        + index.fragment;
+            return to_address(address_i);
+        end function to_address;
+
     -- Pipeline stage 0 output
-    signal fragment_p0 : fragment_t;
+    signal fragment_p0 : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     signal index_p0 : fragment_idx_t;
     signal p0_done : std_logic;
     -- Pipeline stage 1 output
-    signal fragment_p1 : fragment_t;
+    signal fragment_p1 : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     signal index_p1 : fragment_idx_t;
     signal p1_done : std_logic;
     -- Pipeline stage 2 output
-    signal fragment_p2 : fragment_t;
+    signal fragment_p2 : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     signal index_p2 : fragment_idx_t;
     signal p2_done : std_logic;
 
@@ -195,14 +192,14 @@ begin
     begin
         wait until rising_edge(clock);
         if read_config = '1' then
-            for i in config.windows'low to config.windows'high-1 loop
+            for i in 0 to N_WINDOWS-2 loop
                 assert 0 <= config.windows(i).lo;
                 assert config.windows(i).lo <= config.windows(i).hi;
                 assert config.windows(i).hi < config.windows(i+1).hi;
                 assert config.windows(i+1).hi < 2048;
             end loop;
             
-            windows <= config.windows;
+            windows <= config.windows(N_WINDOWS-1 downto 0);
             image_length <= config.image_length;
         end if;
     end process config_process;

@@ -20,7 +20,8 @@ use ieee.numeric_std.all;
 
 use work.avalonmm_types.all;
 use work.sdram_types.all;
-use work.vnir_common;
+use work.vnir_base;
+use work.vnir;
 use work.swir_types.all;
 use work.fpga_types.all;
 
@@ -30,9 +31,9 @@ entity sdram_subsystem is
         clock               : in std_logic;
         reset_n             : in std_logic;
 
-        vnir_row_available  : in vnir_common.row_type_t;
+        vnir_row_available  : in vnir.row_type_t;
         vnir_num_rows       : in integer;
-        vnir_row            : in vnir_common.row_t;
+        vnir_row            : in vnir_base.row_t;
         
         swir_row_available  : in std_logic;
         swir_num_rows       : in integer;

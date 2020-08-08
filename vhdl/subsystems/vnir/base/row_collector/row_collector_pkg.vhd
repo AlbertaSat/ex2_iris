@@ -19,12 +19,14 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.vnir_common.all;
+use work.vnir_base.all;
 use work.integer_types.all;
 
 package row_collector_pkg is
+    constant MAX_N_WINDOWS : integer := 10;
+
     type config_t is record
-        windows : window_vector_t(N_WINDOWS-1 downto 0);
+        windows : window_vector_t(MAX_N_WINDOWS-1 downto 0);
         image_length : integer;
     end record config_t;
 
@@ -35,7 +37,7 @@ package row_collector_pkg is
         frame    : integer;
 
         fragments_per_row : integer;
-        rows_per_window : integer_vector_t(N_WINDOWS-1 downto 0);
+        rows_per_window : integer_vector_t(MAX_N_WINDOWS-1 downto 0);
         windows_per_frame : integer;
     end record fragment_idx_t;
 
@@ -45,6 +47,8 @@ package row_collector_pkg is
     pure function window_size (idx : fragment_idx_t) return integer;
     procedure clear (idx : inout fragment_idx_t);
     procedure increment (idx : inout fragment_idx_t);
+
+    pure function sizes(windows : window_vector_t) return integer_vector_t;
 
 end package row_collector_pkg;
 
@@ -86,5 +90,14 @@ package body row_collector_pkg is
         increment_rollover(idx.window, idx.windows_per_frame, rolled_over, rolled_over);
         increment(idx.frame, rolled_over);
     end procedure increment;
+
+    pure function sizes(windows : window_vector_t) return integer_vector_t is
+        variable sizes : integer_vector_t(windows'range);
+    begin
+        for i in windows'range loop
+            sizes(i) := size(windows(i));
+        end loop;
+        return sizes;
+    end function sizes;
 
 end package body row_collector_pkg;

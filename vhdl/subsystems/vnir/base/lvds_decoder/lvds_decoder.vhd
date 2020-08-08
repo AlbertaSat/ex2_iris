@@ -18,17 +18,26 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.vnir_common.all;
+use work.vnir_base.all;
 use work.lvds_decoder_pkg.all;
 
 entity lvds_decoder is
+generic (
+    FRAGMENT_WIDTH      : integer;
+    PIXEL_BITS          : integer
+);
 port (
     clock               : in std_logic;
     reset_n             : in std_logic;
+
     start_align         : in std_logic;
     align_done          : out std_logic;
-    lvds                : in lvds_t;
-    fragment            : out fragment_t;
+    
+    lvds_data           : in std_logic_vector(FRAGMENT_WIDTH-1 downto 0);
+    lvds_control        : in std_logic;
+    lvds_clock          : in std_logic;
+    
+    fragment            : out fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     fragment_control    : out control_t;
     fragment_available  : out std_logic
 );
@@ -46,12 +55,19 @@ architecture rtl of lvds_decoder is
     end component cmd_cross_clock;
 
     component lvds_decoder_in is
+    generic (
+        FRAGMENT_WIDTH  : integer;
+        PIXEL_BITS      : integer;
+        FIFO_BITS       : integer
+    );
     port (
-        clock       : out std_logic;
-        reset_n     : in std_logic;
-        lvds        : in lvds_t;
-        start_align : in std_logic;
-        to_fifo     : out fifo_data_t
+        clock           : out std_logic;
+        reset_n         : in std_logic;
+        lvds_data       : in std_logic_vector;
+        lvds_control    : in std_logic;
+        lvds_clock      : in std_logic;
+        start_align     : in std_logic;
+        to_fifo         : out std_logic_vector
     );
     end component lvds_decoder_in;
 
@@ -82,11 +98,15 @@ architecture rtl of lvds_decoder is
     end component single_delay;
 
     component lvds_decoder_out is
+    generic (
+        FRAGMENT_WIDTH  : integer;
+        PIXEL_BITS      : integer
+    );
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
         data_in_available   : in std_logic;
-        from_fifo           : in fifo_data_t;
+        from_fifo           : in std_logic_vector;
         align_done          : out std_logic;
         fragment            : out fragment_t;
         fragment_control    : out control_t;
@@ -94,21 +114,21 @@ architecture rtl of lvds_decoder is
     );
     end component lvds_decoder_out;
 
+    constant FRAGMENT_BITS : integer := FRAGMENT_WIDTH * PIXEL_BITS;
+    constant FIFO_BITS : integer := FRAGMENT_BITS
+                                        + PIXEL_BITS  -- control
+                                        + 1; -- is_aligned
+
     signal inclock : std_logic;
     signal outclock : std_logic;
     signal start_align_inclock : std_logic;
     signal start_align_outclock : std_logic;
-    signal to_fifo : fifo_data_t;
-    signal to_fifo_flat : std_logic_vector(FIFO_DATA_BITS-1 downto 0);
-    signal from_fifo : fifo_data_t;
-    signal from_fifo_flat : std_logic_vector(FIFO_DATA_BITS-1 downto 0);
+    signal to_fifo : std_logic_vector(FIFO_BITS-1 downto 0);
+    signal from_fifo : std_logic_vector(FIFO_BITS-1 downto 0);
     signal fifo_did_read : std_logic;
     signal rdempty : std_logic;
     signal wrfull : std_logic;
 begin
-
-    to_fifo_flat <= flatten(to_fifo);
-    from_fifo <= unpack_to_fifo_data(from_fifo_flat);
 
     start_align_outclock <= start_align;
     start_align_bridge : cmd_cross_clock port map (
@@ -119,24 +139,30 @@ begin
         o => start_align_inclock
     );
 
-    decoder_in_component : lvds_decoder_in port map (
+    decoder_in_component : lvds_decoder_in generic map (
+        FRAGMENT_WIDTH => FRAGMENT_WIDTH,
+        PIXEL_BITS => PIXEL_BITS,
+        FIFO_BITS => FIFO_BITS
+    ) port map (
         clock => inclock,
         reset_n => reset_n,  -- TODO: how should a reset cross a clock boundary?
-        lvds => lvds,
+        lvds_data => lvds_data,
+        lvds_control => lvds_control,
+        lvds_clock => lvds_clock,
         start_align => start_align_inclock,
         to_fifo => to_fifo
     );
 
     fifo_component : lvds_decoder_fifo generic map (
-        BREADTH => FIFO_DATA_BITS
+        BREADTH => FIFO_BITS
     ) port map (
         aclr => not reset_n,
-        data => to_fifo_flat,
+        data => to_fifo,
         rdclk => outclock,
         rdreq => not rdempty,
         wrclk => inclock,
         wrreq => not wrfull,
-        q => from_fifo_flat,
+        q => from_fifo,
         rdempty => rdempty,
         wrfull => wrfull  -- TODO: if this is ever high, throw an exception or something
     );
@@ -149,7 +175,10 @@ begin
     );
 
     outclock <= clock;
-    decoder_out_component : lvds_decoder_out port map (
+    decoder_out_component : lvds_decoder_out generic map (
+        FRAGMENT_WIDTH => FRAGMENT_WIDTH,
+        PIXEL_BITS => PIXEL_BITS
+    ) port map (
         clock => outclock,
         reset_n => reset_n,
         data_in_available => fifo_did_read,

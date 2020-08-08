@@ -18,19 +18,22 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use std.textio.all;
+use ieee.std_logic_misc.all;
 
 library std;
 use std.env.stop;
 
 use work.spi_types.all;
-use work.vnir_top.all;
-use work.vnir_common.all;
+use work.vnir.all;
+use work.vnir_base;
 
 entity vnir_subsystem_tb is
 end entity;
 
 
-architecture tests of vnir_subsystem_tb is	   
+architecture tests of vnir_subsystem_tb is
+    constant OUT_DIR : string := "../subsystems/vnir/tests/out/vnir_subsystem/";
+
     signal clock                : std_logic := '0';  -- Main clock
     signal reset_n              : std_logic := '0';  -- Main reset
     signal sensor_clock_source  : std_logic := '0';
@@ -54,7 +57,8 @@ architecture tests of vnir_subsystem_tb is
     signal frame_request        : std_logic;
     signal exposure_start       : std_logic;
     signal lvds                 : lvds_t := (
-        clock => '0', control => '0', data => (others => '0')
+        clock => '0', control => '0',
+        data => (others => '0')
     );
     
     component vnir_subsystem is
@@ -94,9 +98,9 @@ architecture tests of vnir_subsystem_tb is
 
     pure function total_rows(config : config_t) return integer is
     begin
-        return size(config.window_red) +
-               size(config.window_nir) + 
-               size(config.window_blue);
+        return vnir_base.size(config.window_red) +
+               vnir_base.size(config.window_nir) + 
+               vnir_base.size(config.window_blue);
     end function total_rows;
 
     procedure readline(file f : text; row : out row_t) is
@@ -134,7 +138,24 @@ architecture tests of vnir_subsystem_tb is
         read(f_line, i);
     end procedure read;
 
-    constant OUT_DIR : string := "../subsystems/vnir/tests/out/vnir_subsystem/";
+    pure function "=" (lhs : pixel_t; rhs : pixel_t) return boolean is
+        variable re : boolean;
+    begin
+        for i in lhs'range loop
+           re := re and (lhs(i) = rhs(i));
+        end loop;
+        return re;
+    end function "=";
+
+
+    pure function "=" (lhs : row_t; rhs : row_t) return boolean is
+        variable re : boolean;
+    begin
+        for i in lhs'range loop
+            re := re and (lhs(i) = rhs(i));
+        end loop;
+        return re;
+    end function "=";
 
 begin
 
@@ -301,7 +322,7 @@ begin
         wait;
 	end process test;
 
-	u0 : vnir_subsystem port map(
+	u0 : vnir_subsystem port map (
         clock => clock,
         reset_n => reset_n,
         sensor_clock => sensor_clock_source,

@@ -20,12 +20,12 @@ use ieee.numeric_std.all;
 
 use work.spi_types.all;
 
-use work.vnir_common.all;
+use work.vnir_base.all;
 use work.row_collector_pkg;
 use work.sensor_configurer_pkg;
 use work.sensor_configurer_defaults;
 use work.frame_requester_pkg;
-use work.vnir_top.all;
+use work.vnir;
 
 entity vnir_subsystem is
 generic (
@@ -46,11 +46,11 @@ port (
     sensor_clock_enable : out std_logic;
     sensor_reset_n      : out std_logic;
 
-    config              : in config_t;
+    config              : in vnir.config_t;
     start_config        : in std_logic;
     config_done         : out std_logic;
     
-    image_config        : in image_config_t;
+    image_config        : in vnir.image_config_t;
     start_image_config  : in std_logic;
     image_config_done   : out std_logic;
     num_rows            : out integer;
@@ -58,15 +58,15 @@ port (
     do_imaging          : in std_logic;
     imaging_done        : out std_logic;
 
-    row                 : out row_t;
-    row_available       : out row_type_t;
+    row                 : out vnir.row_t;
+    row_available       : out vnir.row_type_t;
     
     spi_out             : out spi_from_master_t;
     spi_in              : in spi_to_master_t;
     
     frame_request       : out std_logic;
     exposure_start      : out std_logic;
-    lvds                : in lvds_t
+    lvds                : in vnir.lvds_t
 );
 end entity vnir_subsystem;
 
@@ -85,6 +85,9 @@ architecture rtl of vnir_subsystem is
 
     component sensor_configurer is
     generic (
+        FRAGMENT_WIDTH      : integer;
+        PIXEL_BITS          : integer;
+        N_WINDOWS           : integer;
         CLOCKS_PER_SEC      : integer;
         POWER_ON_DELAY_us   : integer;
         CLOCK_ON_DELAY_us   : integer;
@@ -106,12 +109,18 @@ architecture rtl of vnir_subsystem is
     end component sensor_configurer;
 
     component lvds_decoder is
+    generic (
+        FRAGMENT_WIDTH      : integer;
+        PIXEL_BITS          : integer
+    );
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
         start_align         : in std_logic;
         align_done          : out std_logic;
-        lvds                : in lvds_t;
+        lvds_clock          : in std_logic;
+        lvds_control        : in std_logic;
+        lvds_data           : in std_logic_vector;
         fragment            : out fragment_t;
         fragment_control    : out control_t;
         fragment_available  : out std_logic
@@ -120,7 +129,8 @@ architecture rtl of vnir_subsystem is
 
     component frame_requester is
     generic (
-        CLOCKS_PER_SEC  : integer
+        FRAGMENT_WIDTH      : integer;
+        CLOCKS_PER_SEC      : integer
     );
     port (
         clock               : in std_logic;
@@ -137,6 +147,12 @@ architecture rtl of vnir_subsystem is
     end component frame_requester;
 
     component row_collector is
+    generic (
+        ROW_WIDTH           : integer;
+        FRAGMENT_WIDTH      : integer;
+        PIXEL_BITS          : integer;
+        N_WINDOWS           : integer range 1 to row_collector_pkg.MAX_N_WINDOWS
+    );
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
@@ -151,8 +167,8 @@ architecture rtl of vnir_subsystem is
     );
     end component row_collector;
 
-    signal config_reg       : config_t;
-    signal image_config_reg : image_config_t;
+    signal config_reg       : vnir.config_t;
+    signal image_config_reg : vnir.image_config_t;
 
     signal imaging_done_s : std_logic;
 
@@ -172,7 +188,7 @@ architecture rtl of vnir_subsystem is
 
     signal row_collector_config : row_collector_pkg.config_t;
 
-    signal fragment                 : fragment_t;
+    signal fragment                 : fragment_t(vnir.FRAGMENT_WIDTH-1 downto 0)(vnir.PIXEL_BITS-1 downto 0);
     signal fragment_control         : control_t;
     signal fragment_available       : std_logic;
     
@@ -275,6 +291,9 @@ begin
     );
 
     sensor_configurer_component : sensor_configurer generic map (
+        FRAGMENT_WIDTH => vnir.FRAGMENT_WIDTH,
+        PIXEL_BITS => vnir.PIXEL_BITS,
+        N_WINDOWS => vnir.N_WINDOWS,
         CLOCKS_PER_SEC => CLOCKS_PER_SEC,
         POWER_ON_DELAY_us => POWER_ON_DELAY_us,
         CLOCK_ON_DELAY_us => CLOCK_ON_DELAY_us,
@@ -294,6 +313,7 @@ begin
     );
     
     frame_requester_component : frame_requester generic map (
+        FRAGMENT_WIDTH => vnir.FRAGMENT_WIDTH,
         CLOCKS_PER_SEC => CLOCKS_PER_SEC
     ) port map (
         clock => clock,
@@ -307,18 +327,28 @@ begin
         exposure_start => exposure_start
     );
 
-    lvds_decoder_component : lvds_decoder port map (
+    lvds_decoder_component : lvds_decoder generic map (
+        FRAGMENT_WIDTH => vnir.FRAGMENT_WIDTH,
+        PIXEL_BITS => vnir.PIXEL_BITS
+    ) port map (
         clock => clock,
         reset_n => reset_n,
         start_align => start_align,
         align_done => align_done,
-        lvds => lvds,
+        lvds_clock => lvds.clock,
+        lvds_control => lvds.control,
+        lvds_data => lvds.data,
         fragment => fragment,
         fragment_control => fragment_control,
         fragment_available => fragment_available
     );
 
-    row_collector_component : row_collector port map (
+    row_collector_component : row_collector generic map (
+        ROW_WIDTH => vnir.ROW_WIDTH,
+        FRAGMENT_WIDTH => vnir.FRAGMENT_WIDTH,
+        PIXEL_BITS => vnir.PIXEL_BITS,
+        N_WINDOWS => vnir.N_WINDOWS
+    ) port map (
         clock => clock,
         reset_n => reset_n,
         config => row_collector_config,
@@ -341,7 +371,8 @@ begin
         windows => (
             0 => config_reg.window_red,
             1 => config_reg.window_nir,
-            2 => config_reg.window_blue
+            2 => config_reg.window_blue,
+            others => (others => 0)
         )
     );
     frame_requester_config <= (
@@ -354,14 +385,15 @@ begin
         windows => (
             0 => config_reg.window_red,
             1 => config_reg.window_nir,
-            2 => config_reg.window_blue
+            2 => config_reg.window_blue,
+            others => (others => 0)
         )
     );
 
-    row_available <= ROW_RED when row_window = 0 else
-                     ROW_NIR when row_window = 1 else
-                     ROW_BLUE when row_window = 2 else
-                     ROW_NONE;
+    row_available <= vnir.ROW_RED when row_window = 0 else
+                     vnir.ROW_NIR when row_window = 1 else
+                     vnir.ROW_BLUE when row_window = 2 else
+                     vnir.ROW_NONE;
     num_rows <= image_length;
 
 end architecture rtl;
