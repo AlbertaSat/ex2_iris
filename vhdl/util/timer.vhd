@@ -22,7 +22,7 @@ use ieee.numeric_std.all;
 entity timer is
 generic (
     CLOCKS_PER_SEC  : integer;
-    DELAY_us        : integer
+    DELAY_uS        : integer
 );
 port (
     clock   : in std_logic;
@@ -37,10 +37,15 @@ architecture rtl of timer is
 begin
 
     fsm : process
-        constant US_PER_S : integer := 1000000;
+        constant uS_PER_S : integer := 1000000;
         type state_t is (RESET, IDLE, WAITING);
         variable state : state_t;
         variable clocks_waited : integer;
+
+        constant CLOCKS_TO_WAIT : integer := to_integer(
+            to_unsigned(DELAY_uS, 64) * to_unsigned(CLOCKS_PER_SEC, 64) / to_unsigned(uS_PER_S, 64)
+        );
+
     begin
         wait until rising_edge(clock);
 
@@ -59,7 +64,7 @@ begin
                 clocks_waited := 1;
             end if;
         when WAITING =>
-            if clocks_waited / (CLOCKS_PER_SEC / US_PER_S) >= delay_us then
+            if clocks_waited  >= CLOCKS_TO_WAIT then
                 state := IDLE;
                 done <= '1';
             end if;

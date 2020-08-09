@@ -83,6 +83,18 @@ architecture rtl of vnir_subsystem is
     );
     end component delay_until;
 
+    component divider is
+    port (
+        clock       : in std_logic;
+        reset_n     : in std_logic;
+        numerator   : in integer;
+        denominator : in integer;
+        quotient    : out integer;
+        start       : in std_logic;
+        done        : out std_logic
+    );
+    end component divider;
+
     component sensor_configurer is
     generic (
         FRAGMENT_WIDTH      : integer;
@@ -151,6 +163,7 @@ architecture rtl of vnir_subsystem is
         ROW_WIDTH           : integer;
         FRAGMENT_WIDTH      : integer;
         PIXEL_BITS          : integer;
+        ROW_PIXEL_BITS      : integer;
         N_WINDOWS           : integer range 1 to row_collector_pkg.MAX_N_WINDOWS
     );
     port (
@@ -171,6 +184,9 @@ architecture rtl of vnir_subsystem is
     signal image_config_reg : vnir.image_config_t;
 
     signal imaging_done_s : std_logic;
+
+    signal start_calc_image_length : std_logic;
+    signal calc_image_length_done  : std_logic;
 
     signal start_frame_requester_config : std_logic;
     signal frame_requester_config       : frame_requester_pkg.config_t;
@@ -206,7 +222,7 @@ begin
         wait until rising_edge(clock);
         
         start_locking <= '0';
-        start_frame_requester_config <= '0';
+        start_calc_image_length <= '0';
         config_done <= '0';
         image_config_done <= '0';
 
@@ -238,7 +254,7 @@ begin
             assert do_imaging = '0';
             if start_image_config = '1' then
                 image_config_reg <= image_config;
-                start_frame_requester_config <= '1';
+                start_calc_image_length <= '1';
                 state := IMAGE_CONFIGURING;
             end if;
         when IMAGE_CONFIGURING =>
@@ -262,7 +278,7 @@ begin
             end if;
             if start_image_config = '1' then
                 image_config_reg <= image_config;
-                start_frame_requester_config <= '1';
+                start_calc_image_length <= '1';
                 state := IMAGE_CONFIGURING;
             end if;
             if do_imaging = '1' then
@@ -279,6 +295,7 @@ begin
         end case;
     end process fsm;
 
+    start_frame_requester_config <= calc_image_length_done;
     start_sensor_config <= locking_done;
     start_align <= sensor_config_done;
 
@@ -347,6 +364,7 @@ begin
         ROW_WIDTH => vnir.ROW_WIDTH,
         FRAGMENT_WIDTH => vnir.FRAGMENT_WIDTH,
         PIXEL_BITS => vnir.PIXEL_BITS,
+        ROW_PIXEL_BITS => vnir.ROW_PIXEL_BITS,
         N_WINDOWS => vnir.N_WINDOWS
     ) port map (
         clock => clock,
@@ -362,7 +380,17 @@ begin
     );
     imaging_done <= imaging_done_s;
 
-    image_length <= image_config_reg.duration * image_config_reg.fps / 1000;
+
+    calc_image_length : divider port map (
+        clock => clock,
+        reset_n => reset_n,
+        numerator => image_config_reg.duration * image_config_reg.fps,
+        denominator => 1000,
+        quotient => image_length,
+        start => start_calc_image_length,
+        done => calc_image_length_done
+    );
+
     num_frames <= image_length + config_reg.window_blue.hi; -- TODO: move into row_collector
     
     sensor_configurer_config <= (

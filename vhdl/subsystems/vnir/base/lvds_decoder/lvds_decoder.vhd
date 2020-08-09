@@ -44,7 +44,7 @@ port (
 end entity lvds_decoder;
 
 architecture rtl of lvds_decoder is
-    component cmd_cross_clock is
+    component clock_bridge is
     port (
         reset_n : in std_logic;
         i_clock : in std_logic;
@@ -52,7 +52,7 @@ architecture rtl of lvds_decoder is
         o_clock : in std_logic;
         o       : out std_logic
     );
-    end component cmd_cross_clock;
+    end component clock_bridge;
 
     component lvds_decoder_in is
     generic (
@@ -131,7 +131,7 @@ architecture rtl of lvds_decoder is
 begin
 
     start_align_outclock <= start_align;
-    start_align_bridge : cmd_cross_clock port map (
+    start_align_bridge : clock_bridge port map (
         reset_n => reset_n,
         i_clock => outclock,
         i => start_align_outclock,

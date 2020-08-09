@@ -24,8 +24,8 @@ library std;
 use std.env.stop;
 
 use work.spi_types.all;
-use work.vnir.all;
 use work.vnir_base;
+use work.vnir.all;
 
 entity vnir_subsystem_tb is
 end entity;
@@ -110,7 +110,7 @@ architecture tests of vnir_subsystem_tb is
         readline(f, f_line);
         for i in row'range loop
             read(f_line, pixel);
-            row(i) := to_unsigned(pixel, PIXEL_BITS);
+            row(i) := to_unsigned(pixel, row(i)'length);
         end loop;
     end procedure readline;
 
@@ -138,7 +138,7 @@ architecture tests of vnir_subsystem_tb is
         read(f_line, i);
     end procedure read;
 
-    pure function "=" (lhs : pixel_t; rhs : pixel_t) return boolean is
+    pure function "=" (lhs : vnir_base.pixel_t; rhs : vnir_base.pixel_t) return boolean is
         variable re : boolean := true;
     begin
         for i in lhs'range loop
@@ -147,8 +147,7 @@ architecture tests of vnir_subsystem_tb is
         return re;
     end function "=";
 
-
-    pure function "=" (lhs : row_t; rhs : row_t) return boolean is
+    pure function "=" (lhs : vnir_base.pixel_vector_t; rhs : vnir_base.pixel_vector_t) return boolean is
         variable re : boolean := true;
     begin
         for i in lhs'range loop

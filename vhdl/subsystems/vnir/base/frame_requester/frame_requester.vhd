@@ -23,7 +23,7 @@ use work.frame_requester_pkg.all;
 entity frame_requester is
 generic (
     FRAGMENT_WIDTH      : integer;
-    CLOCKS_PER_SEC      : integer := 48000000
+    CLOCKS_PER_SEC      : integer
 );
 port (
     -- Interface w/ subsystems is clocked on the main clock
@@ -46,13 +46,13 @@ end entity frame_requester;
 
 architecture rtl of frame_requester is
 
-    component frame_requester_sensor_clock is
+    component frame_requester_mainclock is
     generic (
         FRAGMENT_WIDTH      : integer;
         CLOCKS_PER_SEC      : integer
     );
     port (
-        sensor_clock        : in std_logic;
+        clock               : in std_logic;
         reset_n             : in std_logic;
         config              : in config_t;
         start_config        : in std_logic;
@@ -62,96 +62,57 @@ architecture rtl of frame_requester is
         frame_request       : out std_logic;
         exposure_start      : out std_logic
     );
-    end component frame_requester_sensor_clock;
+    end component frame_requester_mainclock;
 
-    component cmd_cross_clock is
+    component clock_bridge is
     port (
         reset_n   : in std_logic;
         i_clock   : in std_logic;
         i         : in std_logic;
         o_clock   : in std_logic;
-        o         : out std_logic;
-        o_reset_n : out std_logic
+        o         : out std_logic
     );
-    end component cmd_cross_clock;
+    end component clock_bridge;
 
-    signal reset_n_sensor_clock         : std_logic;
-    signal start_config_sensor_clock    : std_logic;
-    signal config_done_sensor_clock     : std_logic;
-    signal do_imaging_sensor_clock      : std_logic;
-    signal imaging_done_sensor_clock    : std_logic;
+    signal frame_request_mainclock  : std_logic;
+    signal exposure_start_mainclock : std_logic;
     
 begin
 
-    ir_sensor_clock_component : frame_requester_sensor_clock generic map (
+    frame_requester_mainclock_cmp : frame_requester_mainclock generic map (
         FRAGMENT_WIDTH => FRAGMENT_WIDTH,
         CLOCKS_PER_SEC => CLOCKS_PER_SEC
     ) port map (
-        sensor_clock => sensor_clock,
-        reset_n => reset_n_sensor_clock,
+        clock => clock,
+        reset_n => reset_n,
         
         config => config,
-        start_config => start_config_sensor_clock,
-        config_done => config_done_sensor_clock,
+        start_config => start_config,
+        config_done => config_done,
         
-        do_imaging => do_imaging_sensor_clock,
-        imaging_done => imaging_done_sensor_clock,
+        do_imaging => do_imaging,
+        imaging_done => imaging_done,
         
-        frame_request => frame_request,
-        exposure_start => exposure_start
-    );
-
-    -- Translate reset_n to sensor clock domain
-    reset_n_clock_bridge : cmd_cross_clock port map (
-        reset_n => reset_n,
-        i_clock => clock,
-        i => '0',
-        o_clock => sensor_clock,
-        o => open,
-        o_reset_n => reset_n_sensor_clock
-    );
-
-    -- Translate start_config to sensor clock domain
-    start_config_clock_bridge : cmd_cross_clock port map (
-        reset_n => reset_n,
-        i_clock => clock,
-        i => start_config,
-        o_clock => sensor_clock,
-        o => start_config_sensor_clock,
-        o_reset_n => open
-    );
-
-    -- Translate config_done from sensor clock domain
-    config_done_clock_bridge : cmd_cross_clock port map (
-        reset_n => reset_n,
-        i_clock => clock,
-        i => config_done_sensor_clock,
-        o_clock => sensor_clock,
-        o => config_done,
-        o_reset_n => open
-    );
-
-    -- Translate do_imaging to sensor clock domain
-    do_imaging_clock_bridge : cmd_cross_clock port map (
-        reset_n => reset_n,
-        i_clock => clock,
-        i => do_imaging,
-        o_clock => sensor_clock,
-        o => do_imaging_sensor_clock,
-        o_reset_n => open
+        frame_request => frame_request_mainclock,
+        exposure_start => exposure_start_mainclock
     );
 
     -- Translate imaging_done from sensor clock domain
-    imaging_done_clock_bridge : cmd_cross_clock port map (
+    frame_request_clock_bridge : clock_bridge port map (
         reset_n => reset_n,
         i_clock => clock,
-        i => imaging_done_sensor_clock,
+        i => frame_request_mainclock,
         o_clock => sensor_clock,
-        o => imaging_done,
-        o_reset_n => open
+        o => frame_request
     );
 
-
-    
+     -- Translate do_imaging to sensor clock domain
+     exposure_start_clock_bridge : clock_bridge port map (
+        reset_n => reset_n,
+        i_clock => clock,
+        i => exposure_start_mainclock,
+        o_clock => sensor_clock,
+        o => exposure_start
+    );
 
 end architecture rtl;

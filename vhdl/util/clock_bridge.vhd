@@ -20,7 +20,7 @@ use ieee.std_logic_1164.all;
 library altera_mf;
 use altera_mf.all;
 
-entity cmd_cross_clock is
+entity clock_bridge is
 port (
     reset_n   : in std_logic;
     i_clock   : in std_logic;
@@ -29,9 +29,9 @@ port (
     o         : out std_logic;
     o_reset_n : out std_logic
 );
-end entity cmd_cross_clock;
+end entity clock_bridge;
 
-architecture rtl of cmd_cross_clock is
+architecture rtl of clock_bridge is
     component dcfifo
     generic (
         intended_device_family  : string;
@@ -80,7 +80,7 @@ begin
 		underflow_checking => "ON",
 		use_eab => "ON",
 		write_aclr_synch => "OFF",
-		wrsync_delaypipe => 4
+        wrsync_delaypipe => 4
 	) port map (
 		aclr => not reset_n,
         data => data,

@@ -27,9 +27,11 @@ use work.vnir_base.all;
 use work.test_util.all;
 use work.row_collector_pkg.all;
 
+use work.vnir;
 use work.vnir.ROW_WIDTH;
 use work.vnir.FRAGMENT_WIDTH;
 use work.vnir.PIXEL_BITS;
+use work.vnir.ROW_PIXEL_BITS;
 use work.vnir.N_WINDOWS;
 
 
@@ -46,7 +48,7 @@ architecture tests of row_collector_tb is
     signal done                 : std_logic := '0';
     signal fragment             : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
 	signal fragment_available   : std_logic := '0';
-    signal row                  : row_t(ROW_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+    signal row                  : row_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
     signal row_window           : integer;
 
     component row_collector is
@@ -54,6 +56,7 @@ architecture tests of row_collector_tb is
         ROW_WIDTH           : integer := ROW_WIDTH;
         FRAGMENT_WIDTH      : integer := FRAGMENT_WIDTH;
         PIXEL_BITS          : integer := PIXEL_BITS;
+        ROW_PIXEL_BITS      : integer := ROW_PIXEL_BITS;
         N_WINDOWS           : integer := N_WINDOWS
     );
     port (
@@ -77,7 +80,7 @@ architecture tests of row_collector_tb is
         readline(f, f_line);
         for i in row'range loop
             read(f_line, pixel);
-            row(i) := to_unsigned(pixel, PIXEL_BITS);
+            row(i) := to_unsigned(pixel, row(i)'length);
         end loop;
     end procedure readline;
 
@@ -118,7 +121,7 @@ begin
         file colour0_file : text open read_mode is OUT_DIR & "colour0.out";
         file colour1_file : text open read_mode is OUT_DIR & "colour1.out";
         file colour2_file : text open read_mode is OUT_DIR & "colour2.out";
-        variable file_row : row_t(ROW_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+        variable file_row : vnir.row_t;
     begin
         assert N_WINDOWS = 3;
         wait until reset_n = '1';

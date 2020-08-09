@@ -207,8 +207,10 @@ package integer_types is
 
     type integer_vector_t is array(integer range <>) of integer;
 
-    pure function max(a : integer; b : integer) return integer;
-    pure function max(v : integer_vector_t) return integer;
+    pure function min_2(a : integer; b : integer) return integer;
+    pure function min_n(v : integer_vector_t) return integer;
+    pure function max_2(a : integer; b : integer) return integer;
+    pure function max_n(v : integer_vector_t) return integer;
     pure function zeros(length : integer) return integer_vector_t;
 
     procedure increment_rollover(
@@ -234,20 +236,35 @@ use ieee.numeric_std.all;
 
 package body integer_types is
 
-    pure function max(a : integer; b : integer) return integer is
+    pure function min_2(a : integer; b : integer) return integer is
     begin
-        if a > b then return a; else return b; end if;
-    end function max;
+        if a < b then return a; else return b; end if;
+    end function min_2;
 
-    pure function max(v : integer_vector_t) return integer is
+    pure function min_n(v : integer_vector_t) return integer is
         variable ret : integer;
     begin
         ret := v(v'left);
         for i in v'range loop
-            ret := max(ret, v(i));
+            ret := min_2(ret, v(i));
         end loop;
         return ret;
-    end function max;
+    end function min_n;
+
+    pure function max_2(a : integer; b : integer) return integer is
+    begin
+        if a > b then return a; else return b; end if;
+    end function max_2;
+
+    pure function max_n(v : integer_vector_t) return integer is
+        variable ret : integer;
+    begin
+        ret := v(v'left);
+        for i in v'range loop
+            ret := max_2(ret, v(i));
+        end loop;
+        return ret;
+    end function max_n;
 
     pure function zeros(length : integer) return integer_vector_t is
     begin

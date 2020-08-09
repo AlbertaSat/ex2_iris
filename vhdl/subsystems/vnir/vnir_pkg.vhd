@@ -28,10 +28,11 @@ package vnir is
     constant ROW_WIDTH : integer := 2048;
     constant FRAGMENT_WIDTH : integer := 16;
     constant PIXEL_BITS : integer := 10;
+    constant ROW_PIXEL_BITS : integer := 20;
     constant N_WINDOWS : integer := 3;
 
     subtype pixel_t is vnir_base.pixel_t(PIXEL_BITS-1 downto 0);
-    subtype row_t is vnir_base.row_t(ROW_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+    subtype row_t is vnir_base.row_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
     
     subtype window_t is vnir_base.window_t;
     subtype calibration_t is vnir_base.calibration_t;

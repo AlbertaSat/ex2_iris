@@ -30,8 +30,8 @@ generic (
     ROW_WIDTH           : integer;
     FRAGMENT_WIDTH      : integer;
     PIXEL_BITS          : integer;
-    N_WINDOWS           : integer range 1 to MAX_N_WINDOWS;
-    SUM_BITS            : integer := 21  -- 2048 10-bit integers added together take 21 bits.
+    ROW_PIXEL_BITS      : integer;
+    N_WINDOWS           : integer range 1 to MAX_N_WINDOWS
 );
 port (
     clock               : in std_logic;
@@ -43,10 +43,10 @@ port (
     start               : in std_logic;
     done                : out std_logic;
 
-    fragment            : in fragment_t;
+    fragment            : in fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     fragment_available  : in std_logic;
 
-    row                 : out row_t;
+    row                 : out row_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
     row_window          : out integer
 );
 end entity row_collector;
@@ -70,60 +70,54 @@ architecture rtl of row_collector is
     );
     end component row_buffer;
 
+    type lpixel_vector_t is array(integer range <>) of std_logic_vector;
+
     constant ADDRESS_BITS : integer := 20;
     subtype address_t is std_logic_vector(ADDRESS_BITS-1 downto 0);
 
-    subtype sum_pixel_t is std_logic_vector(SUM_BITS-1 downto 0);
-    type sum_pixel_vector_t is array(integer range <>) of sum_pixel_t;
-
-    pure function to_sum_pixel(u : unsigned) return sum_pixel_t is
-        variable p : sum_pixel_t;
+    pure function to_pixels(lpixels : lpixel_vector_t) return pixel_vector_t is
+        variable pixels : pixel_vector_t(lpixels'range)(lpixels(0)'range);
     begin
-        p := (others => '0');
-        p(u'range) := std_logic_vector(u);
-        return p;
-    end function to_sum_pixel;
-
-    pure function to_sum_pixels(v : pixel_vector_t) return sum_pixel_vector_t is
-        variable ret : sum_pixel_vector_t(v'range);
-    begin
-        for i in v'range loop
-            ret(i) := to_sum_pixel(v(i));
+        for i in pixels'range loop
+            pixels(i) := unsigned(lpixels(i));
         end loop;
-        return ret;
-    end function to_sum_pixels;
+        return pixels;
+    end function to_pixels;
 
-    pure function "+" (lhs : sum_pixel_vector_t; rhs : sum_pixel_vector_t) return sum_pixel_vector_t is
-        variable sum : sum_pixel_vector_t(lhs'range);
+    pure function to_lpixels(pixels : pixel_vector_t) return lpixel_vector_t is
+        variable lpixels : lpixel_vector_t(pixels'range)(pixels(0)'range);
+    begin
+        for i in lpixels'range loop
+            lpixels(i) := std_logic_vector(pixels(i));
+        end loop;
+        return lpixels;
+    end function to_lpixels;
+
+    pure function resize_pixel(pixel : pixel_t; new_size : integer) return pixel_t is
+        variable re : pixel_t(new_size-1 downto 0) := (others => '0');
+        constant shared_size : integer := min_2(pixel'length, new_size);
+    begin
+        re(shared_size-1 downto 0) := pixel(shared_size-1 downto 0);
+        return re;
+    end function resize_pixel;
+
+    pure function resize_pixels(pixels : pixel_vector_t; new_size : integer) return pixel_vector_t is
+        variable re : pixel_vector_t(pixels'range)(new_size-1 downto 0);
+    begin
+        for i_pixel in pixels'range loop
+            re(i_pixel) := resize_pixel(pixels(i_pixel), new_size);
+        end loop;
+        return re;
+    end function resize_pixels;
+
+    pure function "+" (lhs : pixel_vector_t; rhs : pixel_vector_t) return pixel_vector_t is
+        variable sum : pixel_vector_t(rhs'range)(rhs(0)'range);
     begin
         for i in lhs'range loop
-            sum(i) := std_logic_vector(unsigned(lhs(i)) + unsigned(rhs(i)));
+            sum(i) := lhs(i) + rhs(i);
         end loop;
         return sum;
     end function "+";
-
-    pure function "/" (lhs : sum_pixel_vector_t; rhs : integer) return sum_pixel_vector_t is
-        variable quotient : sum_pixel_vector_t(lhs'range);
-    begin
-        for i in lhs'range loop
-            quotient(i) := std_logic_vector(unsigned(lhs(i)) / to_unsigned(rhs, lhs'length));
-        end loop;
-        return quotient;
-    end function "/";
-
-    pure function to_pixel(p : sum_pixel_t) return pixel_t is
-    begin
-        return pixel_t(p(PIXEL_BITS-1 downto 0));  -- TODO: fix this
-    end function to_pixel;
-
-    pure function to_pixels(v : sum_pixel_vector_t) return pixel_vector_t is
-        variable ret : pixel_vector_t(v'range)(PIXEL_BITS-1 downto 0);  -- TODO: fix this
-    begin
-        for i in v'range loop
-            ret(i) := to_pixel(v(i));
-        end loop;
-        return ret;
-    end function to_pixels;
 
     pure function initial_index(windows : window_vector_t) return fragment_idx_t is
         variable index : fragment_idx_t;
@@ -143,45 +137,45 @@ architecture rtl of row_collector is
     end function x_pos;
 
     pure function to_address(i : integer) return address_t is
-        begin
-            return std_logic_vector(to_unsigned(i, ADDRESS_BITS));
-        end function to_address;
-    
-        pure function to_address(index : fragment_idx_t; windows : window_vector_t) return address_t is
-            variable row_position : integer;
-            variable row_index : integer;
-            variable row_index_range : integer;
-            variable address_i : integer;
-        begin
-            assert x_pos(index, windows) >= 0;
-            row_index_range := max(index.rows_per_window);
-            row_index := x_pos(index, windows) rem row_index_range;
-            address_i :=  row_index_range * index.fragments_per_row * index.window
-                        + index.fragments_per_row * row_index
-                        + index.fragment;
-            return to_address(address_i);
-        end function to_address;
+    begin
+        return std_logic_vector(to_unsigned(i, ADDRESS_BITS));
+    end function to_address;
+
+    pure function to_address(index : fragment_idx_t; windows : window_vector_t) return address_t is
+        variable row_position : integer;
+        variable row_index : integer;
+        variable row_index_range : integer;
+        variable address_i : integer;
+    begin
+        assert x_pos(index, windows) >= 0;
+        row_index_range := max_n(index.rows_per_window);
+        row_index := x_pos(index, windows) rem row_index_range;
+        address_i :=  row_index_range * index.fragments_per_row * index.window
+                    + index.fragments_per_row * row_index
+                    + index.fragment;
+        return to_address(address_i);
+    end function to_address;
 
     -- Pipeline stage 0 output
-    signal fragment_p0 : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
-    signal index_p0 : fragment_idx_t;
-    signal p0_done : std_logic;
+    signal fragment_p0  : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+    signal index_p0     : fragment_idx_t;
+    signal p0_done      : std_logic;
     -- Pipeline stage 1 output
-    signal fragment_p1 : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
-    signal index_p1 : fragment_idx_t;
-    signal p1_done : std_logic;
+    signal fragment_p1  : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+    signal index_p1     : fragment_idx_t;
+    signal p1_done      : std_logic;
     -- Pipeline stage 2 output
-    signal fragment_p2 : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
-    signal index_p2 : fragment_idx_t;
-    signal p2_done : std_logic;
+    signal fragment_p2  : fragment_t(FRAGMENT_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
+    signal index_p2     : fragment_idx_t;
+    signal p2_done      : std_logic;
 
     -- RAM signals
-    signal read_data : sum_pixel_vector_t(FRAGMENT_WIDTH-1 downto 0);
-    signal read_address : address_t;
-    signal read_enable : std_logic;
-    signal write_data : sum_pixel_vector_t(FRAGMENT_WIDTH-1 downto 0);
-    signal write_address : address_t;
-    signal write_enable : std_logic;
+    signal read_data        : lpixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
+    signal read_address     : address_t;
+    signal read_enable      : std_logic;
+    signal write_data       : lpixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
+    signal write_address    : address_t;
+    signal write_enable     : std_logic;
 
     signal windows : window_vector_t(N_WINDOWS-1 downto 0);
     signal image_length : integer;
@@ -222,8 +216,7 @@ begin
             if start = '1' then
                 index := initial_index(windows);
                 max_x := image_length - 1;
-            end if;
-            if fragment_available = '1' then
+            elsif fragment_available = '1' then
                 -- Filter out rows outside of image boundaries
                 x := x_pos(index, windows);
                 if 0 <= x and x <= max_x then
@@ -258,7 +251,7 @@ begin
     -- by adding this fragment to it. Write the result back into RAM. Possibly compute the
     -- average from the sum and export it to the next pipeline stage.
     p2 : process
-        variable sum : sum_pixel_vector_t(fragment_p1'range);
+        variable sum : row_t(fragment_p1'range)(ROW_PIXEL_BITS-1 downto 0);
     begin
         wait until rising_edge(clock);
 
@@ -270,19 +263,19 @@ begin
             if p1_done = '1' then
                 -- Add to running sum
                 if index_p1.row = 0 then
-                    sum := to_sum_pixels(fragment_p1);
+                    sum := resize_pixels(fragment_p1, ROW_PIXEL_BITS);
                 else
-                    sum := to_sum_pixels(fragment_p1) + read_data;
+                    sum := resize_pixels(fragment_p1, ROW_PIXEL_BITS) + to_pixels(read_data);
                 end if;
 
                 -- Write new running sum to RAM
                 write_address <= to_address(index_p1, windows);
-                write_data <= sum;
+                write_data <= to_lpixels(sum);
                 write_enable <= '1';
 
                 -- If this is the last row of the window, compute the average from the sum
                 if is_last_row(index_p1) then
-                    fragment_p2 <= to_pixels(sum / window_size(index_p1));
+                    fragment_p2 <= sum;
                     index_p2 <= index_p1;
                     p2_done <= '1';
                 end if;
@@ -329,7 +322,7 @@ begin
     generate_RAM : for i in 0 to FRAGMENT_WIDTH-1 generate
 
         RAM : row_buffer generic map (
-            WORD_SIZE => SUM_BITS,
+            WORD_SIZE => ROW_PIXEL_BITS,
             ADDRESS_SIZE => ADDRESS_BITS
         ) port map (
             clock => clock,
