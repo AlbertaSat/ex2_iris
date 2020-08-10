@@ -24,7 +24,9 @@ use lpm.lpm_components.all;
 
 entity idivide is
 generic (
-    N_CLOCKS : integer := 4
+    N_CLOCKS : integer := 4;
+    NUMERATOR_BITS : integer := 32;
+    DENOMINATOR_BITS : integer := 32
 );
 port (
     clock   : in std_logic;
@@ -47,8 +49,8 @@ architecture rtl of idivide is
         lpm_nrepresentation : string := "SIGNED";
         lpm_pipeline        : natural := N_CLOCKS;
         lpm_type            : string := "LPM_DIVIDE";
-        lpm_widthd          : natural := 32;
-        lpm_widthn          : natural := 32
+        lpm_widthd          : natural := DENOMINATOR_BITS;
+        lpm_widthn          : natural := NUMERATOR_BITS
     );
     port (
         clock       : in std_logic;
@@ -72,15 +74,15 @@ architecture rtl of idivide is
     end component n_delay;
     
 
-    signal q_logic : std_logic_vector(31 downto 0);
+    signal q_logic : std_logic_vector(NUMERATOR_BITS-1 downto 0);
 
 begin
 
     compute_quotient : LPM_DIVIDE port map (
         clock => clock,
         aclr => not reset_n,
-        numer => std_logic_vector(to_signed(n, 32)),
-        denom => std_logic_vector(to_signed(d, 32)),
+        numer => std_logic_vector(to_signed(n, NUMERATOR_BITS)),
+        denom => std_logic_vector(to_signed(d, DENOMINATOR_BITS)),
         quotient => q_logic
     );
     q <= to_integer(signed(q_logic));
@@ -156,20 +158,29 @@ architecture rtl of imultiply is
 
 begin
 
-    compute_product : LPM_MULT port map (
-        clock => clock,
-        aclr => not reset_n,
-        dataa => std_logic_vector(to_signed(a, 32)),
-        datab => std_logic_vector(to_signed(b, 32)),
-        result => p_logic
-    );
+    gen : if N_CLOCKS = 0 generate
+        compute_product : LPM_MULT port map (
+            dataa => std_logic_vector(to_signed(a, 32)),
+            datab => std_logic_vector(to_signed(b, 32)),
+            result => p_logic
+        );
+        done <= start;
+    else generate
+        compute_product : LPM_MULT port map (
+            clock => clock,
+            aclr => not reset_n,
+            dataa => std_logic_vector(to_signed(a, 32)),
+            datab => std_logic_vector(to_signed(b, 32)),
+            result => p_logic
+        );
+        delay : n_delay port map (
+            clock => clock,
+            reset_n => reset_n,
+            i => start,
+            o => done
+        );
+    end generate;
+    
     p <= to_integer(signed(p_logic));
-
-    delay : n_delay port map (
-        clock => clock,
-        reset_n => reset_n,
-        i => start,
-        o => done
-    );
-
+    
 end architecture rtl;

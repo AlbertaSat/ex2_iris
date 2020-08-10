@@ -60,7 +60,9 @@ architecture rtl of calc_frame_request_offset is
 
     component idivide is
     generic (
-        N_CLOCKS : integer := 4
+        N_CLOCKS : integer;
+        NUMERATOR_BITS : integer;
+        DENOMINATOR_BITS : integer
     );
     port (
         clock   : in std_logic;
@@ -76,7 +78,7 @@ architecture rtl of calc_frame_request_offset is
 
     component imultiply is
     generic (
-        N_CLOCKS : integer := 1
+        N_CLOCKS : integer
     );
     port (
         clock   : in std_logic;
@@ -100,27 +102,40 @@ architecture rtl of calc_frame_request_offset is
     signal clocks_per_frame : integer;
     signal done_clocks_per_frame : std_logic;
     
+    signal clocks_per_exposure_1000 : integer;
+    signal done_clocks_per_exposure_1000 : std_logic;
+
     signal clocks_per_exposure : integer;
     signal done_clocks_per_exposure : std_logic;
     
 begin
 
-    calc_clocks_per_frame : idivide port map (
+    calc_clocks_per_frame : idivide generic map (4, 32, 10) port map (
         clock => clock, reset_n => reset_n,
         n => CLOCKS_PER_SEC, d => fps,
         q => clocks_per_frame,
         start => start, done => done_clocks_per_frame
     );
 
-    calc_clocks_per_exposure : idivide port map (
+    calc_clocks_per_exposure_1000 : imultiply generic map (0) port map (
         clock => clock, reset_n => reset_n,
-        n => CLOCKS_PER_SEC * exposure_time, d => 1000,
-        q => clocks_per_exposure,
-        start => done_clocks_per_frame, done => done_clocks_per_exposure
+        a => exposure_time, b => CLOCKS_PER_SEC,
+        p => clocks_per_exposure_1000,
+        start => done_clocks_per_frame, done => done_clocks_per_exposure_1000
     );
 
+    calc_clocks_per_exposure : idivide generic map (4, 32, 10) port map (
+        clock => clock, reset_n => reset_n,
+        n => clocks_per_exposure_1000, d => 1000,
+        q => clocks_per_exposure,
+        start => done_clocks_per_exposure_1000, done => done_clocks_per_exposure
+    );
 
-    offset <= clocks_per_exposure - EXTRA_EXPOSURE_CLOCKS;
-    done <= done_clocks_per_exposure;
+    process
+    begin
+        wait until rising_edge(clock);
+        offset <= clocks_per_exposure - EXTRA_EXPOSURE_CLOCKS;
+        done <= done_clocks_per_exposure;
+    end process;
 
 end architecture rtl;

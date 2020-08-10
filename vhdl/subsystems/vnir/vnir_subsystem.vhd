@@ -85,6 +85,11 @@ architecture rtl of vnir_subsystem is
     end component delay_until;
 
     component idivide is
+    generic (
+        N_CLOCKS : integer := 4;
+        NUMERATOR_BITS : integer := 32;
+        DENOMINATOR_BITS : integer := 32
+    );
     port (
         clock   : in std_logic;
         reset_n : in std_logic;
@@ -382,7 +387,7 @@ begin
     );
     imaging_done <= imaging_done_s;
 
-    calc_image_length : idivide port map (
+    calc_image_length : idivide generic map (4, 32, 10) port map (
         clock => clock,
         reset_n => reset_n,
         n => image_config_reg.duration * image_config_reg.fps,
