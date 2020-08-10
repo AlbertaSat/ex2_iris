@@ -46,9 +46,9 @@ architecture tests of row_collector_tb is
     signal read_config          : std_logic := '0';
     signal start                : std_logic := '0';
     signal done                 : std_logic := '0';
-    signal fragment             : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+    signal fragment             : pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
 	signal fragment_available   : std_logic := '0';
-    signal row                  : row_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
+    signal row                  : pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
     signal row_window           : integer;
 
     component row_collector is
@@ -66,14 +66,14 @@ architecture tests of row_collector_tb is
         read_config         : in std_logic;
         start               : in std_logic;
         done                : out std_logic;
-        fragment            : in fragment_t;
+        fragment            : in pixel_vector_t;
         fragment_available  : in std_logic;
-        row                 : out row_t;
+        row                 : out pixel_vector_t;
         row_window          : out integer
     );
     end component row_collector;
 
-    procedure readline(file f : text; row : out row_t) is
+    procedure readline(file f : text; row : out pixel_vector_t) is
         variable f_line : line;
         variable pixel : integer;
     begin
@@ -152,7 +152,7 @@ begin
     gen_input : process
         constant N_FRAGMENTS : integer := ROW_WIDTH / FRAGMENT_WIDTH;
         variable tests_passed : boolean := true;
-        variable row : row_t(ROW_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+        variable row : pixel_vector_t(ROW_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
         file row_file : text open read_mode is OUT_DIR & "rows.out";
         file config_file : text open read_mode is OUT_DIR & "config.out";
         

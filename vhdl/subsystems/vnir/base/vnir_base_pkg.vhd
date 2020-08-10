@@ -23,18 +23,8 @@ use work.logic_types.all;
 
 package vnir_base is
 
-    -- constant PIXEL_BITS : integer       := 10;
-    -- constant FRAGMENT_WIDTH : integer   := 16;
-    -- constant ROW_WIDTH  : integer       := 2048;
-    -- constant N_WINDOWS : integer        := 3;
-    
     subtype pixel_t is unsigned;
     type pixel_vector_t is array(integer range <>) of pixel_t;
-
-    subtype fragment_t is pixel_vector_t;
-    
-    subtype row_t is pixel_vector_t;
-    type row_vector_t is array(integer range<>) of row_t;
 
     type window_t is record
         lo  : integer;

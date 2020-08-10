@@ -45,7 +45,7 @@ architecture tests of lvds_decoder_tb is
         lvds_control        : in std_logic;
         lvds_clock          : in std_logic;
         
-        fragment            : out fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+        fragment            : out pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
         fragment_control    : out control_t;
         fragment_available  : out std_logic
     );
@@ -109,7 +109,7 @@ architecture tests of lvds_decoder_tb is
     signal lvds_control : std_logic := '0';
     signal lvds_data    : std_logic_vector(FRAGMENT_WIDTH-1 downto 0);
     
-    signal fragment           : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+    signal fragment           : pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     signal fragment_control   : control_t;
     signal fragment_available : std_logic;
 

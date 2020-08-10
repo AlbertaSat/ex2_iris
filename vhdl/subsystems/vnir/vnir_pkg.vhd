@@ -32,7 +32,7 @@ package vnir is
     constant N_WINDOWS : integer := 3;
 
     subtype pixel_t is vnir_base.pixel_t(PIXEL_BITS-1 downto 0);
-    subtype row_t is vnir_base.row_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
+    subtype row_t is vnir_base.pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
     
     subtype window_t is vnir_base.window_t;
     subtype calibration_t is vnir_base.calibration_t;

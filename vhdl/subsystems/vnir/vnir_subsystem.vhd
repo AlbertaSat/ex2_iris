@@ -27,6 +27,7 @@ use work.sensor_configurer_defaults;
 use work.frame_requester_pkg;
 use work.vnir;
 
+
 entity vnir_subsystem is
 generic (
     CLOCKS_PER_SEC      : integer := 50000000;
@@ -83,17 +84,18 @@ architecture rtl of vnir_subsystem is
     );
     end component delay_until;
 
-    component divider is
+    component idivide is
     port (
-        clock       : in std_logic;
-        reset_n     : in std_logic;
-        numerator   : in integer;
-        denominator : in integer;
-        quotient    : out integer;
-        start       : in std_logic;
-        done        : out std_logic
+        clock   : in std_logic;
+        reset_n : in std_logic;
+        n       : in integer;
+        d       : in integer;
+        q       : out integer;
+        start   : in std_logic;
+        done    : out std_logic
     );
-    end component divider;
+    end component idivide;
+        
 
     component sensor_configurer is
     generic (
@@ -133,7 +135,7 @@ architecture rtl of vnir_subsystem is
         lvds_clock          : in std_logic;
         lvds_control        : in std_logic;
         lvds_data           : in std_logic_vector;
-        fragment            : out fragment_t;
+        fragment            : out pixel_vector_t;
         fragment_control    : out control_t;
         fragment_available  : out std_logic
     );
@@ -173,9 +175,9 @@ architecture rtl of vnir_subsystem is
         read_config         : in std_logic;
         start               : in std_logic;
         done                : out std_logic;
-        fragment            : in fragment_t;
+        fragment            : in pixel_vector_t;
         fragment_available  : in std_logic;
-        row                 : out row_t;
+        row                 : out pixel_vector_t;
         row_window          : out integer
     );
     end component row_collector;
@@ -204,7 +206,7 @@ architecture rtl of vnir_subsystem is
 
     signal row_collector_config : row_collector_pkg.config_t;
 
-    signal fragment                 : fragment_t(vnir.FRAGMENT_WIDTH-1 downto 0)(vnir.PIXEL_BITS-1 downto 0);
+    signal fragment                 : pixel_vector_t(vnir.FRAGMENT_WIDTH-1 downto 0)(vnir.PIXEL_BITS-1 downto 0);
     signal fragment_control         : control_t;
     signal fragment_available       : std_logic;
     
@@ -380,13 +382,12 @@ begin
     );
     imaging_done <= imaging_done_s;
 
-
-    calc_image_length : divider port map (
+    calc_image_length : idivide port map (
         clock => clock,
         reset_n => reset_n,
-        numerator => image_config_reg.duration * image_config_reg.fps,
-        denominator => 1000,
-        quotient => image_length,
+        n => image_config_reg.duration * image_config_reg.fps,
+        d => 1000,
+        q => image_length,
         start => start_calc_image_length,
         done => calc_image_length_done
     );

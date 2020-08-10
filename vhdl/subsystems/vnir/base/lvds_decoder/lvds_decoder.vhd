@@ -37,7 +37,7 @@ port (
     lvds_control        : in std_logic;
     lvds_clock          : in std_logic;
     
-    fragment            : out fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+    fragment            : out pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     fragment_control    : out control_t;
     fragment_available  : out std_logic
 );
@@ -108,7 +108,7 @@ architecture rtl of lvds_decoder is
         data_in_available   : in std_logic;
         from_fifo           : in std_logic_vector;
         align_done          : out std_logic;
-        fragment            : out fragment_t;
+        fragment            : out pixel_vector_t;
         fragment_control    : out control_t;
         fragment_available  : out std_logic
     );

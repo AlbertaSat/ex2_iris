@@ -43,10 +43,10 @@ port (
     start               : in std_logic;
     done                : out std_logic;
 
-    fragment            : in fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+    fragment            : in pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     fragment_available  : in std_logic;
 
-    row                 : out row_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
+    row                 : out pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
     row_window          : out integer
 );
 end entity row_collector;
@@ -157,15 +157,15 @@ architecture rtl of row_collector is
     end function to_address;
 
     -- Pipeline stage 0 output
-    signal fragment_p0  : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+    signal fragment_p0  : pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     signal index_p0     : fragment_idx_t;
     signal p0_done      : std_logic;
     -- Pipeline stage 1 output
-    signal fragment_p1  : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+    signal fragment_p1  : pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     signal index_p1     : fragment_idx_t;
     signal p1_done      : std_logic;
     -- Pipeline stage 2 output
-    signal fragment_p2  : fragment_t(FRAGMENT_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
+    signal fragment_p2  : pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
     signal index_p2     : fragment_idx_t;
     signal p2_done      : std_logic;
 
@@ -251,7 +251,7 @@ begin
     -- by adding this fragment to it. Write the result back into RAM. Possibly compute the
     -- average from the sum and export it to the next pipeline stage.
     p2 : process
-        variable sum : row_t(fragment_p1'range)(ROW_PIXEL_BITS-1 downto 0);
+        variable sum : pixel_vector_t(fragment_p1'range)(ROW_PIXEL_BITS-1 downto 0);
     begin
         wait until rising_edge(clock);
 

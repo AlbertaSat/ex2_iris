@@ -37,7 +37,7 @@ port (
     
     align_done          : out std_logic;
     
-    fragment            : out fragment_t;
+    fragment            : out pixel_vector_t;
     fragment_control    : out control_t;
     fragment_available  : out std_logic
 );
@@ -49,7 +49,7 @@ architecture rtl of lvds_decoder_out is
 
     signal from_fifo_is_aligned : std_logic;
     signal from_fifo_control : control_t;
-    signal from_fifo_fragment : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+    signal from_fifo_fragment : pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
 begin
     
     from_fifo_is_aligned <= from_fifo(FRAGMENT_BITS + PIXEL_BITS);

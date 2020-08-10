@@ -22,8 +22,8 @@ use work.vnir_base.all;
 
 package lvds_decoder_pkg is
 
-    pure function flatten(fragment : fragment_t) return std_logic_vector;
-    pure function unflatten_to_fragment(fragment_flat : std_logic_vector; PIXEL_BITS : integer) return fragment_t;
+    pure function flatten(fragment : pixel_vector_t) return std_logic_vector;
+    pure function unflatten_to_fragment(fragment_flat : std_logic_vector; PIXEL_BITS : integer) return pixel_vector_t;
 
     pure function rotate_right(bits : std_logic_vector; i : integer) return std_logic_vector;
     pure function calc_align_offset(control : std_logic_vector;
@@ -32,14 +32,14 @@ package lvds_decoder_pkg is
 
     pure function bitreverse(bits : std_logic_vector) return std_logic_vector;
     pure function bitreverse(bits : unsigned) return unsigned;
-    pure function bitreverse(fragment : fragment_t) return fragment_t;
+    pure function bitreverse(fragment : pixel_vector_t) return pixel_vector_t;
 
 end package lvds_decoder_pkg;
 
 
 package body lvds_decoder_pkg is
 
-    pure function flatten(fragment : fragment_t) return std_logic_vector is
+    pure function flatten(fragment : pixel_vector_t) return std_logic_vector is
         constant FRAGMENT_BITS : integer := fragment'length*fragment(0)'length;
         variable fragment_flat : std_logic_vector(FRAGMENT_BITS-1 downto 0);
     begin
@@ -52,9 +52,9 @@ package body lvds_decoder_pkg is
     end function flatten;
 
     pure function unflatten_to_fragment(fragment_flat : std_logic_vector; PIXEL_BITS : integer
-    ) return fragment_t is
+    ) return pixel_vector_t is
         constant FRAGMENT_WIDTH : integer := fragment_flat'length / PIXEL_BITS;
-        variable fragment : fragment_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+        variable fragment : pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     begin
         for i_pixel in fragment'range loop
             for i_bit in fragment(0)'range loop
@@ -96,8 +96,8 @@ package body lvds_decoder_pkg is
         return unsigned(bitreverse(std_logic_vector(bits)));
     end function bitreverse;
 
-    pure function bitreverse(fragment : fragment_t) return fragment_t is
-        variable fragment_reversed : fragment_t(fragment'range)(fragment(0)'range);
+    pure function bitreverse(fragment : pixel_vector_t) return pixel_vector_t is
+        variable fragment_reversed : pixel_vector_t(fragment'range)(fragment(0)'range);
     begin
         for i_pixel in fragment'range loop
             fragment_reversed(i_pixel) := bitreverse(fragment(i_pixel));
