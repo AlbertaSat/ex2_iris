@@ -110,7 +110,7 @@ architecture rtl of calc_frame_request_offset is
     
 begin
 
-    calc_clocks_per_frame : idivide generic map (4, 32, 10) port map (
+    calc_clocks_per_frame : idivide generic map (4, 32, 11) port map (
         clock => clock, reset_n => reset_n,
         n => CLOCKS_PER_SEC, d => fps,
         q => clocks_per_frame,
@@ -124,7 +124,7 @@ begin
         start => done_clocks_per_frame, done => done_clocks_per_exposure_1000
     );
 
-    calc_clocks_per_exposure : idivide generic map (4, 32, 10) port map (
+    calc_clocks_per_exposure : idivide generic map (4, 32, 11) port map (
         clock => clock, reset_n => reset_n,
         n => clocks_per_exposure_1000, d => 1000,
         q => clocks_per_exposure,

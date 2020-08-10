@@ -160,6 +160,8 @@ begin
 
     gen : if N_CLOCKS = 0 generate
         compute_product : LPM_MULT port map (
+            clock => '0',
+            aclr => '0',
             dataa => std_logic_vector(to_signed(a, 32)),
             datab => std_logic_vector(to_signed(b, 32)),
             result => p_logic

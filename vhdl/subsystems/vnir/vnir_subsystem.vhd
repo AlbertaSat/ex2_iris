@@ -387,7 +387,7 @@ begin
     );
     imaging_done <= imaging_done_s;
 
-    calc_image_length : idivide generic map (4, 32, 10) port map (
+    calc_image_length : idivide generic map (4, 32, 11) port map (
         clock => clock,
         reset_n => reset_n,
         n => image_config_reg.duration * image_config_reg.fps,
