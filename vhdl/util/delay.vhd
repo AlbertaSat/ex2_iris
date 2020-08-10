@@ -15,6 +15,46 @@
 ----------------------------------------------------------------
 
 
+-- Based on https://stackoverflow.com/questions/45218347/how-to-delay-a-signal-for-several-clock-cycles-in-vhdl
+
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+
+
+entity n_delay is
+generic (
+    DELAY_CLOCKS : integer
+);
+port (
+    clock   : in std_logic;
+    reset_n : in std_logic;
+    i       : in std_logic;
+    o       : out std_logic
+);
+end entity n_delay;
+
+
+architecture rtl of n_delay is
+begin
+
+    process
+        variable delay : std_logic_vector(DELAY_CLOCKS-1 downto 0);
+    begin
+        wait until rising_edge(clock);
+        if reset_n = '0' then
+            delay := (others => '0');
+        else
+            delay := i & delay(DELAY_CLOCKS-1 downto 1);
+        end if;
+        o <= delay(0);
+    end process;
+
+end architecture rtl;
+
+
 
 library ieee;
 use ieee.std_logic_1164.all;
