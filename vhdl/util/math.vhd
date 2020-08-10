@@ -80,7 +80,7 @@ begin
         clock => clock,
         aclr => not reset_n,
         numer => std_logic_vector(to_signed(n, 32)),
-        denom => std_logic_vector(to_signed(n, 32)),
+        denom => std_logic_vector(to_signed(d, 32)),
         quotient => q_logic
     );
     q <= to_integer(signed(q_logic));
