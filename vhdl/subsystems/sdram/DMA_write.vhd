@@ -27,7 +27,7 @@
 --		control_write_base (i/p): 		Word aligned byte address where the master will begin transferring data
 -- 		control_write_length (i/p): 	Number of bytes to transfer. This number must be a multiple of the
 --											data width in bytes (e.g. 32 bit data requires a multiple of 4)
---		control_go (i/p): 				One clock cycle strobe that instructs the master to begin transferring.
+--		control_go (o/p): 				One clock cycle strobe that instructs the master to begin transferring.
 --											The fixed_location, base, and length values are registered on this clock cycle
 --		control_done (o/p): 			Asserted and held when the master has transferred the last word of data.
 --											This occurs when the last write transfer completes or the last pending read returns.
@@ -121,7 +121,18 @@ architecture main of DMA_write is
 	signal burst_counter				: unsigned(BURSTCOUNTWIDTH-1 downto 0);
 	signal first_transfer				: std_logic;										-- need to keep track of the first burst so that we don't incorrectly increment the address
 	
-	signal reset						: std_logic := '0';
+	-- Signals added to facilitate writing certain bits of signals
+	signal burst_boundary_word_address_fullLength	: unsigned(ADDRESSWIDTH-1 downto 0);
+	signal final_short_burst_count_fullLength		: unsigned(ADDRESSWIDTH-1 downto 0);
+	-- Signals added to facilitate signal conversion
+	signal fifo_used_logic							: std_logic_vector(FIFODEPTH_LOG2-1 downto 0);
+	-- Signals added to allow "reading" of port output signals, which is not allowed until VHDL 2008
+	signal master_address_reg						: unsigned(ADDRESSWIDTH-1 downto 0);
+	signal master_burstcount_reg					: unsigned(BURSTCOUNTWIDTH-1 downto 0);
+	signal master_write_reg							: std_logic;
+	signal control_done_reg							: std_logic;
+	
+	signal test										: unsigned(3 downto 0) := (others=>'0');
 	
 	component scfifo
 	generic (
@@ -171,7 +182,7 @@ begin
 		lpm_numwords					=> FIFODEPTH,
 		lpm_showahead					=> "ON",
 		lpm_width						=> DATAWIDTH,
-		--lpm_widthu					: natural	:= 1;
+		lpm_widthu						=> FIFODEPTH_LOG2, 			-- ADDED!
 		overflow_checking				=> "OFF",
 		--ram_block_type				: string	:= "AUTO";
 		underflow_checking				=> "OFF",
@@ -191,7 +202,7 @@ begin
 		q								=> master_writedata,
 		rdreq							=> read_fifo,
 		sclr							=> '0', -- default value
-		usedw							=> std_logic_vector(fifo_used),
+		usedw							=> fifo_used_logic,
 		wrreq							=> user_write_buffer
 	);
 
@@ -236,15 +247,16 @@ begin
 	begin
 	
 		if (reset = '1') then
-			master_address <= (others => '0');
+			master_address_reg <= (others => '0');
 			
 		elsif (rising_edge(clk)) then
 		
 			if (control_go = '1') then
-				master_address <= control_write_base;
+				master_address_reg <= unsigned(control_write_base);
 			elsif ((first_transfer = '0') and (burst_begin = '1') and (control_fixed_location_d1 = '0')) then
 				  -- we don't want address + BYTEENABLEWIDTH for the first access
-				master_address <= std_logic_vector(unsigned(master_address) + (unsigned(master_burstcount) * BYTEENABLEWIDTH));
+				master_address_reg <= master_address_reg + (master_burstcount_reg *  to_unsigned(BYTEENABLEWIDTH,8));
+
 			end if;
 		
 		end if;
@@ -277,11 +289,11 @@ begin
 	begin
 	
 		if (reset = '1') then
-			master_burstcount <= (others => '0');
+			master_burstcount_reg <= (others => '0');
 			
 		elsif (rising_edge(clk)) then
 			if (burst_begin = '1') then
-				master_burstcount <= std_logic_vector(burst_count);
+				master_burstcount_reg <= burst_count;
 			end if;
 			
 		end if;
@@ -301,7 +313,7 @@ begin
 		elsif (rising_edge(clk)) then
 		
 			if (control_go = '1') then
-				burst_counter <= 0;
+				burst_counter <= (others=>'0');
 			elsif (burst_begin = '1') then
 				burst_counter <= burst_count;
 			elsif (increment_address = '1') then
@@ -312,50 +324,57 @@ begin
 		
 	end process;
 
-	reset <= not reset_n;
-	
+	-- Signals added to allow "reading" of port output signals, which is not allowed until VHDL 2008
+	fifo_used <= unsigned(fifo_used_logic);
+	master_address <= std_logic_vector(master_address_reg);
+	master_burstcount <= std_logic_vector(master_burstcount_reg);
+	control_done <= control_done_reg;
+	master_write <= master_write_reg;
 
 	-- burst boundaries are on the master "width * maximum burst count".  The burst boundary word address will be used to determine how far off the boundary the transfer starts from.
-	burst_boundary_word_address <= std_logic_vector((unsigned(master_address) / BYTEENABLEWIDTH)) and std_logic_vector(MAXBURSTCOUNT - 1);
+	burst_boundary_word_address_fullLength <= (master_address_reg / BYTEENABLEWIDTH) and (to_unsigned(MAXBURSTCOUNT - 1, master_address_reg'length));
+	burst_boundary_word_address <= burst_boundary_word_address_fullLength(BURSTCOUNTWIDTH-1 downto 0);
 	
 	-- first short burst enable will only be active on the first transfer (if applicable).  It will either post the amount of words remaining to reach the end of the burst
 	-- boundary or post the remainder of the transfer whichever is shorter.  If the transfer is very short and not aligned on a burst boundary then the same logic as the final short transfer is used
-	first_short_burst_enable <= (burst_boundary_word_address /= 0) & (first_transfer = '1');
+	first_short_burst_enable <= '1' when (burst_boundary_word_address /= 0) and (first_transfer = '1') else '0';
 	-- if the burst boundary isn't a multiple of 2 then must post a burst of 1 to get to a multiple of 2 for the next burst
-	first_short_burst_count <= '1' when burst_boundary_word_address(0) = '1' else
+	first_short_burst_count <= to_unsigned(1, first_short_burst_count'length) when burst_boundary_word_address(0) = '1' else
 								(MAXBURSTCOUNT - burst_boundary_word_address) when (MAXBURSTCOUNT - burst_boundary_word_address) < (length_v/BYTEENABLEWIDTH) else
 								final_short_burst_count;
-	first_short_burst_ready <= (fifo_used > first_short_burst_count) or ((fifo_used = first_short_burst_count) and (burst_counter = 0));
+	first_short_burst_ready <= '1' when (fifo_used > first_short_burst_count) or ((fifo_used = first_short_burst_count) and (burst_counter = 0)) else '0';
 	
 	-- when there isn't enough data for a full burst at the end of the transfer a short burst is sent out instead
-	final_short_burst_enable <= length_v < (MAXBURSTCOUNT*BYTEENABLEWIDTH);
-	final_short_burst_count <= (length_v/BYTEENABLEWIDTH);
+	final_short_burst_enable <= '1' when length_v < (MAXBURSTCOUNT*BYTEENABLEWIDTH) else '0';
+	final_short_burst_count_fullLength <= (length_v/BYTEENABLEWIDTH);
+	final_short_burst_count <= final_short_burst_count_fullLength(BURSTCOUNTWIDTH-1 downto 0);
 	-- this will add a one cycle stall between bursts, since fifo_used has a cycle of latency, this only affects the last burst
-	final_short_burst_ready <= (fifo_used > final_short_burst_count) or ((fifo_used = final_short_burst_count) and (burst_counter = 0));
+	final_short_burst_ready <= '1' when (fifo_used > final_short_burst_count) or ((fifo_used = final_short_burst_count) and (burst_counter = 0)) else '0';
 	
 	-- since the fifo has a latency of 1 we need to make sure we don't under flow
 	-- when fifo used watermark equals the burst count the statemachine must stall for one cycle, this will make sure that when a burst begins there really is enough data present in the FIFO
-	full_burst_ready <= (fifo_used > MAXBURSTCOUNT) or ((fifo_used = MAXBURSTCOUNT) and (burst_counter = 0));
+	full_burst_ready <= '1' when (fifo_used > MAXBURSTCOUNT) or ((fifo_used = MAXBURSTCOUNT) and (burst_counter = 0)) else '0';
 	
 	-- all ones, always performing word size accesses
 	master_byteenable <= (others=>'1');
-	control_done <= (length_v = 0);
+	control_done_reg <= '1' when (length_v = 0) else '0';
 	-- burst_counter = 0 means the transfer is done, or not enough data in the fifo for a new burst
-	master_write <= (control_done = '0') and (burst_counter /= 0);
+	master_write_reg <= '1' when (control_done_reg = '0') and (burst_counter /= 0) else '0';
 	
-	burst_begin <= (((first_short_burst_enable = '1') and (first_short_burst_ready = '1'))
+	burst_begin <= '1' when (((first_short_burst_enable = '1') and (first_short_burst_ready = '1'))
 						or ((final_short_burst_enable = '1') and (final_short_burst_ready = '1'))
 						or (full_burst_ready = '1'))
-						and (control_done = '0') -- since the FIFO can have data before the master starts we need to disable this bit from firing when length = 0
-						and ((burst_counter = 0) or ((burst_counter = 1) and (master_waitrequest = '0') and (length_v > (MAXBURSTCOUNT * BYTEENABLEWIDTH))));  -- need to make a short final burst doesn't start right after a full burst completes.
+						and (control_done_reg = '0') -- since the FIFO can have data before the master starts we need to disable this bit from firing when length = 0
+						and ((burst_counter = 0) or ((burst_counter = 1) and (master_waitrequest = '0') and (length_v > (MAXBURSTCOUNT * BYTEENABLEWIDTH)))) -- need to make a short final burst doesn't start right after a full burst completes.
+						else '0';
 	
 	-- alignment correction gets priority, if the transfer is short and unaligned this will cover both
 	burst_count <= first_short_burst_count when first_short_burst_enable = '1' else
 					final_short_burst_count when final_short_burst_enable = '1' else
-					MAXBURSTCOUNT;
+					to_unsigned(MAXBURSTCOUNT, burst_count'length);
 					
 	-- writing is occuring without wait states
-	increment_address <= (master_write = '1') and (master_waitrequest = '0');
+	increment_address <= '1' when (master_write_reg = '1') and (master_waitrequest = '0') else '0';
 	read_fifo <= increment_address;
 	
 	
