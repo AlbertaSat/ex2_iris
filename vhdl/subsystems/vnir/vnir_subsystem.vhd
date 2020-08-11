@@ -47,3 +47,7 @@ entity vnir_subsystem is
         lvds            : in vnir_lvds_t
     );
 end entity vnir_subsystem;
+
+architecture rtl of vnir_subsystem is
+begin
+end architecture;

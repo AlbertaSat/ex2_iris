@@ -33,7 +33,7 @@ entity fpga_subsystem is
         vnir_config_done         : in std_logic;
         swir_config              : out swir_config_t;
         swir_config_done         : in std_logic;
-        sdram_config_in          : in sdram_config_from_sdram_t;
+        sdram_config_in          : in sdram_partitions_t;
         sdram_config_out         : out sdram_config_to_sdram_t;
         sdram_config_done        : in std_logic;
 
@@ -49,3 +49,7 @@ entity fpga_subsystem is
         imaging_duration         : in integer
     );
 end entity fpga_subsystem;
+
+architecture rtl of fpga_subsystem is
+begin
+end architecture;

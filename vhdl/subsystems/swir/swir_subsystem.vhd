@@ -42,3 +42,7 @@ entity swir_subsystem is
         video           : in std_logic
     );
 end entity swir_subsystem;
+
+architecture rtl of swir_subsystem is
+begin
+end architecture;
