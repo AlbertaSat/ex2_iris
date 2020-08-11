@@ -35,8 +35,8 @@ entity header_creator is
         timestamp       : in timestamp_t;
 
         --Header rows
-        swir_img_header : out std_logic_vector (159 downto 0);
-        vnir_img_header : out std_logic_vector (159 downto 0);
+        swir_img_header : out sdram_header_t;
+        vnir_img_header : out sdram_header_t;
 
         -- Number of rows being created by the imagers
         vnir_rows       : in integer;

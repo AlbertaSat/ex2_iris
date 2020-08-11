@@ -22,6 +22,8 @@ use work.fpga_types.all;
 package sdram_types is
     subtype sdram_address is unsigned (31 downto 0);
     type sdram_address_block_t is array (0 to 1) of sdram_address;
+
+    subtype sdram_header_t is std_logic_vector (159 downto 0);
     
     type sdram_error_t is (no_error, full, mpu_check_failed);
 
@@ -42,10 +44,10 @@ package sdram_types is
     end record partition_t;
 
     constant UNDEFINED_PARTITION : partition_t := (
-        base => 0,
-        bounds => 0,
-        fill_base => 0,
-        fill_bounds => 0);
+        base => to_unsigned(0, 32),
+        bounds => to_unsigned(0, 32),
+        fill_base => to_unsigned(0, 32),
+        fill_bounds => to_unsigned(0, 32));
 
     type sdram_partitions_t is record
         vnir        : partition_t;
