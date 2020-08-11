@@ -32,23 +32,24 @@ entity partition_register is
 end entity partition_register;
 
 architecture rtl of partition_register is
-    type state_t is (init, idle, add_address, sub_address);
+    type state_t is (init, operating);
     signal state, next_state : state_t;
 
     --This signal allows the register to see what's in the part_out signal
     signal buffer_part : partition_t;
 
     --These signals are combinational, and can be written to at any time
-    signal buffer_base, buffer_bounds : sdram_address;
+    signal buffer_base, buffer_bounds           : sdram_address;
     signal buffer_fill_base, buffer_fill_bounds : sdram_address;
+    signal buffer_img_start, buffer_img_end     : sdram_address;
 
     --A flag saying the partition cannot be added to
-    signal no_add : std_logic;
+    signal no_add, no_sub : std_logic;
 
     --Checks if the image will overflow the position, returns 1 if it does
-    function check_overflow(partition : partition_t, address_size : sdram_address) return std_logic is
+    function check_overflow(partition : partition_t; address_size : sdram_address) return std_logic is
     begin
-        if (partition.filled_bounds + address_size > partition.bounds) then
+        if (partition.fill_bounds + address_size > partition.bounds) then
             return '1';
         else
             return '0';
@@ -56,7 +57,7 @@ architecture rtl of partition_register is
     end function check_overflow;
     
     --Checks if the image won't fit in the memory because it is too full, returns 1 if it does
-    function check_full(partition : partition_t, address_size : sdram_address, start_address : sdram_address) return std_logic is
+    function check_full(partition : partition_t; address_size : sdram_address; start_address : sdram_address) return std_logic is
     begin
         if (start_address <= partition.fill_base and start_address + address_size >= partition.fill_base) then
             return '1';
@@ -66,58 +67,58 @@ architecture rtl of partition_register is
     end function check_full;
 begin
     --Combinitorial process specifying signal assignments
-    state_process : process(state, add_length, sub_length, base, bounds) is
+    state_process : process(state, add_length, sub_length, base, bounds, bounds_write) is
     begin
         case state is
             when init =>
                 buffer_base <= base;
                 buffer_bounds <= bounds;
+                buffer_fill_base <= base;
+                buffer_fill_bounds <= base;
 
-            when idle => null;
+                if (bounds_write = '1') then
+                    next_state <= operating;
+                else
+                    next_state <= init;
+                end if;
 
             --When adding stuff to the memory
-            when add_address =>
-                --Some complicated conditional checking (yay!)
-                if (buffer_part.fill_base < buffer_part.fill_bounds) then
+            when operating =>
+                --Some conditional checking to see if the partition can write or not
+                if (buffer_part.fill_base <= buffer_part.fill_bounds) then
                     if (check_overflow(buffer_part, add_length) = '1') then
                         if (check_full(buffer_part, add_length, buffer_part.base) = '1') then
-                            full <= '1';
-                            no_add = '1';
+                            no_add <= '1';
                         else
                             buffer_fill_bounds <= buffer_part.base + 1 + add_length;
-                            img_start <= buffer_part.base + 1;
-                            img_end <= buffer_part.base + 1 + add_length;
+                            buffer_img_start <= buffer_part.base + 1;
+                            buffer_img_end <= buffer_part.base + 1 + add_length;
                         end if;
                     else
                         --No need to check if it's full, the overflow did that already
                         buffer_fill_bounds <= buffer_part.fill_bounds + 1 + add_length;
-                        img_start <= buffer_part.fill_bounds + 1;
-                        img_end <= buffer_part.fill_bounds + 1 + add_length;
+                        buffer_img_start <= buffer_part.fill_bounds + 1;
+                        buffer_img_end <= buffer_part.fill_bounds + 1 + add_length;
                     end if;
                 else
                     --Just need to check if it's full for this case
                     if (check_full(buffer_part, add_length, buffer_part.fill_bounds) = '1') then
-                        full = '1';
-                        no_add = '1';
+                        no_add <= '1';
                     else
                         buffer_fill_bounds <= buffer_part.fill_bounds + 1 + add_length;
-                        img_start <= buffer_part.fill_bounds + 1;
-                        img_end <= buffer_part.fill_bounds + 1 + add_length;
+                        buffer_img_start <= buffer_part.fill_bounds + 1;
+                        buffer_img_end <= buffer_part.fill_bounds + 1 + add_length;
                     end if;
                 end if;
-
-            --When taking stuff outta the memory
-            when sub_address =>
+                
+                --Some conditional logic (not as complex) to see whether or not the erase request is good
                 if (buffer_part.fill_base + sub_length > buffer_part.fill_bounds) then
-                    bad_mpu_check <= '1';
+                    no_sub <= '1';
                 else
                     buffer_fill_base <= buffer_part.fill_base + sub_length;
                 end if;
 
-                if (no_add = '1') then
-                    no_add <= '0';
-                    full <= '0';
-                end if;
+                next_state <= operating;
         end case;
     end process;
 
@@ -138,42 +139,39 @@ begin
 
         elsif rising_edge(clk) then
             state <= next_state;
-            buffer_part.base <= buffer_base;
-            buffer_part.bounds <= buffer_bounds;
-            buffer_part.fill_base <= buffer_fill_base;
-            buffer_part.fill_bounds <= buffer_fill_bounds;
+            full <= '0';
+            bad_mpu_check <= '0';
 
-            part_out.base <= buffer_base;
-            part_out.bounds <= buffer_bounds;
-            part_out.fill_base <= buffer_fill_base;
-            part_out.fill_bounds <= buffer_fill_bounds;
+            if (state = init and bounds_write = '1') then
+                buffer_part.base <= buffer_base;
+                buffer_part.bounds <= buffer_bounds;
+                buffer_part.fill_base <= buffer_fill_base;
+                buffer_part.fill_bounds <= buffer_fill_bounds;
+
+                part_out.base <= buffer_base;
+                part_out.bounds <= buffer_bounds;
+                part_out.fill_base <= buffer_fill_base;
+                part_out.fill_bounds <= buffer_fill_bounds;
+
+            elsif (state = operating and filled_add = '1') then
+                if (no_add = '1') then
+                    full <= '1';
+                else
+                    part_out.fill_bounds <= buffer_fill_bounds;
+                    buffer_part.fill_bounds <= buffer_fill_bounds;
+
+                    img_start <= buffer_img_start;
+                    img_end <= buffer_img_end;
+                end if;
+            
+            elsif (state = operating and filled_subtract = '1') then
+                if (no_sub = '1') then
+                    bad_mpu_check <= '1';
+                else
+                    part_out.fill_base <= buffer_fill_base;
+                    buffer_part.fill_base <= buffer_fill_base;
+                end if;
+            end if;
         end if;
-    end process;
-
-    --Describes when to change the states
-    state_change : process (clk, reset_n) is
-    begin
-        case state is
-            when init =>
-                if (bounds_write = '1') then
-                    next_state <= idle;
-                else
-                    next_state <= init;
-                end if;
-            when idle =>
-                if (filled_add = '1' and no_add /= '1') then
-                    next_state <= add_address;
-                elsif (filled_subtract = '1') then
-                    next_state <= sub_address;
-                else
-                    next_state <= idle;
-                end if;
-            when add_address =>
-                --Will only take one clock cycle
-                next_state <= idle;
-            when sub_address =>
-                --This should only take one clock cycle
-                next_state <= idle;
-        end case;
     end process;
 end architecture;
