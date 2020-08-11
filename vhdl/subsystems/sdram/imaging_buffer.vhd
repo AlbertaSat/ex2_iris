@@ -50,4 +50,4 @@ end entity imaging_buffer;
 architecture rtl of imaging_buffer is
 
 begin
-    
+end architecture;

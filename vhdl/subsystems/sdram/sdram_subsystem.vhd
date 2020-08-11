@@ -50,7 +50,7 @@ entity sdram_subsystem is
         img_config_done     : out std_logic;
         
         sdram_busy          : out std_logic;
-        sdram_error         : out stdram_error_t;
+        sdram_error         : out sdram_error_t;
         
         sdram_avalon_out    : out avalonmm_rw_from_master_t;
         sdram_avalon_in     : in avalonmm_rw_to_master_t
@@ -77,7 +77,7 @@ architecture rtl of sdram_subsystem is
             number_vnir_rows    : in natural;
 
             --Ouput image row address config
-            next_row_type       : in sdram_next_row_fed;
+            next_row_type       : in sdram_next_row_fed_t;
             row_address         : out unsigned (31 downto 0);
 
             --Read data to be read from sdram due to mpu interaction
