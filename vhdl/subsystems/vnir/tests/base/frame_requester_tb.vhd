@@ -46,7 +46,7 @@ architecture tests of frame_requester_tb is
     component frame_requester is
     generic (
         FRAGMENT_WIDTH      : integer := FRAGMENT_WIDTH;
-        clocks_per_sec      : integer
+        CLOCKS_PER_SEC      : integer
     );
     port (
         clock               : in std_logic;
@@ -60,52 +60,109 @@ architecture tests of frame_requester_tb is
         frame_request       : out std_logic;
         exposure_start      : out std_logic
     ); 
-	end component frame_requester;
+    end component frame_requester;
+    
+    pure function in_range(x : time; low : time; high : time) return boolean is
+    begin
+        return low <= x and x <= high;
+    end function in_range;
+
+    constant CLOCK_PERIOD : time := 20 ns;
+    constant CLOCKS_PER_SEC : integer := 50000000;
+
+    constant SCLOCK_PERIOD : time := 20.83333 ns;
+    constant SCLOCKS_PER_SEC : integer := 48000000;
 
 begin
 
-    debug : process (frame_request, do_imaging)
+    debug : process
     begin
-        if rising_edge(do_imaging) then
-            report "Detected do_imaging rising edge";
+        wait until rising_edge(clock);
+        if do_imaging = '1' then
+            report "Detected do_imaging = 1";
         end if;
-        if rising_edge(frame_request) then
-            report "Detected frame_request rising edge";
+        if frame_request = '1' then
+            report "Detected frame_request = 1";
+        end if;
+        if exposure_start = '1' then
+            report "Detected exposure_start = 1";
         end if;
     end process debug;
 
     clock_gen : process
-        constant PERIOD : time := 20 ns;
 	begin
-		wait for PERIOD / 2;
+		wait for CLOCK_PERIOD / 2;
 		clock <= not clock;
     end process clock_gen;
     
     sensor_clock_gen : process
-        constant PERIOD : time := 0.02083 us;
     begin
-        wait for PERIOD / 2;
+        wait for SCLOCK_PERIOD / 2;
         sensor_clock <= not sensor_clock;
     end process sensor_clock_gen;
     
-	test : process
+    test : process
+        constant EXTRA_EXPOSURE_TIME : time := (129.0*0.43*20.0) * SCLOCK_PERIOD * 0.0;
+        variable i_frame : integer;
+        variable i_exposure : integer;
+        variable last_exposure : time := 0 ns;
+        variable first_frame : time := 0 ns;
+        variable frame_time : time := 0 ns;
+        variable exposure_time : time := 0 ns;
+        variable exit_time : time := 0 ns;
     begin
         
         reset_n <= '0'; wait until rising_edge(clock); reset_n <= '1';
-        
         config <= (num_frames => 5, fps => 100, exposure_time => 5);
         start_config <= '1'; wait until rising_edge(clock); start_config <= '0';
         wait until rising_edge(clock) and config_done = '1';
 
         do_imaging <= '1'; wait until rising_edge(clock); do_imaging <= '0';
         
-        wait until rising_edge(clock) and imaging_done = '1';
+        i_frame := 0;
+        i_exposure := 0;
+        while exit_time = 0 ns or now < exit_time loop
+            wait until rising_edge(clock);
+
+            if frame_request = '1' then
+                assert exposure_start = '0';
+
+                if last_exposure /= 0ns then
+                    exposure_time := now - last_exposure + EXTRA_EXPOSURE_TIME;
+                    report "Exposure time = " & time'image(exposure_time);
+                    -- assert in_range(exposure_time, 5 ms - CLOCK_PERIOD, 5 ms + CLOCK_PERIOD);
+                end if;
+                if first_frame /= 0ns then
+                    frame_time := (now - first_frame);
+                    report "Frame time = " & time'image(frame_time / i_frame);
+                    assert in_range(frame_time, i_frame * 10 ms - CLOCK_PERIOD,  i_frame * 10 ms + CLOCK_PERIOD);
+                else
+                    first_frame := now;
+                end if;
+                i_frame := i_frame + 1;
+            end if;
+            
+            if exposure_start = '1' then
+                assert frame_request = '0';
+
+                last_exposure := now;
+                i_exposure := i_exposure + 1;
+            end if;
+
+            if imaging_done = '1' then
+                exit_time := now + 5 * CLOCK_PERIOD;
+            end if;
+
+        end loop;
+
+        assert i_frame = 5;
+        assert i_exposure = 5;
         stop;
 
 	end process test;
 
     frame_requester_component : frame_requester generic map (
-        clocks_per_sec => 50000000
+        CLOCKS_PER_SEC => CLOCKS_PER_SEC
     ) port map(
         clock => clock,
         reset_n => reset_n,

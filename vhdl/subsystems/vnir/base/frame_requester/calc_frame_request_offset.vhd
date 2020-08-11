@@ -93,7 +93,7 @@ architecture rtl of calc_frame_request_offset is
 
     constant CLOCKS_PER_SCLOCKS : real := real(CLOCKS_PER_SEC) / real(SCLOCKS_PER_SEC);
     constant EXTRA_EXPOSURE_CLOCKS : integer := integer(
-        129.0 * 0.43 * 20.0 * CLOCKS_PER_SCLOCKS
+        129.0 * 0.43 * 20.0 * CLOCKS_PER_SCLOCKS * 0.0
     );
     constant FOT_CLOCKS : integer := integer(
         (20.0 + 2.0 * 16.0 / real(FRAGMENT_WIDTH)) * CLOCKS_PER_SCLOCKS
@@ -110,18 +110,18 @@ architecture rtl of calc_frame_request_offset is
     
 begin
 
-    calc_clocks_per_frame : idivide generic map (4, 32, 11) port map (
+    calc_clocks_per_frame : idivide generic map (5, 32, 11) port map (
         clock => clock, reset_n => reset_n,
         n => CLOCKS_PER_SEC, d => fps,
         q => clocks_per_frame,
         start => start, done => done_clocks_per_frame
     );
 
-    calc_clocks_per_exposure_1000 : imultiply generic map (0) port map (
+    calc_clocks_per_exposure_1000 : imultiply generic map (1) port map (
         clock => clock, reset_n => reset_n,
-        a => exposure_time, b => CLOCKS_PER_SEC,
+        a => CLOCKS_PER_SEC, b => exposure_time,
         p => clocks_per_exposure_1000,
-        start => done_clocks_per_frame, done => done_clocks_per_exposure_1000
+        start => start, done => done_clocks_per_exposure_1000
     );
 
     calc_clocks_per_exposure : idivide generic map (4, 32, 11) port map (
@@ -134,8 +134,10 @@ begin
     process
     begin
         wait until rising_edge(clock);
-        offset <= clocks_per_exposure - EXTRA_EXPOSURE_CLOCKS;
         done <= done_clocks_per_exposure;
+        if done_clocks_per_exposure = '1' then
+            offset <= clocks_per_exposure - EXTRA_EXPOSURE_CLOCKS;
+        end if;
     end process;
 
 end architecture rtl;

@@ -127,11 +127,11 @@ architecture rtl of imultiply is
     generic (
         lpm_hint            : string := "MAXIMIZE_SPEED=9";
         lpm_pipeline        : natural := N_CLOCKS;
-        lpm_representation : string := "SIGNED";
+        lpm_representation  : string := "SIGNED";
         lpm_type            : string := "LPM_MULT";
         lpm_widtha          : natural := 32;
         lpm_widthb          : natural := 32;
-        lpm_widthp          : natural := 32
+        lpm_widthp          : natural := 64
     );
     port (
         clock       : in std_logic;
@@ -154,34 +154,23 @@ architecture rtl of imultiply is
     );
     end component n_delay;
     
-    signal p_logic : std_logic_vector(31 downto 0);
+    signal p_logic : std_logic_vector(64-1 downto 0);
 
 begin
-
-    gen : if N_CLOCKS = 0 generate
-        compute_product : LPM_MULT port map (
-            clock => '0',
-            aclr => '0',
-            dataa => std_logic_vector(to_signed(a, 32)),
-            datab => std_logic_vector(to_signed(b, 32)),
-            result => p_logic
-        );
-        done <= start;
-    else generate
-        compute_product : LPM_MULT port map (
-            clock => clock,
-            aclr => not reset_n,
-            dataa => std_logic_vector(to_signed(a, 32)),
-            datab => std_logic_vector(to_signed(b, 32)),
-            result => p_logic
-        );
-        delay : n_delay port map (
-            clock => clock,
-            reset_n => reset_n,
-            i => start,
-            o => done
-        );
-    end generate;
+    
+    compute_product : LPM_MULT port map (
+        clock => clock,
+        aclr => not reset_n,
+        dataa => std_logic_vector(to_signed(a, 32)),
+        datab => std_logic_vector(to_signed(b, 32)),
+        result => p_logic
+    );
+    delay : n_delay port map (
+        clock => clock,
+        reset_n => reset_n,
+        i => start,
+        o => done
+    );
     
     p <= to_integer(signed(p_logic));
     

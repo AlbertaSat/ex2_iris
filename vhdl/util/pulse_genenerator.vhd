@@ -87,9 +87,8 @@ begin
                 accum_freq := accum_freq - clocks_per_sec;      --     accum -= clocks_per_pulse
                 pulses_out <= '1';
                 pulses_remaining := pulses_remaining - 1;
-            else
-                accum_freq := accum_freq + frequency_hz;        --     accum += 1
             end if;
+            accum_freq := accum_freq + frequency_hz;            -- accum += 1
         end case;
     end process fsm;
 
