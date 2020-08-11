@@ -29,7 +29,7 @@ entity command_creator is
     port(
         --Control Signals
         clock               : in std_logic;
-        reset               : in std_logic;
+        reset_n             : in std_logic;
 
         --Header data
         vnir_img_header     : in sdram_header_t;
@@ -46,13 +46,48 @@ entity command_creator is
         mup_memory_change   : in sdram_address_block_t;
 
         --Avalon bridge for reading and writing to stuff
-        read_in             : in avalonmm_read_to_master_t;
         read_out            : out avalonmm_read_from_master_t;
         write_in            : in avalonmm_write_to_master_t;
-        write_out           : out avalonmm_write_from_master_t;
+        write_out           : out avalonmm_write_from_master_t
     );
 end entity command_creator;
 
 architecture rtl of command_creator is
-
+    component DMA_write is
+        generic (
+            DATAWIDTH 				: natural := 32;
+            MAXBURSTCOUNT 			: natural := 4;
+            BURSTCOUNTWIDTH 		: natural := 3;
+            BYTEENABLEWIDTH 		: natural := 4;
+            ADDRESSWIDTH			: natural := 32;
+            FIFODEPTH				: natural := 32;
+            FIFODEPTH_LOG2 			: natural := 5;
+            FIFOUSEMEMORY 			: string := "ON"
+	    );
+        port (
+            clk 					: in std_logic;
+            reset 					: in std_logic;
+            
+            -- control inputs and outputs
+            control_fixed_location 	: in std_logic;
+            control_write_base 		: in std_logic_vector(ADDRESSWIDTH-1 downto 0);
+            control_write_length 	: in std_logic_vector(ADDRESSWIDTH-1 downto 0);
+            control_go 				: in std_logic;
+            control_done			: out std_logic;
+            
+            -- user logic inputs and outputs
+            user_write_buffer		: in std_logic;
+            user_buffer_data		: in std_logic_vector(DATAWIDTH-1 downto 0);
+            user_buffer_full		: out std_logic;
+            
+            -- master inputs and outputs
+            master_address 			: out std_logic_vector(ADDRESSWIDTH-1 downto 0);
+            master_write 			: out std_logic;
+            master_byteenable 		: out std_logic_vector(BYTEENABLEWIDTH-1 downto 0);
+            master_writedata 		: out std_logic_vector(DATAWIDTH-1 downto 0);
+            master_burstcount 		: out std_logic_vector(BURSTCOUNTWIDTH-1 downto 0);
+            master_waitrequest 		: in std_logic
+        );
+    end component;
 begin
+end architecture;
