@@ -14,6 +14,8 @@
 -- limitations under the License.
 ----------------------------------------------------------------
 
+-- TODO: Generate clocks
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -32,13 +34,30 @@ entity swir_subsystem is
         
         do_imaging      : in std_logic;
 
-        num_rows        : out integer;
         row             : out swir_row_t;
         row_available   : out std_logic;
-
-        sensor_clock    : out std_logic;
-        sensor_reset    : out std_logic;
-
-        video           : in std_logic
+		
+		-- Signals to SWIR sensor
+        sensor_clock_even   : out std_logic;
+		sensor_clock_odd    : out std_logic;
+        sensor_reset_even   : out std_logic;
+		sensor_reset_odd    : out std_logic;
+		Cf_select1			: out std_logic;
+		Cf_select1			: out std_logic;
+		AD_sp_even			: in std_logic;
+		AD_sp_odd			: in std_logic;
+		AD_trig_even		: in std_logic;
+		AD_trig_odd			: in std_logic;
+        video_even        	: in std_logic;
+		video_odd        	: in std_logic
     );
 end entity swir_subsystem;
+
+
+architecture rtl of swir_subsystem is
+begin
+
+	-- Stretch reset and do_imaging signal to pass into lower frequency SWIR domain
+	
+	
+end architecture rtl;
