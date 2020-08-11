@@ -100,7 +100,6 @@ architecture rtl of calc_frame_request_offset is
     );
 
     signal clocks_per_frame : integer;
-    signal done_clocks_per_frame : std_logic;
     
     signal clocks_per_exposure_1000 : integer;
     signal done_clocks_per_exposure_1000 : std_logic;
@@ -114,7 +113,7 @@ begin
         clock => clock, reset_n => reset_n,
         n => CLOCKS_PER_SEC, d => fps,
         q => clocks_per_frame,
-        start => start, done => done_clocks_per_frame
+        start => start, done => open  -- Scheduled to finish at the same time as clocks_per_exposure
     );
 
     calc_clocks_per_exposure_1000 : imultiply generic map (1) port map (
@@ -137,6 +136,17 @@ begin
         done <= done_clocks_per_exposure;
         if done_clocks_per_exposure = '1' then
             offset <= clocks_per_exposure - EXTRA_EXPOSURE_CLOCKS;
+
+            if clocks_per_exposure - EXTRA_EXPOSURE_CLOCKS <= 0 then
+                report "Can't compute frame_request_offset: requested exposure is too low" severity failure;
+                offset <= 1;
+            end if;
+
+            if clocks_per_exposure - EXTRA_EXPOSURE_CLOCKS + FOT_CLOCKS > clocks_per_frame then
+                report "Can't compute frame_request_offset: requested exposure is too high" severity failure;
+                offset <= clocks_per_frame - FOT_CLOCKS;
+            end if;
+
         end if;
     end process;
 
