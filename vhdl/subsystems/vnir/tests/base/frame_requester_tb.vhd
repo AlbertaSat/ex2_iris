@@ -97,7 +97,7 @@ begin
 
         procedure test (NUM_FRAMES : integer; REQUESTED_EXPOSURE_TIME : time; REQUESTED_FPS : integer) is
             constant FREQUESTED_FRAME_TIME : time := 1 sec / REQUESTED_FPS;
-            constant EXTRA_EXPOSURE_TIME : time := (129.0*0.43*20.0) * SCLOCK_PERIOD * 0.0;
+            constant EXTRA_EXPOSURE_TIME : time := (129.0*0.43*20.0) * SCLOCK_PERIOD;
             variable i_frame : integer := 0;
             variable i_exposure : integer := 0;
             variable last_exposure : time := 0 ns;

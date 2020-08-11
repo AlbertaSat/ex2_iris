@@ -93,7 +93,7 @@ architecture rtl of calc_frame_request_offset is
 
     constant CLOCKS_PER_SCLOCKS : real := real(CLOCKS_PER_SEC) / real(SCLOCKS_PER_SEC);
     constant EXTRA_EXPOSURE_CLOCKS : integer := integer(
-        129.0 * 0.43 * 20.0 * CLOCKS_PER_SCLOCKS * 0.0
+        129.0 * 0.43 * 20.0 * CLOCKS_PER_SCLOCKS
     );
     constant FOT_CLOCKS : integer := integer(
         (20.0 + 2.0 * 16.0 / real(FRAGMENT_WIDTH)) * CLOCKS_PER_SCLOCKS
