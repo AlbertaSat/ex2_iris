@@ -212,6 +212,9 @@ package integer_types is
     pure function max_2(a : integer; b : integer) return integer;
     pure function max_n(v : integer_vector_t) return integer;
     pure function zeros(length : integer) return integer_vector_t;
+    
+    pure function popcount(u : unsigned) return integer;
+    pure function is_power_of_2(i : integer) return boolean;
 
     procedure increment_rollover(
         i : inout integer;
@@ -232,6 +235,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
+use ieee.math_real.all;
 
 
 package body integer_types is
@@ -298,5 +302,21 @@ package body integer_types is
             i := i + 1;
         end if;
     end procedure increment;
+
+    pure function popcount(u : unsigned) return integer is
+        variable n : integer := 0;
+    begin
+        for i in u'range loop
+            if u(i) = '1' then
+                n := n + 1;
+            end if;
+        end loop;
+        return n;
+    end function popcount;
+
+    pure function is_power_of_2(i : integer) return boolean is
+    begin
+        return popcount(to_unsigned(i, 32)) = 1;
+    end function is_power_of_2;
 
 end package body integer_types;

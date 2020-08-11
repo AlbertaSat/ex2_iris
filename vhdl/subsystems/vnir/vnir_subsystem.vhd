@@ -86,9 +86,9 @@ architecture rtl of vnir_subsystem is
 
     component idivide is
     generic (
-        N_CLOCKS : integer := 4;
-        NUMERATOR_BITS : integer := 32;
-        DENOMINATOR_BITS : integer := 32
+        N_CLOCKS : integer;
+        NUMERATOR_BITS : integer;
+        DENOMINATOR_BITS : integer
     );
     port (
         clock   : in std_logic;
@@ -104,14 +104,14 @@ architecture rtl of vnir_subsystem is
 
     component sensor_configurer is
     generic (
-        FRAGMENT_WIDTH      : integer;
-        PIXEL_BITS          : integer;
-        N_WINDOWS           : integer;
-        CLOCKS_PER_SEC      : integer;
-        POWER_ON_DELAY_us   : integer;
-        CLOCK_ON_DELAY_us   : integer;
-        reset_off_delay_us  : integer;
-        SPI_SETTLE_us       : integer
+        FRAGMENT_WIDTH      : integer := vnir.FRAGMENT_WIDTH;
+        PIXEL_BITS          : integer := vnir.PIXEL_BITS;
+        N_WINDOWS           : integer := vnir.N_WINDOWS;
+        CLOCKS_PER_SEC      : integer := CLOCKS_PER_SEC;
+        POWER_ON_DELAY_us   : integer := POWER_ON_DELAY_us;
+        CLOCK_ON_DELAY_us   : integer := CLOCK_ON_DELAY_us;
+        RESET_OFF_DELAY_us  : integer := RESET_OFF_DELAY_us;
+        SPI_SETTLE_us       : integer := SPI_SETTLE_us
     );
     port (	
         clock               : in std_logic;
@@ -129,8 +129,8 @@ architecture rtl of vnir_subsystem is
 
     component lvds_decoder is
     generic (
-        FRAGMENT_WIDTH      : integer;
-        PIXEL_BITS          : integer
+        FRAGMENT_WIDTH      : integer := vnir.FRAGMENT_WIDTH;
+        PIXEL_BITS          : integer := vnir.PIXEL_BITS
     );
     port (
         clock               : in std_logic;
@@ -148,8 +148,8 @@ architecture rtl of vnir_subsystem is
 
     component frame_requester is
     generic (
-        FRAGMENT_WIDTH      : integer;
-        CLOCKS_PER_SEC      : integer
+        FRAGMENT_WIDTH      : integer := vnir.FRAGMENT_WIDTH;
+        CLOCKS_PER_SEC      : integer := CLOCKS_PER_SEC
     );
     port (
         clock               : in std_logic;
@@ -167,11 +167,12 @@ architecture rtl of vnir_subsystem is
 
     component row_collector is
     generic (
-        ROW_WIDTH           : integer;
-        FRAGMENT_WIDTH      : integer;
-        PIXEL_BITS          : integer;
-        ROW_PIXEL_BITS      : integer;
-        N_WINDOWS           : integer range 1 to row_collector_pkg.MAX_N_WINDOWS
+        ROW_WIDTH           : integer := vnir.ROW_WIDTH;
+        FRAGMENT_WIDTH      : integer := vnir.FRAGMENT_WIDTH;
+        PIXEL_BITS          : integer := vnir.PIXEL_BITS;
+        ROW_PIXEL_BITS      : integer := vnir.ROW_PIXEL_BITS;
+        N_WINDOWS           : integer range 1 to row_collector_pkg.MAX_N_WINDOWS := vnir.N_WINDOWS;
+        METHOD              : string := vnir.METHOD
     );
     port (
         clock               : in std_logic;
@@ -314,16 +315,7 @@ begin
         done => locking_done
     );
 
-    sensor_configurer_component : sensor_configurer generic map (
-        FRAGMENT_WIDTH => vnir.FRAGMENT_WIDTH,
-        PIXEL_BITS => vnir.PIXEL_BITS,
-        N_WINDOWS => vnir.N_WINDOWS,
-        CLOCKS_PER_SEC => CLOCKS_PER_SEC,
-        POWER_ON_DELAY_us => POWER_ON_DELAY_us,
-        CLOCK_ON_DELAY_us => CLOCK_ON_DELAY_us,
-        reset_off_delay_us => RESET_OFF_DELAY_us,
-        SPI_SETTLE_us => SPI_SETTLE_us
-    ) port map (
+    sensor_configurer_component : sensor_configurer port map (
         clock => clock,
         reset_n => reset_n,
         config => sensor_configurer_config,
@@ -336,10 +328,7 @@ begin
         sensor_reset_n => sensor_reset_n
     );
     
-    frame_requester_component : frame_requester generic map (
-        FRAGMENT_WIDTH => vnir.FRAGMENT_WIDTH,
-        CLOCKS_PER_SEC => CLOCKS_PER_SEC
-    ) port map (
+    frame_requester_component : frame_requester port map (
         clock => clock,
         reset_n => reset_n,
         config => frame_requester_config,
@@ -351,10 +340,7 @@ begin
         exposure_start => exposure_start
     );
 
-    lvds_decoder_component : lvds_decoder generic map (
-        FRAGMENT_WIDTH => vnir.FRAGMENT_WIDTH,
-        PIXEL_BITS => vnir.PIXEL_BITS
-    ) port map (
+    lvds_decoder_component : lvds_decoder  port map (
         clock => clock,
         reset_n => reset_n,
         start_align => start_align,
@@ -367,13 +353,7 @@ begin
         fragment_available => fragment_available
     );
 
-    row_collector_component : row_collector generic map (
-        ROW_WIDTH => vnir.ROW_WIDTH,
-        FRAGMENT_WIDTH => vnir.FRAGMENT_WIDTH,
-        PIXEL_BITS => vnir.PIXEL_BITS,
-        ROW_PIXEL_BITS => vnir.ROW_PIXEL_BITS,
-        N_WINDOWS => vnir.N_WINDOWS
-    ) port map (
+    row_collector_component : row_collector port map (
         clock => clock,
         reset_n => reset_n,
         config => row_collector_config,

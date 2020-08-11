@@ -19,6 +19,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use ieee.math_real.all;
 
 use work.integer_types.all;
 
@@ -31,7 +32,8 @@ generic (
     FRAGMENT_WIDTH      : integer;
     PIXEL_BITS          : integer;
     ROW_PIXEL_BITS      : integer;
-    N_WINDOWS           : integer range 1 to MAX_N_WINDOWS
+    N_WINDOWS           : integer range 1 to MAX_N_WINDOWS;
+    METHOD              : string
 );
 port (
     clock               : in std_logic;
@@ -72,7 +74,10 @@ architecture rtl of row_collector is
 
     type lpixel_vector_t is array(integer range <>) of std_logic_vector;
 
-    constant ADDRESS_BITS : integer := 20;
+    constant MAX_WINDOW_SIZE : integer := 2048;  -- TODO: define this properly
+    constant SUM_BITS : integer := integer(ceil(log2(real(2) ** real(PIXEL_BITS) * real(MAX_WINDOW_SIZE))));
+
+    constant ADDRESS_BITS : integer := 20;  -- TODO: define this properly
     subtype address_t is std_logic_vector(ADDRESS_BITS-1 downto 0);
 
     pure function to_pixels(lpixels : lpixel_vector_t) return pixel_vector_t is
@@ -156,6 +161,34 @@ architecture rtl of row_collector is
         return to_address(address_i);
     end function to_address;
 
+    pure function log2_floor(u : unsigned) return unsigned is
+        variable result : unsigned(u'range);
+    begin
+        for i in 0 to u'length-1 loop
+            if u(i) then
+                result := to_unsigned(i, result'length);
+            end if;
+        end loop;
+        return result;
+    end function log2_floor;
+
+    pure function log2_divide(lhs : unsigned; rhs : unsigned) return unsigned is
+        variable quotient : unsigned(lhs'range);
+    begin
+        assert is_power_of_2(to_integer(rhs));
+        quotient := shift_right(lhs, to_integer(log2_floor(rhs)));
+        return quotient;
+    end function log2_divide;
+
+    pure function log2_divide(lhs : pixel_vector_t; rhs : unsigned) return pixel_vector_t is
+        variable quotient : pixel_vector_t(lhs'range)(lhs(0)'range);
+    begin
+        for i in lhs'range loop
+            quotient(i) := pixel_t(log2_divide(unsigned(lhs(i)), rhs));
+        end loop;
+        return quotient;
+    end function log2_divide;
+
     -- Pipeline stage 0 output
     signal fragment_p0  : pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     signal index_p0     : fragment_idx_t;
@@ -170,10 +203,10 @@ architecture rtl of row_collector is
     signal p2_done      : std_logic;
 
     -- RAM signals
-    signal read_data        : lpixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
+    signal read_data        : lpixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(SUM_BITS-1 downto 0);
     signal read_address     : address_t;
     signal read_enable      : std_logic;
-    signal write_data       : lpixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
+    signal write_data       : lpixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(SUM_BITS-1 downto 0);
     signal write_address    : address_t;
     signal write_enable     : std_logic;
 
@@ -251,7 +284,7 @@ begin
     -- by adding this fragment to it. Write the result back into RAM. Possibly compute the
     -- average from the sum and export it to the next pipeline stage.
     p2 : process
-        variable sum : pixel_vector_t(fragment_p1'range)(ROW_PIXEL_BITS-1 downto 0);
+        variable sum : pixel_vector_t(fragment_p1'range)(SUM_BITS-1 downto 0);
     begin
         wait until rising_edge(clock);
 
@@ -263,9 +296,9 @@ begin
             if p1_done = '1' then
                 -- Add to running sum
                 if index_p1.row = 0 then
-                    sum := resize_pixels(fragment_p1, ROW_PIXEL_BITS);
+                    sum := resize_pixels(fragment_p1, SUM_BITS);
                 else
-                    sum := resize_pixels(fragment_p1, ROW_PIXEL_BITS) + to_pixels(read_data);
+                    sum := resize_pixels(fragment_p1, SUM_BITS) + to_pixels(read_data);
                 end if;
 
                 -- Write new running sum to RAM
@@ -275,7 +308,13 @@ begin
 
                 -- If this is the last row of the window, compute the average from the sum
                 if is_last_row(index_p1) then
-                    fragment_p2 <= sum;
+                    if METHOD = "SUM" then
+                        fragment_p2 <= resize_pixels(sum, ROW_PIXEL_BITS);
+                    elsif METHOD = "AVERAGE" then
+                        fragment_p2 <= resize_pixels(log2_divide(sum, to_unsigned(window_size(index_p1), 11)), ROW_PIXEL_BITS);
+                    else
+                        report "Unrecognized METHOD" severity failure;
+                    end if;
                     index_p2 <= index_p1;
                     p2_done <= '1';
                 end if;
@@ -322,7 +361,7 @@ begin
     generate_RAM : for i in 0 to FRAGMENT_WIDTH-1 generate
 
         RAM : row_buffer generic map (
-            WORD_SIZE => ROW_PIXEL_BITS,
+            WORD_SIZE => SUM_BITS,
             ADDRESS_SIZE => ADDRESS_BITS
         ) port map (
             clock => clock,

@@ -31,7 +31,7 @@ class Window:
 
 # WINDOWS = [Window(0, 0), Window(1, 1), Window(2, 2)]
 # WINDOWS = [Window(0, 1), Window(2, 3), Window(4, 5)]
-WINDOWS = [Window(10, 15), Window(24, 35), Window(36, 37)]
+WINDOWS = [Window(10, 17), Window(24, 39), Window(51, 52)]
 ROW_WIDTH = 2048
 BITS = 10
 IMAGE_LENGTH = 10
@@ -61,7 +61,7 @@ def get_real_offset(row: int) -> int:
     raise ValueError('Invalid row index')
 
 
-def calc_averages(frames: np.ndarray) -> np.ndarray:
+def calc_sums_averages(frames: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     sums = np.zeros((IMAGE_LENGTH, len(WINDOWS), ROW_WIDTH))
     for i_frame, frame in enumerate(frames):
         for i_row, row in enumerate(frame):
@@ -74,19 +74,19 @@ def calc_averages(frames: np.ndarray) -> np.ndarray:
             else:
                 print(i_window, x_row)
 
-    # averages = np.zeros_like(sums, dtype=int)
-    # for i, w in enumerate(WINDOWS):
-    #     averages[:, i, :] = sums[:, i, :] // w.size
-    #
-    # return averages
+    averages = np.zeros_like(sums, dtype=int)
+    for i, w in enumerate(WINDOWS):
+        averages[:, i, :] = sums[:, i, :] // w.size
 
-    return sums.astype(int)
+    return sums.astype(int), averages
 
 
 if __name__ == '__main__':
     np.random.seed(0)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    (OUT_DIR / 'sum').mkdir(parents=True, exist_ok=True)
+    (OUT_DIR / 'average').mkdir(parents=True, exist_ok=True)
 
     frames = np.random.randint(0, 2**BITS, (N_FRAMES, ROWS_PER_FRAME, ROW_WIDTH))
     rows_file = open(OUT_DIR / 'rows.out', 'w')
@@ -94,12 +94,17 @@ if __name__ == '__main__':
         for row in frame:
             rows_file.write(' '.join(str(p) for p in row) + '\n')
 
-    averages = calc_averages(frames)
+    sums, averages = calc_sums_averages(frames)
 
     for i in range(averages.shape[1]):
-        i_file = open(OUT_DIR / f'colour{i}.out', 'w')
+
+        sum_file = open(OUT_DIR / f'sum/colour{i}.out', 'w')
+        for row in sums[:, i, :]:
+            sum_file.write(' '.join(str(p) for p in row) + '\n')
+        average_file = open(OUT_DIR / f'average/colour{i}.out', 'w')
+
         for row in averages[:, i, :]:
-            i_file.write(' '.join(str(p) for p in row) + '\n')
+            average_file.write(' '.join(str(p) for p in row) + '\n')
 
     config_file = open(OUT_DIR / 'config.out', 'w')
     for w in WINDOWS:

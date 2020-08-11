@@ -27,18 +27,18 @@ use work.vnir_base.all;
 use work.test_util.all;
 use work.row_collector_pkg.all;
 
-use work.vnir;
 use work.vnir.ROW_WIDTH;
 use work.vnir.FRAGMENT_WIDTH;
 use work.vnir.PIXEL_BITS;
-use work.vnir.ROW_PIXEL_BITS;
 use work.vnir.N_WINDOWS;
 
 
-entity row_collector_tb is
-end entity row_collector_tb;
+entity row_collector_sum_tb is
+end entity row_collector_sum_tb;
 
-architecture tests of row_collector_tb is
+architecture tests of row_collector_sum_tb is
+
+    constant ROW_PIXEL_BITS : integer := 20;
 
     signal clock                : std_logic := '0';
     signal reset_n              : std_logic := '0';
@@ -57,7 +57,8 @@ architecture tests of row_collector_tb is
         FRAGMENT_WIDTH      : integer := FRAGMENT_WIDTH;
         PIXEL_BITS          : integer := PIXEL_BITS;
         ROW_PIXEL_BITS      : integer := ROW_PIXEL_BITS;
-        N_WINDOWS           : integer := N_WINDOWS
+        N_WINDOWS           : integer := N_WINDOWS;
+        METHOD              : string := "SUM"
     );
     port (
         clock               : in std_logic;
@@ -118,10 +119,10 @@ begin
 	end process clock_gen;
 
     check_output : process
-        file colour0_file : text open read_mode is OUT_DIR & "colour0.out";
-        file colour1_file : text open read_mode is OUT_DIR & "colour1.out";
-        file colour2_file : text open read_mode is OUT_DIR & "colour2.out";
-        variable file_row : vnir.row_t;
+        file colour0_file : text open read_mode is OUT_DIR & "sum/colour0.out";
+        file colour1_file : text open read_mode is OUT_DIR & "sum/colour1.out";
+        file colour2_file : text open read_mode is OUT_DIR & "sum/colour2.out";
+        variable file_row : pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
     begin
         assert N_WINDOWS = 3;
         wait until reset_n = '1';

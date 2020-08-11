@@ -74,13 +74,11 @@ def calc_averages(frames: np.ndarray) -> np.ndarray:
             else:
                 print(i_window, x_row)
 
-    # averages = np.zeros_like(sums, dtype=int)
-    # for i, w in enumerate(WINDOWS):
-    #     averages[:, i, :] = sums[:, i, :] // w.size
-    #
-    # return averages
+    averages = np.zeros_like(sums, dtype=int)
+    for i, w in enumerate(WINDOWS):
+        averages[:, i, :] = sums[:, i, :] // w.size
 
-    return sums.astype(int)
+    return averages
 
 
 if __name__ == '__main__':
