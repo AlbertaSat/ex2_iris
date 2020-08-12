@@ -97,7 +97,7 @@ begin
         exposure_start => exposure_start_mainclock
     );
 
-    -- Translate imaging_done from sensor clock domain
+    -- Translate frame_request to sensor clock domain
     frame_request_clock_bridge : clock_bridge port map (
         reset_n => reset_n,
         i_clock => clock,
