@@ -30,7 +30,10 @@ package vnir is
     constant PIXEL_BITS : integer := 10;
     constant ROW_PIXEL_BITS : integer := 10;  -- Increase this to prevent overflow if using method = SUM
     constant N_WINDOWS : integer := 3;
+    constant MAX_WINDOW_SIZE : integer := 16;
     constant METHOD : string := "AVERAGE";
+
+    constant MAX_FPS : integer := 2000;
 
     subtype pixel_t is vnir_base.pixel_t(PIXEL_BITS-1 downto 0);
     subtype row_t is vnir_base.pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);

@@ -26,6 +26,7 @@ use work.vnir_base.all;
 use work.frame_requester_pkg.all;
 
 use work.vnir.FRAGMENT_WIDTH;
+use work.vnir.MAX_FPS;
 
 entity frame_requester_tb is
 end entity;
@@ -45,7 +46,8 @@ architecture tests of frame_requester_tb is
     component frame_requester_mainclock is
     generic (
         FRAGMENT_WIDTH      : integer := FRAGMENT_WIDTH;
-        CLOCKS_PER_SEC      : integer
+        CLOCKS_PER_SEC      : integer;
+        MAX_FPS             : integer := MAX_FPS
     );
     port (
         clock               : in std_logic;

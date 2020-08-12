@@ -17,8 +17,10 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use ieee.math_real.all;
 
 use work.spi_types.all;
+use work.unsigned_types.all;
 
 use work.vnir_base.all;
 use work.row_collector_pkg;
@@ -84,7 +86,7 @@ architecture rtl of vnir_subsystem is
     );
     end component delay_until;
 
-    component idivide is
+    component udivide is
     generic (
         N_CLOCKS : integer;
         NUMERATOR_BITS : integer;
@@ -93,13 +95,13 @@ architecture rtl of vnir_subsystem is
     port (
         clock   : in std_logic;
         reset_n : in std_logic;
-        n       : in integer;
-        d       : in integer;
-        q       : out integer;
+        n       : in u64;
+        d       : in u64;
+        q       : out u64;
         start   : in std_logic;
         done    : out std_logic
     );
-    end component idivide;
+    end component udivide;
         
 
     component sensor_configurer is
@@ -149,7 +151,8 @@ architecture rtl of vnir_subsystem is
     component frame_requester is
     generic (
         FRAGMENT_WIDTH      : integer := vnir.FRAGMENT_WIDTH;
-        CLOCKS_PER_SEC      : integer := CLOCKS_PER_SEC
+        CLOCKS_PER_SEC      : integer := CLOCKS_PER_SEC;
+        MAX_FPS             : integer := vnir.MAX_FPS
     );
     port (
         clock               : in std_logic;
@@ -172,7 +175,8 @@ architecture rtl of vnir_subsystem is
         PIXEL_BITS          : integer := vnir.PIXEL_BITS;
         ROW_PIXEL_BITS      : integer := vnir.ROW_PIXEL_BITS;
         N_WINDOWS           : integer range 1 to row_collector_pkg.MAX_N_WINDOWS := vnir.N_WINDOWS;
-        METHOD              : string := vnir.METHOD
+        METHOD              : string := vnir.METHOD;
+        MAX_WINDOW_SIZE     : integer := vnir.MAX_WINDOW_SIZE
     );
     port (
         clock               : in std_logic;
@@ -188,8 +192,12 @@ architecture rtl of vnir_subsystem is
     );
     end component row_collector;
 
+    constant MUL_BITS : integer := integer(
+        ceil(log2(real(vnir.MAX_FPS) * real(CLOCKS_PER_SEC)))
+    );
+
     signal config_reg       : vnir.config_t;
-    signal image_config_reg : vnir.image_config_t;
+    signal image_config_reg : vnir.image_config_t := (others => 0);
 
     signal imaging_done_s : std_logic;
 
@@ -217,9 +225,9 @@ architecture rtl of vnir_subsystem is
     signal fragment_available       : std_logic;
     
     signal image_length : integer;
-    signal num_frames  : integer;
+    signal num_frames   : integer;
 
-    signal row_window       : integer;
+    signal row_window   : integer;
 
 begin
 
@@ -367,12 +375,12 @@ begin
     );
     imaging_done <= imaging_done_s;
 
-    calc_image_length : idivide generic map (4, 32, 11) port map (
+    calc_image_length : udivide generic map (5, MUL_BITS, 10) port map (
         clock => clock,
         reset_n => reset_n,
-        n => image_config_reg.duration * image_config_reg.fps,
-        d => 1000,
-        q => image_length,
+        n => to_unsigned(image_config_reg.duration, 32) * to_unsigned(image_config_reg.fps, 32),
+        d => to_u64(1000),
+        to_integer(q) => image_length,
         start => start_calc_image_length,
         done => calc_image_length_done
     );

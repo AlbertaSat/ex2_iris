@@ -31,6 +31,7 @@ use work.vnir.ROW_WIDTH;
 use work.vnir.FRAGMENT_WIDTH;
 use work.vnir.PIXEL_BITS;
 use work.vnir.N_WINDOWS;
+use work.vnir.MAX_WINDOW_SIZE;
 
 
 entity row_collector_sum_tb is
@@ -58,7 +59,8 @@ architecture tests of row_collector_sum_tb is
         PIXEL_BITS          : integer := PIXEL_BITS;
         ROW_PIXEL_BITS      : integer := ROW_PIXEL_BITS;
         N_WINDOWS           : integer := N_WINDOWS;
-        METHOD              : string := "SUM"
+        METHOD              : string := "SUM";
+        MAX_WINDOW_SIZE     : integer := MAX_WINDOW_SIZE
     );
     port (
         clock               : in std_logic;

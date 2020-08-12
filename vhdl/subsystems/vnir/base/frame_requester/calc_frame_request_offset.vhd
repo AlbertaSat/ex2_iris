@@ -30,35 +30,36 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use ieee.math_real.all;
 
-
-
+use work.unsigned_types.all;
 
 
 entity calc_frame_request_offset is
 generic (
     CLOCKS_PER_SEC  : integer;
     SCLOCKS_PER_SEC : integer;
-    FRAGMENT_WIDTH  : integer
+    FRAGMENT_WIDTH  : integer;
+    MAX_FPS         : integer
 );
 port (
     clock           : in std_logic;
     reset_n         : in std_logic;
 
-    fps             : in integer;
-    exposure_time   : in integer;
+    fps             : in u64;
+    exposure_time   : in u64;
 
     start           : in std_logic;
     done            : out std_logic;
 
-    offset          : out integer
+    offset          : out u64
 );
 end entity calc_frame_request_offset;
 
 
 architecture rtl of calc_frame_request_offset is
 
-    component idivide is
+    component udivide is
     generic (
         N_CLOCKS : integer;
         NUMERATOR_BITS : integer;
@@ -67,67 +68,49 @@ architecture rtl of calc_frame_request_offset is
     port (
         clock   : in std_logic;
         reset_n : in std_logic;
-        n       : in integer;
-        d       : in integer;
-        q       : out integer;
+        n       : in u64;
+        d       : in u64;
+        q       : out u64;
         start   : in std_logic;
         done    : out std_logic
     );
-    end component idivide;
+    end component udivide;
 
-
-    component imultiply is
-    generic (
-        N_CLOCKS : integer
-    );
-    port (
-        clock   : in std_logic;
-        reset_n : in std_logic;
-        a       : in integer;
-        b       : in integer;
-        p       : out integer;
-        start   : in std_logic;
-        done    : out std_logic
-    );
-    end component imultiply;
 
     constant CLOCKS_PER_SCLOCKS : real := real(CLOCKS_PER_SEC) / real(SCLOCKS_PER_SEC);
-    constant EXTRA_EXPOSURE_CLOCKS : integer := integer(
+    constant EXTRA_EXPOSURE_CLOCKS : u64 := to_u64(
         129.0 * 0.43 * 20.0 * CLOCKS_PER_SCLOCKS
     );
-    constant FOT_CLOCKS : integer := integer(
+    constant FOT_CLOCKS : u64 := to_u64(
         (20.0 + 2.0 * 16.0 / real(FRAGMENT_WIDTH)) * CLOCKS_PER_SCLOCKS
     );
 
-    signal clocks_per_frame : integer;
-    
-    signal clocks_per_exposure_1000 : integer;
-    signal done_clocks_per_exposure_1000 : std_logic;
+    constant CLOCKS_PER_SEC_BITS : integer := integer(ceil(log2(real(CLOCKS_PER_SEC))));
+    constant FPS_BITS : integer := integer(ceil(log2(real(MAX_FPS))));
+    constant MUL_BITS : integer := integer(ceil(log2(real(MAX_FPS) * real(CLOCKS_PER_SEC))));
 
-    signal clocks_per_exposure : integer;
+    signal clocks_per_frame : u64;
+    signal clocks_per_exposure : u64;
     signal done_clocks_per_exposure : std_logic;
-    
+
 begin
 
-    calc_clocks_per_frame : idivide generic map (5, 32, 11) port map (
+    -- clocks_per_frame <= CLOCKS_PER_SEC / fp
+    calc_clocks_per_frame : udivide generic map (5, CLOCKS_PER_SEC_BITS, FPS_BITS) port map (
         clock => clock, reset_n => reset_n,
-        n => CLOCKS_PER_SEC, d => fps,
+        n => to_u64(CLOCKS_PER_SEC),
+        d => to_u64(fps),
         q => clocks_per_frame,
         start => start, done => open  -- Scheduled to finish at the same time as clocks_per_exposure
     );
 
-    calc_clocks_per_exposure_1000 : imultiply generic map (1) port map (
+    -- clocks_per_exposurer <= CLOCKS_PER_SEC * exposure_time / 1000
+    calc_clocks_per_exposure : udivide generic map (5, MUL_BITS, 10) port map (
         clock => clock, reset_n => reset_n,
-        a => CLOCKS_PER_SEC, b => exposure_time,
-        p => clocks_per_exposure_1000,
-        start => start, done => done_clocks_per_exposure_1000
-    );
-
-    calc_clocks_per_exposure : idivide generic map (4, 32, 11) port map (
-        clock => clock, reset_n => reset_n,
-        n => clocks_per_exposure_1000, d => 1000,
+        n => to_u64(to_u64(CLOCKS_PER_SEC) * exposure_time),
+        d => to_u64(1000),
         q => clocks_per_exposure,
-        start => done_clocks_per_exposure_1000, done => done_clocks_per_exposure
+        start => start, done => done_clocks_per_exposure
     );
 
     process
@@ -139,12 +122,12 @@ begin
 
             if clocks_per_exposure - EXTRA_EXPOSURE_CLOCKS <= 0 then
                 report "Can't compute frame_request_offset: requested exposure is too low" severity failure;
-                offset <= 1;
+                offset <= to_u64(1);
             end if;
 
             if clocks_per_exposure - EXTRA_EXPOSURE_CLOCKS + FOT_CLOCKS > clocks_per_frame then
                 report "Can't compute frame_request_offset: requested exposure is too high" severity failure;
-                offset <= clocks_per_frame - FOT_CLOCKS;
+                offset <= to_u64(clocks_per_frame) - FOT_CLOCKS;
             end if;
 
         end if;

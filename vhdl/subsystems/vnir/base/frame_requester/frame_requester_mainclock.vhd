@@ -20,11 +20,13 @@ use ieee.numeric_std.all;
 
 use work.vnir_base.all;
 use work.frame_requester_pkg.all;
+use work.unsigned_types.all;
 
 entity frame_requester_mainclock is
 generic (
     FRAGMENT_WIDTH      : integer;
-    CLOCKS_PER_SEC      : integer
+    CLOCKS_PER_SEC      : integer;
+    MAX_FPS             : integer
 );
 port (
     clock               : in std_logic;
@@ -48,16 +50,17 @@ architecture rtl of frame_requester_mainclock is
     generic (
         CLOCKS_PER_SEC  : integer := CLOCKS_PER_SEC;
         SCLOCKS_PER_SEC : integer := 48000000; -- TODO: set this properly
-        FRAGMENT_WIDTH  : integer := FRAGMENT_WIDTH
+        FRAGMENT_WIDTH  : integer := FRAGMENT_WIDTH;
+        MAX_FPS         : integer := MAX_FPS
     );
     port (
         clock           : in std_logic;
         reset_n         : in std_logic;
-        fps             : in integer;
-        exposure_time   : in integer;
+        fps             : in u64;
+        exposure_time   : in u64;
         start           : in std_logic;
         done            : out std_logic;
-        offset          : out integer
+        offset          : out u64
     );
     end component calc_frame_request_offset;
 
@@ -68,9 +71,9 @@ architecture rtl of frame_requester_mainclock is
     port (
         clock                   : in std_logic;
         reset_n                 : in std_logic;
-        frequency_Hz            : in integer;
-        initial_delay_clocks    : in integer;
-        n_pulses                : in integer;
+        frequency_Hz            : in u64;
+        initial_delay_clocks    : in u64;
+        n_pulses                : in u64;
         start                   : in std_logic;
         done                    : out std_logic;
         pulses_out              : out std_logic
@@ -78,9 +81,9 @@ architecture rtl of frame_requester_mainclock is
     end component pulse_generator;
 
     type pulse_gen_config_t is record
-        frequency_Hz        : integer;
-        initial_delay_clocks    : integer;
-        n_pulses            : integer;
+        frequency_Hz            : u64;
+        initial_delay_clocks    : u64;
+        n_pulses                : u64;
     end record pulse_gen_config_t;
 
     signal frame_request_config     : pulse_gen_config_t;
@@ -91,7 +94,7 @@ architecture rtl of frame_requester_mainclock is
     signal config_reg           : config_t;
     signal calc_offset_start    : std_logic;
     signal calc_offset_done     : std_logic;
-    signal frame_request_offset : integer;
+    signal frame_request_offset : u64;
 
 begin
 
@@ -125,14 +128,14 @@ begin
         when CONFIGURING =>
             if calc_offset_done = '1' then
                 frame_request_config <= (
-                    frequency_Hz => config_reg.fps,
+                    frequency_Hz => to_u64(config_reg.fps),
                     initial_delay_clocks => frame_request_offset,
-                    n_pulses => config_reg.num_frames
+                    n_pulses => to_u64(config_reg.num_frames)
                 );
                 exposure_start_config <= (
-                    frequency_Hz => config_reg.fps,
-                    initial_delay_clocks => 0,
-                    n_pulses => config_reg.num_frames
+                    frequency_Hz => to_u64(config_reg.fps),
+                    initial_delay_clocks => to_u64(0),
+                    n_pulses => to_u64(config_reg.num_frames)
                 );
                 config_done <= '1';
                 state := IDLE;
@@ -147,8 +150,8 @@ begin
     calc_offset : calc_frame_request_offset port map (
         clock => clock,
         reset_n => reset_n,
-        fps => config_reg.fps,
-        exposure_time => config_reg.exposure_time,
+        fps => to_u64(config_reg.fps),
+        exposure_time => to_u64(config_reg.exposure_time),
         start => calc_offset_start,
         done => calc_offset_done,
         offset => frame_request_offset

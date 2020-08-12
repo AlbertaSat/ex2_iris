@@ -33,7 +33,8 @@ generic (
     PIXEL_BITS          : integer;
     ROW_PIXEL_BITS      : integer;
     N_WINDOWS           : integer range 1 to MAX_N_WINDOWS;
-    METHOD              : string
+    METHOD              : string;
+    MAX_WINDOW_SIZE     : integer
 );
 port (
     clock               : in std_logic;
@@ -74,10 +75,9 @@ architecture rtl of row_collector is
 
     type lpixel_vector_t is array(integer range <>) of std_logic_vector;
 
-    constant MAX_WINDOW_SIZE : integer := 2048;  -- TODO: define this properly
     constant SUM_BITS : integer := integer(ceil(log2(real(2) ** real(PIXEL_BITS) * real(MAX_WINDOW_SIZE))));
 
-    constant ADDRESS_BITS : integer := 20;  -- TODO: define this properly
+    constant ADDRESS_BITS : integer := integer(ceil(log2(real(ROW_WIDTH / FRAGMENT_WIDTH) * real(N_WINDOWS) * real(MAX_WINDOW_SIZE))));
     subtype address_t is std_logic_vector(ADDRESS_BITS-1 downto 0);
 
     pure function to_pixels(lpixels : lpixel_vector_t) return pixel_vector_t is
@@ -98,19 +98,11 @@ architecture rtl of row_collector is
         return lpixels;
     end function to_lpixels;
 
-    pure function resize_pixel(pixel : pixel_t; new_size : integer) return pixel_t is
-        variable re : pixel_t(new_size-1 downto 0) := (others => '0');
-        constant shared_size : integer := min_2(pixel'length, new_size);
-    begin
-        re(shared_size-1 downto 0) := pixel(shared_size-1 downto 0);
-        return re;
-    end function resize_pixel;
-
     pure function resize_pixels(pixels : pixel_vector_t; new_size : integer) return pixel_vector_t is
         variable re : pixel_vector_t(pixels'range)(new_size-1 downto 0);
     begin
         for i_pixel in pixels'range loop
-            re(i_pixel) := resize_pixel(pixels(i_pixel), new_size);
+            re(i_pixel) := resize(pixels(i_pixel), new_size);
         end loop;
         return re;
     end function resize_pixels;

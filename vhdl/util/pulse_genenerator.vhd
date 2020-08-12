@@ -18,6 +18,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+use work.unsigned_types.all;
 
 entity pulse_generator is
 generic (
@@ -27,9 +28,9 @@ port (
     clock                   : in std_logic;
     reset_n                 : in std_logic;
 
-    frequency_Hz            : in integer;
-    initial_delay_clocks    : in integer;
-    n_pulses                : in integer;
+    frequency_Hz            : in u64;
+    initial_delay_clocks    : in u64;
+    n_pulses                : in u64;
 
     start                   : in std_logic;
     done                    : out std_logic;
@@ -46,9 +47,9 @@ begin
         type state_t is (RESET, IDLE, DELAYING, RUNNING);
         variable state : state_t;
         
-        variable pulses_remaining : integer;
-        variable delay_remaining : integer;
-        variable accum_freq : integer;  -- accum * freq
+        variable pulses_remaining : u64;
+        variable delay_remaining : u64;
+        variable accum_freq : u64;  -- accum * freq
     begin
 
         wait until rising_edge(clock);
@@ -66,7 +67,7 @@ begin
         when IDLE =>
             if start = '1' then
                 pulses_remaining := n_pulses;
-                accum_freq := clocks_per_sec;  -- Trigger initial pulse
+                accum_freq := to_u64(CLOCKS_PER_SEC);  -- Trigger initial pulse
                 delay_remaining := initial_delay_clocks;
                 if delay_remaining > 0 then
                     state := DELAYING;
@@ -83,12 +84,12 @@ begin
             if pulses_remaining = 0 then
                 state := IDLE;
                 done <= '1';
-            elsif accum_freq >= clocks_per_sec then             -- if accum >= clocks_per_pulse then
-                accum_freq := accum_freq - clocks_per_sec;      --     accum -= clocks_per_pulse
+            elsif accum_freq >= to_u64(CLOCKS_PER_SEC) then         -- if accum >= clocks_per_pulse then
+                accum_freq := accum_freq - to_u64(CLOCKS_PER_SEC);  --     accum -= clocks_per_pulse
                 pulses_out <= '1';
                 pulses_remaining := pulses_remaining - 1;
             end if;
-            accum_freq := accum_freq + frequency_hz;            -- accum += 1
+            accum_freq := accum_freq + frequency_hz;                -- accum += 1
         end case;
     end process fsm;
 
