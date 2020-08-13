@@ -314,9 +314,10 @@ begin
 
         image_config <= (duration => 10, fps => 200, exposure_time => 5);
         start_image_config <= '1';  wait until rising_edge(clock); start_image_config <= '0'; 
-        wait until rising_edge(clock) and image_config_done = '1';
+        wait until rising_edge(clock) and num_rows /= 0;
         assert image_length_v = num_rows;
-
+        wait until rising_edge(clock) and image_config_done = '1';
+        
         do_imaging <= '1'; wait until rising_edge(clock); do_imaging <= '0';
 
         wait;

@@ -415,6 +415,7 @@ begin
                      vnir.ROW_NIR when row_window = 1 else
                      vnir.ROW_BLUE when row_window = 2 else
                      vnir.ROW_NONE;
-    num_rows <= image_length;
+    
+    num_rows <= image_length when calc_image_length_done = '1' else 0;
 
 end architecture rtl;
