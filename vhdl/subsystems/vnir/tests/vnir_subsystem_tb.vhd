@@ -61,6 +61,7 @@ architecture tests of vnir_subsystem_tb is
         clock => '0', control => '0',
         data => (others => '0')
     );
+    signal status               : status_t;
     
     component vnir_subsystem is
     generic (
@@ -92,7 +93,8 @@ architecture tests of vnir_subsystem_tb is
         spi_in              : in spi_to_master_t;
         frame_request       : out std_logic;
         exposure_start      : out std_logic;
-        lvds                : in lvds_t
+        lvds                : in lvds_t;
+        status              : out status_t
     );
     end component;
 

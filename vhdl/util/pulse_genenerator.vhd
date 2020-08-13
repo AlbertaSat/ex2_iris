@@ -14,10 +14,21 @@
 -- limitations under the License.
 ----------------------------------------------------------------
 
+
+package pulse_generator_pkg is
+    type state_t is (RESET, IDLE, DELAYING, RUNNING);
+
+    type status_t is record
+        state   : state_t;
+    end record status_t;
+end package pulse_generator_pkg;
+
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+use work.pulse_generator_pkg.all;
 use work.unsigned_types.all;
 
 entity pulse_generator is
@@ -35,7 +46,9 @@ port (
     start                   : in std_logic;
     done                    : out std_logic;
 
-    pulses_out              : out std_logic
+    pulses_out              : out std_logic;
+
+    status                  : out status_t
 );
 end entity pulse_generator;
 
@@ -44,7 +57,6 @@ architecture rtl of pulse_generator is
 begin
 
     fsm : process
-        type state_t is (RESET, IDLE, DELAYING, RUNNING);
         variable state : state_t;
         
         variable pulses_remaining : u64;
@@ -91,6 +103,8 @@ begin
             end if;
             accum_freq := accum_freq + frequency_hz;                -- accum += 1
         end case;
+
+        status.state <= state;
     end process fsm;
 
 end architecture rtl;

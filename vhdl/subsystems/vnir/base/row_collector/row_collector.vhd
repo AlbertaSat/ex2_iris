@@ -50,7 +50,9 @@ port (
     fragment_available  : in std_logic;
 
     row                 : out pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
-    row_window          : out integer
+    row_window          : out integer;
+
+    status              : out status_t
 );
 end entity row_collector;
 
@@ -238,12 +240,15 @@ begin
         read_address <= (others => '0');  -- Get rid of some annoying warnings
 
         if reset_n = '1' then
+            status.fragment_available <= fragment_available;
+
             if start = '1' then
                 index := initial_index(windows);
                 max_x := image_length - 1;
             elsif fragment_available = '1' then
                 -- Filter out rows outside of image boundaries
                 x := x_pos(index, windows);
+                status.fragment_x <= x;
                 if 0 <= x and x <= max_x then
                     -- Make previous sum available for next pipeline stage
                     if index.row > 0 then

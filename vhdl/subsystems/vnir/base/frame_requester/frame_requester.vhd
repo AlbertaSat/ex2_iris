@@ -37,6 +37,8 @@ port (
     
     do_imaging          : in std_logic;
     imaging_done        : out std_logic;
+
+    status              : out status_t;
     
     -- Interface w/ sensor is clocked on the sensor clock
     sensor_clock        : in std_logic;
@@ -62,7 +64,8 @@ architecture rtl of frame_requester is
         do_imaging          : in std_logic;
         imaging_done        : out std_logic;
         frame_request       : out std_logic;
-        exposure_start      : out std_logic
+        exposure_start      : out std_logic;
+        status              : out status_t
     );
     end component frame_requester_mainclock;
 
@@ -91,6 +94,8 @@ begin
         
         do_imaging => do_imaging,
         imaging_done => imaging_done,
+
+        status => status,
         
         frame_request => frame_request_mainclock,
         exposure_start => exposure_start_mainclock

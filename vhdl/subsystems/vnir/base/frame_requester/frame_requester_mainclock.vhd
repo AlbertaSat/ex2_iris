@@ -21,6 +21,7 @@ use ieee.numeric_std.all;
 use work.vnir_base.all;
 use work.frame_requester_pkg.all;
 use work.unsigned_types.all;
+use work.pulse_generator_pkg;
 
 entity frame_requester_mainclock is
 generic (
@@ -38,6 +39,8 @@ port (
     
     do_imaging          : in std_logic;
     imaging_done        : out std_logic;
+
+    status              : out status_t;
     
     frame_request       : out std_logic;
     exposure_start      : out std_logic
@@ -76,7 +79,8 @@ architecture rtl of frame_requester_mainclock is
         n_pulses                : in u64;
         start                   : in std_logic;
         done                    : out std_logic;
-        pulses_out              : out std_logic
+        pulses_out              : out std_logic;
+        status                  : out pulse_generator_pkg.status_t
     );
     end component pulse_generator;
 
@@ -99,7 +103,6 @@ architecture rtl of frame_requester_mainclock is
 begin
 
     fsm : process
-        type state_t is (RESET, IDLE, CONFIGURING, IMAGING);
         variable state : state_t;
     begin
         wait until rising_edge(clock);
@@ -145,6 +148,8 @@ begin
                 imaging_done <= '1';
             end if;
         end case;
+
+        status.state <= state;
     end process fsm;
 
     calc_offset : calc_frame_request_offset port map (
@@ -165,7 +170,8 @@ begin
         n_pulses => frame_request_config.n_pulses,
         start => pulse_gen_start,
         done => pulse_gen_done,
-        pulses_out => frame_request
+        pulses_out => frame_request,
+        status => status.frame_request
     );
 
     exposure_start_gen : pulse_generator port map (
@@ -176,7 +182,8 @@ begin
         n_pulses => exposure_start_config.n_pulses,
         start => pulse_gen_start,
         done => open,
-        pulses_out => exposure_start
+        pulses_out => exposure_start,
+        status => status.exposure_start
     );
 
 

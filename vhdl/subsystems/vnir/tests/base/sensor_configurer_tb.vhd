@@ -52,7 +52,8 @@ architecture tests of sensor_configurer_tb is
         spi_in              : in spi_to_master_t;
         sensor_power        : out std_logic;
         sensor_clock_enable : out std_logic;
-        sensor_reset_n      : out std_logic
+        sensor_reset_n      : out std_logic;
+        status              : out status_t
     );
     end component sensor_configurer;
 
@@ -67,6 +68,7 @@ architecture tests of sensor_configurer_tb is
     signal sensor_power : std_logic;
     signal sensor_clock_enable : std_logic;
     signal sensor_reset_n : std_logic;
+    signal status : status_t;
 
     constant N_SPI_INSTRUCTIONS : integer := 33;
     constant SPI_MAX_ADDR : integer := 127;
@@ -206,7 +208,8 @@ begin
         spi_in => spi.to_master,
         sensor_power => sensor_power,
         sensor_clock_enable => sensor_clock_enable,
-        sensor_reset_n => sensor_reset_n
+        sensor_reset_n => sensor_reset_n,
+        status => status
     );
 
 end architecture tests;

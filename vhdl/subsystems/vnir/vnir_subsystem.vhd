@@ -26,6 +26,7 @@ use work.vnir_base.all;
 use work.row_collector_pkg;
 use work.sensor_configurer_pkg;
 use work.sensor_configurer_defaults;
+use work.lvds_decoder_pkg;
 use work.frame_requester_pkg;
 use work.vnir;
 
@@ -68,7 +69,9 @@ port (
     
     frame_request       : out std_logic;
     exposure_start      : out std_logic;
-    lvds                : in vnir.lvds_t
+    lvds                : in vnir.lvds_t;
+
+    status              : out vnir.status_t
 );
 end entity vnir_subsystem;
 
@@ -124,7 +127,8 @@ architecture rtl of vnir_subsystem is
         spi_in              : in spi_to_master_t;
         sensor_power        : out std_logic;
         sensor_clock_enable : out std_logic;
-        sensor_reset_n      : out std_logic
+        sensor_reset_n      : out std_logic;
+        status              : out sensor_configurer_pkg.status_t
     );
     end component sensor_configurer;
 
@@ -143,7 +147,8 @@ architecture rtl of vnir_subsystem is
         lvds_data           : in std_logic_vector;
         fragment            : out pixel_vector_t;
         fragment_control    : out control_t;
-        fragment_available  : out std_logic
+        fragment_available  : out std_logic;
+        status              : out lvds_decoder_pkg.status_t
     );
     end component lvds_decoder;
 
@@ -163,7 +168,8 @@ architecture rtl of vnir_subsystem is
         imaging_done        : out std_logic;
         sensor_clock        : in std_logic;
         frame_request       : out std_logic;
-        exposure_start      : out std_logic
+        exposure_start      : out std_logic;
+        status              : out frame_requester_pkg.status_t
     );
     end component frame_requester;
 
@@ -187,7 +193,8 @@ architecture rtl of vnir_subsystem is
         fragment            : in pixel_vector_t;
         fragment_available  : in std_logic;
         row                 : out pixel_vector_t;
-        row_window          : out integer
+        row_window          : out integer;
+        status              : out row_collector_pkg.status_t
     );
     end component row_collector;
 
@@ -228,8 +235,7 @@ architecture rtl of vnir_subsystem is
 begin
 
     fsm : process
-        type state_t is (RESET, PRE_CONFIG, CONFIGURING, PRE_IMAGE_CONFIG, IMAGE_CONFIGURING, IDLE, IMAGING);
-        variable state : state_t;
+        variable state : vnir.state_t;
     begin
         wait until rising_edge(clock);
         
@@ -239,45 +245,45 @@ begin
         image_config_done <= '0';
 
         if reset_n = '0' then
-            state := RESET;
+            state := vnir.RESET;
         end if;
 
         case state is
-        when RESET =>
-            state := PRE_CONFIG;
-        when PRE_CONFIG =>
+        when vnir.RESET =>
+            state := vnir.PRE_CONFIG;
+        when vnir.PRE_CONFIG =>
             assert start_image_config = '0';
             assert do_imaging = '0';
             if start_config = '1' then
                 config_reg <= config;
                 start_sensor_config <= '1';
-                state := CONFIGURING;
+                state := vnir.CONFIGURING;
             end if;
-        when CONFIGURING =>
+        when vnir.CONFIGURING =>
             assert start_config = '0';
             assert start_image_config = '0';
             assert do_imaging = '0';
             if align_done = '1' then
                 config_done <= '1';
-                state := PRE_IMAGE_CONFIG;
+                state := vnir.PRE_IMAGE_CONFIG;
             end if;
-        when PRE_IMAGE_CONFIG =>
+        when vnir.PRE_IMAGE_CONFIG =>
             assert start_config = '0';
             assert do_imaging = '0';
             if start_image_config = '1' then
                 image_config_reg <= image_config;
                 start_calc_image_length <= '1';
-                state := IMAGE_CONFIGURING;
+                state := vnir.IMAGE_CONFIGURING;
             end if;
-        when IMAGE_CONFIGURING =>
+        when vnir.IMAGE_CONFIGURING =>
             assert start_config = '0';
             assert start_image_config = '0';
             assert do_imaging = '0';
             if frame_requester_config_done = '1' then
                 image_config_done <= '1';
-                state := IDLE;
+                state := vnir.IDLE;
             end if;
-        when IDLE =>
+        when vnir.IDLE =>
             assert (start_config = '0' and start_image_config = '0' and do_imaging = '0') or
                    (start_config = '1' and start_image_config = '0' and do_imaging = '0') or
                    (start_config = '0' and start_image_config = '1' and do_imaging = '0') or
@@ -286,25 +292,27 @@ begin
             if start_config = '1' then
                 config_reg <= config;
                 start_sensor_config <= '1';
-                state := CONFIGURING;
+                state := vnir.CONFIGURING;
             end if;
             if start_image_config = '1' then
                 image_config_reg <= image_config;
                 start_calc_image_length <= '1';
-                state := IMAGE_CONFIGURING;
+                state := vnir.IMAGE_CONFIGURING;
             end if;
             if do_imaging = '1' then
                 -- TODO: might want to start the frame_requester here instead of it starting independently
-                state := IMAGING;
+                state := vnir.IMAGING;
             end if;
-        when IMAGING =>
+        when vnir.IMAGING =>
             assert start_config = '0';
             assert start_image_config = '0';
             assert do_imaging = '0';
             if imaging_done_s = '1' then -- TODO: might want to make sure row_collator is finished
-                state := IDLE; 
+                state := vnir.IDLE; 
             end if;
         end case;
+
+        status.state <= state;
     end process fsm;
 
     start_frame_requester_config <= calc_image_length_done;
@@ -320,7 +328,8 @@ begin
         spi_in => spi_in,
         sensor_power => sensor_power,
         sensor_clock_enable => sensor_clock_enable,
-        sensor_reset_n => sensor_reset_n
+        sensor_reset_n => sensor_reset_n,
+        status => status.sensor_configurer
     );
     
     frame_requester_component : frame_requester port map (
@@ -332,7 +341,8 @@ begin
         do_imaging => do_imaging,
         sensor_clock => sensor_clock,
         frame_request => frame_request,
-        exposure_start => exposure_start
+        exposure_start => exposure_start,
+        status => status.frame_requester
     );
 
     lvds_decoder_component : lvds_decoder  port map (
@@ -345,7 +355,8 @@ begin
         lvds_data => lvds.data,
         fragment => fragment,
         fragment_control => fragment_control,
-        fragment_available => fragment_available
+        fragment_available => fragment_available,
+        status => status.lvds_decoder
     );
 
     row_collector_component : row_collector port map (
@@ -358,7 +369,8 @@ begin
         fragment => fragment,
         fragment_available => fragment_available and fragment_control.dval,
         row => row,
-        row_window => row_window
+        row_window => row_window,
+        status => status.row_collector
     );
     imaging_done <= imaging_done_s;
 

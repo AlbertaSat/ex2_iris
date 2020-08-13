@@ -30,6 +30,13 @@ package sensor_configurer_pkg is
         windows     : window_vector_t(MAX_N_WINDOWS-1 downto 0);
     end record config_t;
 
+    type state_t is (RESET, OFF, IDLE, CONFIG_POWER_ON, CONFIG_CLOCK_ON, CONFIG_RESET_OFF,
+                     CONFIG_TRANSMIT, CONFIG_TRANSMIT_FINISH, CONFIG_SPI_SETTLE);
+
+    type status_t is record
+        state   : state_t;
+    end record status_t;
+
     pure function l8_instructions(l8 : logic8_t; addr : integer) return logic16_vector_t;
     pure function i8_instructions(i8 : integer; addr : integer) return logic16_vector_t;
     pure function l16_instructions(l16 : logic16_t; addr : integer) return logic16_vector_t;

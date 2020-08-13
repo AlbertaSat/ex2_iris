@@ -22,6 +22,10 @@ use work.vnir_base.all;
 
 package lvds_decoder_pkg is
 
+    type status_t is record
+        PLACEHOLDER : std_logic;
+    end record status_t;
+
     pure function flatten(fragment : pixel_vector_t) return std_logic_vector;
     pure function unflatten_to_fragment(fragment_flat : std_logic_vector; PIXEL_BITS : integer) return pixel_vector_t;
 

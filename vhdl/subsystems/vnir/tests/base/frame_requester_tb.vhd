@@ -42,6 +42,7 @@ architecture tests of frame_requester_tb is
     signal imaging_done     : std_logic;
     signal frame_request    : std_logic;
     signal exposure_start   : std_logic;
+    signal status           : status_t;
     
     component frame_requester_mainclock is
     generic (
@@ -58,7 +59,8 @@ architecture tests of frame_requester_tb is
         do_imaging          : in std_logic;
         imaging_done        : out std_logic;
         frame_request       : out std_logic;
-        exposure_start      : out std_logic
+        exposure_start      : out std_logic;
+        status              : out status_t
     ); 
     end component frame_requester_mainclock;
     
@@ -179,7 +181,8 @@ begin
         do_imaging => do_imaging,
         imaging_done => imaging_done,
         frame_request => frame_request,
-        exposure_start => exposure_start
+        exposure_start => exposure_start,
+        status => status
     );
 
 end tests;

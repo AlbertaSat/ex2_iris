@@ -24,6 +24,7 @@ use std.env.stop;
 
 use work.spi_types.all;
 use work.vnir_base.all;
+use work.lvds_decoder_pkg.all;
 
 entity lvds_decoder_tb is
 end entity lvds_decoder_tb;
@@ -47,7 +48,8 @@ architecture tests of lvds_decoder_tb is
         
         fragment            : out pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
         fragment_control    : out control_t;
-        fragment_available  : out std_logic
+        fragment_available  : out std_logic;
+        status              : out status_t
     );
     end component lvds_decoder;
     
@@ -112,6 +114,8 @@ architecture tests of lvds_decoder_tb is
     signal fragment           : pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     signal fragment_control   : control_t;
     signal fragment_available : std_logic;
+
+    signal status : status_t;
 
     procedure lvds_transmit(
         control : in lpixel_t;

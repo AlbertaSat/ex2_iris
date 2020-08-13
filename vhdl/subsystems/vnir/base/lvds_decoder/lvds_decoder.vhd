@@ -39,7 +39,9 @@ port (
     
     fragment            : out pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
     fragment_control    : out control_t;
-    fragment_available  : out std_logic
+    fragment_available  : out std_logic;
+
+    status              : out status_t
 );
 end entity lvds_decoder;
 

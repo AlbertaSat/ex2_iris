@@ -19,6 +19,10 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.vnir_base;
+use work.frame_requester_pkg;
+use work.lvds_decoder_pkg;
+use work.row_collector_pkg;
+use work.sensor_configurer_pkg;
 
 package vnir is
 
@@ -61,5 +65,15 @@ package vnir is
         control : std_logic;
         data    : std_logic_vector(FRAGMENT_WIDTH-1 downto 0);
     end record lvds_t;
+
+    type state_t is (RESET, PRE_CONFIG, CONFIGURING, PRE_IMAGE_CONFIG, IMAGE_CONFIGURING, IDLE, IMAGING);
+
+    type status_t is record
+        state               : state_t;
+        frame_requester     : frame_requester_pkg.status_t;
+        lvds_decoder        : lvds_decoder_pkg.status_t;
+        row_collector       : row_collector_pkg.status_t;
+        sensor_configurer   : sensor_configurer_pkg.status_t;
+    end record status_t;
 
 end package vnir;

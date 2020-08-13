@@ -41,6 +41,11 @@ package row_collector_pkg is
         windows_per_frame : integer;
     end record fragment_idx_t;
 
+    type status_t is record
+        fragment_available  : std_logic;
+        fragment_x          : integer;
+    end record status_t;
+
     pure function is_last_fragment (idx : fragment_idx_t) return boolean;
     pure function is_last_row (idx : fragment_idx_t) return boolean;
     pure function is_last_window (idx : fragment_idx_t) return boolean;

@@ -48,7 +48,9 @@ port (
     
     sensor_power        : out std_logic;
     sensor_clock_enable : out std_logic;
-    sensor_reset_n      : out std_logic
+    sensor_reset_n      : out std_logic;
+
+    status              : out status_t
 );
 end entity sensor_configurer;
 
@@ -120,8 +122,6 @@ architecture rtl of sensor_configurer is
 begin
 
     main_process : process
-        type state_t is (RESET, OFF, IDLE, CONFIG_POWER_ON, CONFIG_CLOCK_ON, CONFIG_RESET_OFF,
-                         CONFIG_TRANSMIT, CONFIG_TRANSMIT_FINISH, CONFIG_SPI_SETTLE);
         variable state : state_t;
 
         variable i : integer;
@@ -206,6 +206,8 @@ begin
         end case;
         
         spi_busy_prev := spi_busy;
+
+        status.state <= state;
 
     end process main_process;
 

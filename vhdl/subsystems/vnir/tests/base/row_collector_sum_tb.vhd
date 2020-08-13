@@ -51,6 +51,7 @@ architecture tests of row_collector_sum_tb is
 	signal fragment_available   : std_logic := '0';
     signal row                  : pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
     signal row_window           : integer;
+    signal status               : status_t;
 
     component row_collector is
     generic (
@@ -72,7 +73,8 @@ architecture tests of row_collector_sum_tb is
         fragment            : in pixel_vector_t;
         fragment_available  : in std_logic;
         row                 : out pixel_vector_t;
-        row_window          : out integer
+        row_window          : out integer;
+        status              : out status_t
     );
     end component row_collector;
 
@@ -203,7 +205,8 @@ begin
         fragment => fragment,
         fragment_available => fragment_available,
         row => row,
-        row_window => row_window
+        row_window => row_window,
+        status => status
     );
 
 end tests;
