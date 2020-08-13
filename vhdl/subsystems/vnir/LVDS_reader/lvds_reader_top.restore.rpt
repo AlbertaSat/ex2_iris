@@ -1,0 +1,82 @@
+Restore Archived Project report for lvds_reader_top
+Wed Aug 12 20:54:50 2020
+Quartus Prime Version 17.0.0 Build 595 04/25/2017 SJ Standard Edition
+
+
+---------------------
+; Table of Contents ;
+---------------------
+  1. Legal Notice
+  2. Restore Archived Project Summary
+  3. Restore Archived Project Messages
+  4. Files Restored
+  5. Files Not Restored
+
+
+
+----------------
+; Legal Notice ;
+----------------
+Copyright (C) 2017  Intel Corporation. All rights reserved.
+Your use of Intel Corporation's design tools, logic functions 
+and other software and tools, and its AMPP partner logic 
+functions, and any output files from any of the foregoing 
+(including device programming or simulation files), and any 
+associated documentation or information are expressly subject 
+to the terms and conditions of the Intel Program License 
+Subscription Agreement, the Intel Quartus Prime License Agreement,
+the Intel MegaCore Function License Agreement, or other 
+applicable license agreement, including, without limitation, 
+that your use is for the sole purpose of programming logic 
+devices manufactured by Intel and sold by Intel or its 
+authorized distributors.  Please refer to the applicable 
+agreement for further details.
+
+
+
++-------------------------------------------------------------------------+
+; Restore Archived Project Summary                                        ;
++---------------------------------+---------------------------------------+
+; Restore Archived Project Status ; Successful - Wed Aug 12 20:54:50 2020 ;
+; Revision Name                   ; lvds_reader_top                       ;
+; Top-level Entity Name           ; lvds_reader_top                       ;
+; Family                          ; Cyclone V                             ;
++---------------------------------+---------------------------------------+
+
+
++-----------------------------------+
+; Restore Archived Project Messages ;
++-----------------------------------+
+Info: Successfully restored 'D:/Campbells_Stuff/University_of_Alberta/AlbertaSAT/Software/test_FPGA_code/LVDS_reader/lvds_reader_v3/lvds_reader_v3_tmp_archive.qar' into the 'D:/Campbells_Stuff/University_of_Alberta/AlbertaSAT/ex2_iris/vhdl/subsystems/vnir/LVDS_reader' directory
+Info: Generated report 'lvds_reader_top.restore.rpt'
+
+
++-------------------------+
+; Files Restored          ;
++-------------------------+
+; File Name               ;
++-------------------------+
+; qar_info.json           ;
+; LVDS_reader_IP.bsf      ;
+; LVDS_reader_IP.cmp      ;
+; LVDS_reader_IP.inc      ;
+; LVDS_reader_IP.ppf      ;
+; LVDS_reader_IP.qip      ;
+; LVDS_reader_IP.vhd      ;
+; LVDS_reader_IP_inst.vhd ;
+; LVDS_reader_IP_syn.v    ;
+; lvds_reader_top.qsf     ;
+; lvds_reader_top.vhd     ;
+; lvds_reader_v3.qpf      ;
+; testbench_1.vhd         ;
+; assignment_defaults.qdf ;
++-------------------------+
+
+
++--------------------+
+; Files Not Restored ;
++--------------------+
+; File Name          ;
++--------------------+
+
+
