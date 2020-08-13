@@ -59,7 +59,6 @@ architecture rtl of electra is
         clock               : in std_logic;
         reset_n             : in std_logic;
         sensor_clock        : in std_logic;
-        sensor_clock_locked : in std_logic;
         sensor_power        : out std_logic;
         sensor_clock_enable : out std_logic;
         sensor_reset_n      : out std_logic;
@@ -145,7 +144,6 @@ begin
         clock => clock,
         reset_n => reset_n,
         sensor_clock => vnir_sensor_clock_s,
-        sensor_clock_locked => vnir_sensor_clock_locked,
         sensor_power => vnir_sensor_power,
         sensor_clock_enable => vnir_sensor_clock_enable,
         sensor_reset_n => vnir_sensor_reset_n,

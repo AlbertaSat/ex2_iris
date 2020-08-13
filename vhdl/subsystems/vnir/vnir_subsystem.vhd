@@ -44,7 +44,6 @@ port (
     reset_n             : in std_logic;
 
     sensor_clock        : in std_logic;
-    sensor_clock_locked : in std_logic;
     sensor_power        : out std_logic;
     sensor_clock_enable : out std_logic;
     sensor_reset_n      : out std_logic;
@@ -214,9 +213,6 @@ architecture rtl of vnir_subsystem is
 
     signal start_align : std_logic;
     signal align_done  : std_logic;
-    
-    signal start_locking : std_logic;
-    signal locking_done  : std_logic;
 
     signal row_collector_config : row_collector_pkg.config_t;
 
@@ -237,7 +233,7 @@ begin
     begin
         wait until rising_edge(clock);
         
-        start_locking <= '0';
+        start_sensor_config <= '0';
         start_calc_image_length <= '0';
         config_done <= '0';
         image_config_done <= '0';
@@ -254,7 +250,7 @@ begin
             assert do_imaging = '0';
             if start_config = '1' then
                 config_reg <= config;
-                start_locking <= '1';
+                start_sensor_config <= '1';
                 state := CONFIGURING;
             end if;
         when CONFIGURING =>
@@ -289,7 +285,7 @@ begin
                    
             if start_config = '1' then
                 config_reg <= config;
-                start_locking <= '1';
+                start_sensor_config <= '1';
                 state := CONFIGURING;
             end if;
             if start_image_config = '1' then
@@ -312,16 +308,7 @@ begin
     end process fsm;
 
     start_frame_requester_config <= calc_image_length_done;
-    start_sensor_config <= locking_done;
     start_align <= sensor_config_done;
-
-    delay_until_locked : delay_until port map (
-        clock => clock,
-        reset_n => reset_n,
-        condition => sensor_clock_locked,
-        start => start_locking,
-        done => locking_done
-    );
 
     sensor_configurer_component : sensor_configurer port map (
         clock => clock,
