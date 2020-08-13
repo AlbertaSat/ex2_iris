@@ -22,12 +22,14 @@ use altera_mf.all;
 
 entity clock_bridge is
 port (
-    reset_n   : in std_logic;
-    i_clock   : in std_logic;
-    i         : in std_logic;
-    o_clock   : in std_logic;
-    o         : out std_logic;
-    o_reset_n : out std_logic
+    reset_n     : in std_logic;
+    i_clock     : in std_logic;
+    i           : in std_logic;
+    o_clock     : in std_logic;
+    o           : out std_logic;
+    o_reset_n   : out std_logic;
+    overflow_i  : out std_logic;
+    overflow_o  : out std_logic
 );
 end entity clock_bridge;
 
@@ -57,14 +59,16 @@ architecture rtl of clock_bridge is
         wrreq   : in std_logic;
         q       : out std_logic_vector;
         rdempty : out std_logic;
+        rdfull  : out std_logic;
         wrfull  : out std_logic 
     );
     end component;
 
-    signal data : std_logic_vector(1 downto 0);
-    signal q : std_logic_vector(1 downto 0);
-    signal rdempty : std_logic;
-    signal wrfull : std_logic;
+    signal data     : std_logic_vector(1 downto 0);
+    signal q        : std_logic_vector(1 downto 0);
+    signal rdempty  : std_logic;
+    signal rdfull   : std_logic;
+    signal wrfull   : std_logic;
 begin
 
     fifo : dcfifo port map (
@@ -75,8 +79,9 @@ begin
 		wrclk => i_clock,
 		wrreq => i and not wrfull,
 		q => q,
-		rdempty => rdempty,
-		wrfull => wrfull  -- TODO: if this is ever high, raise an error or something
+        rdempty => rdempty,
+        rdfull => rdfull,
+		wrfull => wrfull
 	);
     
     data(0) <= i;
@@ -84,5 +89,28 @@ begin
 
     o <= q(0) and not rdempty;
     o_reset_n <= q(1) or rdempty;
+
+    process (i_clock, reset_n)
+    begin
+        if reset_n = '0' then
+            overflow_i <= '0';
+        elsif rising_edge(i_clock) then
+            if wrfull = '1' then
+                overflow_i <= '1';
+            end if;
+        end if;
+    end process;
+
+    process (o_clock, reset_n)
+    begin
+        if reset_n = '0' then
+            overflow_o <= '0';
+        elsif rising_edge(o_clock) then
+            if rdfull = '1' then
+                overflow_o <= '1';
+            end if;
+        end if;
+    end process;
+
 
 end architecture rtl;
