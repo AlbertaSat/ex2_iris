@@ -34,19 +34,19 @@ end entity clock_bridge;
 architecture rtl of clock_bridge is
     component dcfifo
     generic (
-        intended_device_family  : string;
-        lpm_numwords            : natural;
-        lpm_showahead           : string;
-        lpm_type                : string;
-        lpm_width               : natural;
-        lpm_widthu              : natural;
-        overflow_checking       : string;
-        rdsync_delaypipe        : natural;
-        read_aclr_synch         : string;
-        underflow_checking      : string;
-        use_eab                 : string;
-        write_aclr_synch        : string;
-        wrsync_delaypipe        : natural
+        intended_device_family  : string    := "Cyclone V";
+        lpm_numwords            : natural   := 4;
+        lpm_showahead           : string    := "ON";
+        lpm_type                : string    := "dcfifo";
+        lpm_width               : natural   := 2;
+        lpm_widthu              : natural   := 2;
+        overflow_checking       : string    := "ON";
+        rdsync_delaypipe        : natural   := 4;
+        read_aclr_synch         : string    := "OFF";
+        underflow_checking      : string    := "ON";
+        use_eab                 : string    := "ON";
+        write_aclr_synch        : string    := "OFF";
+        wrsync_delaypipe        : natural   := 4
     );
     port (
         aclr    : in std_logic;
@@ -67,21 +67,7 @@ architecture rtl of clock_bridge is
     signal wrfull : std_logic;
 begin
 
-    fifo : dcfifo generic map (
-		intended_device_family => "Cyclone V",
-		lpm_numwords => 4,
-		lpm_showahead => "ON",
-		lpm_type => "dcfifo",
-		lpm_width => 2,
-		lpm_widthu => 2,
-		overflow_checking => "ON",
-		rdsync_delaypipe => 4,
-		read_aclr_synch => "OFF",
-		underflow_checking => "ON",
-		use_eab => "ON",
-		write_aclr_synch => "OFF",
-        wrsync_delaypipe => 4
-	) port map (
+    fifo : dcfifo port map (
 		aclr => not reset_n,
         data => data,
 		rdclk => o_clock,
