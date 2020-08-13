@@ -31,13 +31,13 @@ generic (
     DENOMINATOR_BITS : integer := 64
 );
 port (
-    clock   : in std_logic;
-    reset_n : in std_logic;
-    n       : in u64;
-    d       : in u64;
-    q       : out u64;
-    start   : in std_logic;
-    done    : out std_logic
+    clock       : in std_logic;
+    reset_n     : in std_logic;
+    numerator   : in u64;
+    denominator : in u64;
+    quotient    : out u64;
+    start       : in std_logic;
+    done        : out std_logic
 );
 end entity udivide;
 
@@ -75,18 +75,18 @@ architecture rtl of udivide is
     );
     end component n_delay;
     
-    signal q_logic : std_logic_vector(NUMERATOR_BITS-1 downto 0);
+    signal quotient_logic : std_logic_vector(NUMERATOR_BITS-1 downto 0);
 
 begin
 
     compute_quotient : LPM_DIVIDE port map (
         clock => clock,
         aclr => not reset_n,
-        numer => std_logic_vector(to_unsigned(n, NUMERATOR_BITS)),
-        denom => std_logic_vector(to_unsigned(d, DENOMINATOR_BITS)),
-        quotient => q_logic
+        numer => std_logic_vector(to_unsigned(numerator, NUMERATOR_BITS)),
+        denom => std_logic_vector(to_unsigned(denominator, DENOMINATOR_BITS)),
+        quotient => quotient_logic
     );
-    q <= to_u64(q_logic);
+    quotient <= to_u64(quotient_logic);
 
     delay : n_delay port map (
         clock => clock,

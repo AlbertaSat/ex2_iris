@@ -93,13 +93,13 @@ architecture rtl of vnir_subsystem is
         DENOMINATOR_BITS : integer
     );
     port (
-        clock   : in std_logic;
-        reset_n : in std_logic;
-        n       : in u64;
-        d       : in u64;
-        q       : out u64;
-        start   : in std_logic;
-        done    : out std_logic
+        clock       : in std_logic;
+        reset_n     : in std_logic;
+        numerator   : in u64;
+        denominator : in u64;
+        quotient    : out u64;
+        start       : in std_logic;
+        done        : out std_logic
     );
     end component udivide;
         
@@ -378,9 +378,9 @@ begin
     calc_image_length : udivide generic map (5, MUL_BITS, 10) port map (
         clock => clock,
         reset_n => reset_n,
-        n => to_unsigned(image_config_reg.duration, 32) * to_unsigned(image_config_reg.fps, 32),
-        d => to_u64(1000),
-        to_integer(q) => image_length,
+        numerator => to_unsigned(image_config_reg.duration, 32) * to_unsigned(image_config_reg.fps, 32),
+        denominator => to_u64(1000),
+        to_integer(quotient) => image_length,
         start => start_calc_image_length,
         done => calc_image_length_done
     );

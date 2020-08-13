@@ -66,13 +66,13 @@ architecture rtl of calc_frame_request_offset is
         DENOMINATOR_BITS : integer
     );
     port (
-        clock   : in std_logic;
-        reset_n : in std_logic;
-        n       : in u64;
-        d       : in u64;
-        q       : out u64;
-        start   : in std_logic;
-        done    : out std_logic
+        clock       : in std_logic;
+        reset_n     : in std_logic;
+        numerator   : in u64;
+        denominator : in u64;
+        quotient    : out u64;
+        start       : in std_logic;
+        done        : out std_logic
     );
     end component udivide;
 
@@ -98,18 +98,18 @@ begin
     -- clocks_per_frame <= CLOCKS_PER_SEC / fp
     calc_clocks_per_frame : udivide generic map (5, CLOCKS_PER_SEC_BITS, FPS_BITS) port map (
         clock => clock, reset_n => reset_n,
-        n => to_u64(CLOCKS_PER_SEC),
-        d => to_u64(fps),
-        q => clocks_per_frame,
+        numerator => to_u64(CLOCKS_PER_SEC),
+        denominator => to_u64(fps),
+        quotient => clocks_per_frame,
         start => start, done => open  -- Scheduled to finish at the same time as clocks_per_exposure
     );
 
     -- clocks_per_exposurer <= CLOCKS_PER_SEC * exposure_time / 1000
     calc_clocks_per_exposure : udivide generic map (5, MUL_BITS, 10) port map (
         clock => clock, reset_n => reset_n,
-        n => to_u64(to_u64(CLOCKS_PER_SEC) * exposure_time),
-        d => to_u64(1000),
-        q => clocks_per_exposure,
+        numerator => to_u64(to_u64(CLOCKS_PER_SEC) * exposure_time),
+        denominator => to_u64(1000),
+        quotient => clocks_per_exposure,
         start => start, done => done_clocks_per_exposure
     );
 
