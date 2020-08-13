@@ -30,7 +30,7 @@ package vnir is
     constant ROW_PIXEL_BITS : integer := 10;  -- Increase this to prevent overflow if using method = SUM
     constant N_WINDOWS : integer := 3;
     constant MAX_WINDOW_SIZE : integer := 16;
-    constant METHOD : string := "AVERAGE";
+    constant METHOD : string := "AVERAGE";  -- "AVERAGE" or "SUM"
 
     constant MAX_FPS : integer := 2000;
 
