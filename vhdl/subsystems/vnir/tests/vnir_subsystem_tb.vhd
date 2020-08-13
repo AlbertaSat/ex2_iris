@@ -27,6 +27,8 @@ use work.spi_types.all;
 use work.vnir_base;
 use work.vnir.all;
 
+use work.sensor_configurer_pkg.FLIP_NONE;
+
 entity vnir_subsystem_tb is
 end entity;
 

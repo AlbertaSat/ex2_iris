@@ -18,17 +18,11 @@ use ieee.numeric_std.all;
 use work.logic_types.all;
 use work.vnir_base.all;
 
--- TODO: bad practice, fix this
-use work.vnir.flip_t;
-use work.vnir.FLIP_NONE;
-use work.vnir.FLIP_X;
-use work.vnir.FLIP_Y;
-use work.vnir.FLIP_XY;
-
-
 package sensor_configurer_pkg is
 
     constant MAX_N_WINDOWS : integer := 10;
+
+    type flip_t is (FLIP_NONE, FLIP_X, FLIP_Y, FLIP_XY);
 
     type config_t is record
         flip        : flip_t;

@@ -24,14 +24,6 @@ use work.logic_types.all;
 use work.sensor_configurer_pkg.all;
 use work.sensor_configurer_defaults;
 
--- TODO: bad practice, fix this
-use work.vnir.flip_t;
-use work.vnir.FLIP_NONE;
-use work.vnir.FLIP_X;
-use work.vnir.FLIP_Y;
-use work.vnir.FLIP_XY;
-
-
 entity sensor_configurer is
 generic (
     FRAGMENT_WIDTH      : integer;

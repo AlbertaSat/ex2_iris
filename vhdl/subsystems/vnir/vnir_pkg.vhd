@@ -22,8 +22,7 @@ use work.vnir_base;
 
 package vnir is
 
-    -- TODO: this shouldn't be here
-    type flip_t is (FLIP_NONE, FLIP_X, FLIP_Y, FLIP_XY);
+    subtype flip_t is sensor_configurer_pkg.flip_t;
 
     constant ROW_WIDTH : integer := 2048;
     constant FRAGMENT_WIDTH : integer := 16;
