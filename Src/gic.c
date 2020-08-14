@@ -53,7 +53,7 @@ void config_interrupt(ALT_INT_INTERRUPT_t int_id, alt_int_cpu_target_t target)
         alt_int_dist_enable(int_id); // Enable the interrupt sourced from CAN controller (0 or 1)
         alt_int_dist_priority_set(int_id, 0); // Set the interrupt to highest priority
         alt_int_dist_target_set(int_id, target); // Set the CPU to foward interrupt to
-        // alt_int_dist_trigger(int_id, ) // Type of trigger??
+        // alt_int_dist_trigger(int_id, ); // Type of trigger??
 }
 
 int main(void)

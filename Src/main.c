@@ -15,11 +15,10 @@
 #include "gic.c"
 #include "init_seq"
 
-
-
-
 int main(void)
 {
+        /* Initialize CAN controller */
+
         /* Configuring HPS General Interrupt Controller */
         alt_int_global_init(); // Interrupt controller Initialization
         alt_int_global_disable_all(); // Disable all interrupt forwarding from controller to CPU
