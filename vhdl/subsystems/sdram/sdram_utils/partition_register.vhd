@@ -90,9 +90,9 @@ begin
                         if (check_full(buffer_part, add_length, buffer_part.base) = '1') then
                             no_add <= '1';
                         else
-                            buffer_fill_bounds <= buffer_part.base + 1 + add_length;
-                            buffer_img_start <= buffer_part.base + 1;
-                            buffer_img_end <= buffer_part.base + 1 + add_length;
+                            buffer_fill_bounds <= buffer_part.base + add_length;
+                            buffer_img_start <= buffer_part.base;
+                            buffer_img_end <= buffer_part.base + add_length;
                         end if;
                     else
                         --No need to check if it's full, the overflow did that already
@@ -126,16 +126,23 @@ begin
     sig_assign : process (clk, reset_n) is
     begin
         if (reset_n = '0') then
+            --The default undefined address is 0x80000000
             state <= init;
-            buffer_part.base <= (others => '0');
-            buffer_part.bounds <= (others => '0');
-            buffer_part.fill_base <= (others => '0');
-            buffer_part.fill_bounds <= (others => '0');
+            buffer_part.base        <= (31 => '1', others => '0');
+            buffer_part.bounds      <= (31 => '1', others => '0');
+            buffer_part.fill_base   <= (31 => '1', others => '0');
+            buffer_part.fill_bounds <= (31 => '1', others => '0');
 
-            part_out.base <= (others => '0');
-            part_out.bounds <= (others => '0');
-            part_out.fill_base <= (others => '0');
-            part_out.fill_bounds <= (others => '0');
+            part_out.base           <= (31 => '1', others => '0');
+            part_out.bounds         <= (31 => '1', others => '0');
+            part_out.fill_base      <= (31 => '1', others => '0');
+            part_out.fill_bounds    <= (31 => '1', others => '0');
+
+            img_start               <= (31 => '1', others => '0');
+            img_end                 <= (31 => '1', others => '0');
+
+            full                    <= '0';
+            bad_mpu_check           <= '0';
 
         elsif rising_edge(clk) then
             state <= next_state;
@@ -143,15 +150,15 @@ begin
             bad_mpu_check <= '0';
 
             if (state = init and bounds_write = '1') then
-                buffer_part.base <= buffer_base;
-                buffer_part.bounds <= buffer_bounds;
-                buffer_part.fill_base <= buffer_fill_base;
+                buffer_part.base        <= buffer_base;
+                buffer_part.bounds      <= buffer_bounds;
+                buffer_part.fill_base   <= buffer_fill_base;
                 buffer_part.fill_bounds <= buffer_fill_bounds;
 
-                part_out.base <= buffer_base;
-                part_out.bounds <= buffer_bounds;
-                part_out.fill_base <= buffer_fill_base;
-                part_out.fill_bounds <= buffer_fill_bounds;
+                part_out.base           <= buffer_base;
+                part_out.bounds         <= buffer_bounds;
+                part_out.fill_base      <= buffer_fill_base;
+                part_out.fill_bounds    <= buffer_fill_bounds;
 
             elsif (state = operating and filled_add = '1') then
                 if (no_add = '1') then
