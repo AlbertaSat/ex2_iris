@@ -29,8 +29,8 @@ package swir_types is
         volt_conv : std_logic;
     end record swir_control_t;
 
-    constant swir_pixel_bits : integer := 16;
-    constant swir_row_width : integer := 512;
-    subtype swir_pixel_t is unsigned(0 to swir_pixel_bits-1);
-    type swir_row_t is array(0 to swir_row_width-1) of swir_pixel_t;
+    constant SWIR_PIXEL_BITS : integer := 16;
+    constant SWIR_ROW_WIDTH : integer := 512;
+    subtype swir_pixel_t is unsigned(0 to SWIR_PIXEL_BITS-1);
+    type swir_row_t is array(0 to SWIR_ROW_WIDTH-1) of swir_pixel_t;
 end package swir_types;

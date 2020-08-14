@@ -19,21 +19,15 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 package sdram_types is
-    type sdram_config_t is record
-        memory_base : integer;
-        memory_bounds : integer;
-    end record sdram_config_t;
-
+    
     type sdram_address_list_t is array(0 to 10) of integer;  -- TODO: properly define this
 
     type sdram_error_t is (SDRAM_NO_ERROR, SDRAM_FULL, SDRAM_MPU_CHECK_FAILED);
 
-    type memory_range_t is record
-
     type sdram_config_to_sdram_t is record
         memory_base : integer;
         memory_bounds : integer;
-    end record sdram_config_in_t;
+    end record sdram_config_to_sdram_t;
 
     type sdram_config_from_sdram_t is record
         swir_base : integer;
@@ -44,11 +38,11 @@ package sdram_types is
         vnir_bounds : integer;
         vnir_temp_base : integer;
         vnir_temp_bounds : integer;
-    end record sdram_config_out_t;
+    end record sdram_config_from_sdram_t;
 
-    type sdram_config is record
+    type sdram_config_t is record
         to_sdram : sdram_config_to_sdram_t;
         from_sdram : sdram_config_from_sdram_t;
-    end record sdram_config;
+    end record sdram_config_t;
 
 end package sdram_types;

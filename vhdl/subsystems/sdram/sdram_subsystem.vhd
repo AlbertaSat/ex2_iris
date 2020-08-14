@@ -20,7 +20,7 @@ use ieee.numeric_std.all;
 
 use work.avalonmm_types.all;
 use work.sdram_types.all;
-use work.vnir_types.all;
+use work.vnir;
 use work.swir_types.all;
 use work.fpga_types.all;
 
@@ -30,9 +30,9 @@ entity sdram_subsystem is
         clock               : in std_logic;
         reset_n             : in std_logic;
 
-        vnir_rows_available : in std_logic;
+        vnir_row_available  : in vnir.row_type_t;
         vnir_num_rows       : in integer;
-        vnir_rows           : in vnir_rows_t;
+        vnir_row            : in vnir.row_t;
         
         swir_row_available  : in std_logic;
         swir_num_rows       : in integer;
@@ -45,9 +45,13 @@ entity sdram_subsystem is
         config_done         : out std_logic;
         
         sdram_busy          : out std_logic;
-        sdram_error         : out stdram_error_t;
+        sdram_error         : out sdram_error_t;
         
         sdram_avalon_out    : out avalonmm_rw_from_master_t;
         sdram_avalon_in     : in avalonmm_rw_to_master_t
     );
 end entity sdram_subsystem;
+
+architecture rtl of sdram_subsystem is
+begin
+end architecture rtl;
