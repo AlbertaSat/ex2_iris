@@ -9,10 +9,10 @@ use work.swir_types.all;
 use work.sdram_types.all;
 use work.fpga_types.all;
 
-entity part_reg_tb is
+entity memory_map_tb is
 end entity;
 
-architecture sim of part_reg_tb is
+architecture sim of memory_map_tb is
     constant clk_freq : integer := 20000000;
     constant clk_period : time := 1000 ms / clk_freq;
 
@@ -20,27 +20,29 @@ architecture sim of part_reg_tb is
     signal reset_n : std_logic := '0';
 
     --SDRAM config signals to and from the FPGA
-    signal config              : sdram_config_to_sdram_t;
+    signal config              : sdram_config_to_sdram_t := (
+        memory_base => to_unsigned(0, 32),
+        memory_bounds => to_unsigned(0, 32)
+    );
     signal memory_state        : sdram_partitions_t;
 
-    signal start_config        : std_logic;
+    signal start_config        : std_logic := '0';
     signal config_done         : std_logic;
     signal img_config_done     : std_logic;
 
     --Image Config signals
-    signal number_swir_rows    : natural;
-    signal number_vnir_rows    : natural;
+    signal number_swir_rows    : natural := 0;
+    signal number_vnir_rows    : natural := 0;
 
     --Ouput image row address config
-    signal next_row_type       : sdram_next_row_fed_t;
-    signal next_row_req        : std_logic;
+    signal next_row_type       : sdram_next_row_fed_t := no_row;
+    signal next_row_req        : std_logic := '0';
     signal output_address      : sdram_address;
 
     --Read data to be read from sdram due to mpu interaction
-    signal sdram_error         : sdram_error_t;
-    signal read_data           : avalonmm_read_to_master_t
+    signal sdram_error         : sdram_error_t := no_error;
 
-    component memory_map is port(
+    component memory_map port(
         --Control signals
         clock               : in std_logic;
         reset_n             : in std_logic;
@@ -63,8 +65,8 @@ architecture sim of part_reg_tb is
         output_address      : out sdram_address;
 
         --Read data to be read from sdram due to mpu interaction
-        sdram_error         : out sdram_error_t
-    );
+        sdram_error         : out sdram_error_t);
+    end component;
 begin
     memory_map_comp : memory_map port map (
         clock => clk,
@@ -79,7 +81,97 @@ begin
         next_row_type => next_row_type,
         next_row_req => next_row_req,
         output_address => output_address,
-        sdram_errer => sdram_error
+        sdram_error => sdram_error
     );
 
-    
+    clk <= not(clk) after clk_period / 2;
+
+    process is
+    begin
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        reset_n <= '1';
+        wait until rising_edge(clk);
+        next_row_req <= '1';
+        wait until rising_edge(clk);
+        config.memory_base <= to_unsigned(16#200#, 32);
+        config.memory_bounds <= to_unsigned(16#2000000#, 32);
+        start_config <= '1';
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        number_vnir_rows <= 1000;
+        number_swir_rows <= 512;
+        wait until (memory_state.vnir.fill_bounds /= memory_state.vnir.base);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        next_row_req <= '0';
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        next_row_type <= red_row;
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        next_row_req <= '1';
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        next_row_req <= '0';
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        next_row_req <= '1';
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        next_row_type <= blue_row;
+        next_row_req <= '0';
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        next_row_req <= '1';
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        next_row_type <= red_row;
+        next_row_req <= '0';
+
+    end process;
+end architecture;
