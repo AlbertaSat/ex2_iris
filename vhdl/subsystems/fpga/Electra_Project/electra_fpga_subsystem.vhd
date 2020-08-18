@@ -239,7 +239,7 @@ begin
 		sdram_config_out.memory_bounds(19 downto 0) <= unsigned(avalon_write_data(31 downto 12));
 		
 	when "00001000" =>
-		sdram_config_out.memory_base(27 downto 20) <= unsigned(avalon_write_data(15 downto 8));
+		sdram_config_out.memory_bounds(27 downto 20) <= unsigned(avalon_write_data(15 downto 8));
 			
 		sdram_start_config <= avalon_write_data(16); -- will be a '1' to start config
 		
@@ -267,7 +267,7 @@ begin
 	when "00010010" =>
 		config_confirmed <= avalon_write_data(8); 
 
-	when "00010001" =>
+	when "00010011" =>
 		image_config_confirmed <= avalon_write_data(8); 
 
 	when others =>

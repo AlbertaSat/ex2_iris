@@ -1,0 +1,265 @@
+{
+	"partitions" : [
+		{
+			"name" : "Top",
+			"pins" : [
+				{
+					"name" : "conduit_end_avalon[0]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[1]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[2]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[3]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[4]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[5]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[6]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[7]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[8]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[9]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[10]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[11]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[12]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[13]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[14]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[15]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[16]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[17]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[18]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[19]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[20]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[21]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[22]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[23]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[24]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[25]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[26]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[27]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[28]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[29]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[30]",
+					"strict" : false
+				},
+				{
+					"name" : "conduit_end_avalon[31]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[0]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[1]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[2]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[3]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[4]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[5]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[6]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[7]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[8]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[9]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[10]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[11]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[12]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[13]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[14]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[15]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[16]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[17]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[18]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[19]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[20]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[21]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[22]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[23]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[24]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[25]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[26]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[27]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[28]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[29]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[30]",
+					"strict" : false
+				},
+				{
+					"name" : "avalon_slave_writedata[31]",
+					"strict" : false
+				}
+			]
+		}
+	]
+}
