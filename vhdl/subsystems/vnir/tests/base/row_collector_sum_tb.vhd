@@ -24,7 +24,6 @@ use std.env.stop;
 
 use work.spi_types.all;
 use work.vnir_base.all;
-use work.test_util.all;
 use work.row_collector_pkg.all;
 
 use work.vnir.ROW_WIDTH;
