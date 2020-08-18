@@ -31,6 +31,19 @@ use ieee.numeric_std.all;
 use work.pulse_generator_pkg.all;
 use work.unsigned_types.all;
 
+-- Produces periodic pulses at a fixed fps
+--
+-- To use, set `frequency_Hz` to the required fps, `initial_delay_clocks`
+-- to the number of clocks to delay before beginning to pulse (i.e. the
+-- phase of the resulting waveform), and `n_pulses` to the number of
+-- times you want `pulse_generator` to produce an output pulse before
+-- returning to it's idle state. Then, assert `start`, and the desired
+-- pulses will be produced on the `pulses_out` output. When the
+-- `pulse_generator` is finished, it will hold `done` high for a single
+-- clock cycle
+--
+-- `status` contains the current status of the `pulse_generator`, to
+-- be used for debugging
 entity pulse_generator is
 generic (
     CLOCKS_PER_SEC          : integer

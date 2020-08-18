@@ -19,6 +19,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 
+-- Microsecond-accurate delay timer
 entity timer is
 generic (
     CLOCKS_PER_SEC  : integer;
