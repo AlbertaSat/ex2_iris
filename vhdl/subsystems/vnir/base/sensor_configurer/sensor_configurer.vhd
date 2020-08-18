@@ -24,6 +24,26 @@ use work.logic_types.all;
 use work.sensor_configurer_pkg.all;
 use work.sensor_configurer_defaults;
 
+-- Powers on and configures the VNIR sensor according to the given
+-- configuration values.
+--
+-- The VNIR sensor requires a particular start-up sequence: power on,
+-- clock on, reset off, then configure over SPI, with delays after each
+-- step. `sensor_configurer` handles this timing, with configurable
+-- delays given through generics.
+--
+-- The VNIR sensor is configured by setting its internal registers using
+-- a stream of 16-bit instructions sent over SPI. Each instruction is
+-- split into a one-bit write flag, a 7-bit address, and 8 bits of data.
+-- The `config` input is converted to a list of these instructions using
+-- the `all_instructions()` method in `sensor_configurer_pkg`, then
+-- sent to the sensor using the `spi_master` IP.
+--
+-- To use `sensor_configurer`, set its `config` input to the desired
+-- configuration values, then assert `start_config` for a single clock
+-- cycle when it is time to turn on/configure the sensor. When
+-- configuration is finished, `config_done` will be asserted for a single
+-- clock cycle.
 entity sensor_configurer is
 generic (
     FRAGMENT_WIDTH      : integer;
@@ -98,6 +118,7 @@ architecture rtl of sensor_configurer is
     signal spi_busy : std_logic;
     signal spi_ss_n : std_logic;
 
+    -- Provide nicer scoping for timer input/output signals
     type timer_t is record
         start : std_logic;
         done : std_logic;
