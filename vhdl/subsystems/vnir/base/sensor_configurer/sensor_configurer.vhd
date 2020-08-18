@@ -81,7 +81,7 @@ architecture rtl of sensor_configurer is
 
     component timer is
     generic (
-        CLOCKS_PER_SEC  : integer;
+        CLOCKS_PER_SEC  : integer := CLOCKS_PER_SEC;
         DELAY_us        : integer
     );
     port (
@@ -236,7 +236,6 @@ begin
     );
 
     power_on_timer_cmp : timer generic map (
-        CLOCKS_PER_SEC => CLOCKS_PER_SEC,
         DELAY_us => POWER_ON_DELAY_us
     ) port map (
         clock => clock,
@@ -246,7 +245,6 @@ begin
     );
 
     clock_on_timer_cmp : timer generic map (
-        CLOCKS_PER_SEC => CLOCKS_PER_SEC,
         DELAY_us => CLOCK_ON_DELAY_us
     ) port map (
         clock => clock,
@@ -256,7 +254,6 @@ begin
     );
 
     reset_off_timer_cmp : timer generic map (
-        CLOCKS_PER_SEC => CLOCKS_PER_SEC,
         DELAY_us => RESET_OFF_DELAY_us
     ) port map (
         clock => clock,
@@ -266,7 +263,6 @@ begin
     );
 
     spi_settle_timer_cmp : timer generic map (
-        CLOCKS_PER_SEC => CLOCKS_PER_SEC,
         DELAY_us => SPI_SETTLE_us
     ) port map (
         clock => clock,
