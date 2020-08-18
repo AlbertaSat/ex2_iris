@@ -16,6 +16,7 @@
 
 -- TODO: Voltage signal
 -- Bound integers
+-- Ensure integration time > 5 clock cycles
 
 library ieee;
 use ieee.std_logic_1164.all;

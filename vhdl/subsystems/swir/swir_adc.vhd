@@ -170,10 +170,10 @@ begin
 	
 	-- PROCESS: Create sdi signal
 	
-	-- Receive ADC data bits
+	-- Receive ADC data bits - FINISH!
 	process(clock_adc) is
 	begin
-		-- RESET: set cnv to 0
+		
 		if (falling_edge(clock_adc)) then
 			if (adc_working = '1') then
 				cnv <= not cnv;
