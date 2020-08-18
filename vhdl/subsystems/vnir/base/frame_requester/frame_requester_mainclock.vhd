@@ -23,6 +23,10 @@ use work.frame_requester_pkg.all;
 use work.unsigned_types.all;
 use work.pulse_generator_pkg;
 
+
+-- Like `frame_requester`, but operates entirely in a single clock
+-- domain. See `frame_requester` for an overview of this entity's
+-- functionality.
 entity frame_requester_mainclock is
 generic (
     FRAGMENT_WIDTH      : integer;
@@ -84,6 +88,7 @@ architecture rtl of frame_requester_mainclock is
     );
     end component pulse_generator;
 
+    -- Convenience type for grouping config values
     type pulse_gen_config_t is record
         frequency_Hz            : u64;
         initial_delay_clocks    : u64;
@@ -152,6 +157,10 @@ begin
         status.state <= state;
     end process fsm;
 
+    -- Component used to calculate the fixed offset between when a
+    -- frame readout is requested, and when the exposure actually
+    -- stops. Split into a seperate component because this calculation
+    -- uses multiple clock cycles.
     calc_offset : calc_frame_request_offset port map (
         clock => clock,
         reset_n => reset_n,
@@ -162,6 +171,7 @@ begin
         offset => frame_request_offset
     );
 
+    -- Source of `frame_request` pulses
     frame_request_gen : pulse_generator port map (
         clock => clock,
         reset_n => reset_n,
@@ -174,6 +184,7 @@ begin
         status => status.frame_request
     );
 
+    -- Source of `exposure_start` pulses
     exposure_start_gen : pulse_generator port map (
         clock => clock,
         reset_n => reset_n,
