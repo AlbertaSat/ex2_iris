@@ -26,6 +26,54 @@ use work.integer_types.all;
 use work.vnir_base.all;
 use work.row_collector_pkg.all;
 
+
+-- Collects pixels from the sensor, stores and sums (or averages) the
+-- overlapping pixels, then outputs the sum (or average).
+--
+-- `row_collector` is configured with two values:
+-- * `windows`: an array of windows, with `windows(0)` corresponding to
+--   the leading window, and `windows(N_WINDOWS-1)` corresponding to the
+--   lagging window. These must match the windows used to configure the
+--   sensor.
+-- * `image_length`: the number of rows the output image will have. Note
+--   that this is different than the number of input frames
+--   `row_collector` expects to recieve from the sensor, because
+--   `row_collector` needs to recieve some extra frames at the beginning
+--   and end of imaging so as to be able to maintain the same number of
+--   passes over the pixels near the edges of the image. In particular,
+--   the required number of input frames is:
+--
+--       image_frames = image_length + windows(N_WINDOWS-1).hi
+--
+-- To configure `row_collector`, set it's `config` input to the desired
+-- values and assert `read_config` for a single clock cycle.
+--
+-- Once configured, assert `start` for a single clock cycle.
+--
+-- Then, the image frames are to be input row by row, with rows input
+-- fragment by fragment, through the `fragment` and `fragment_available`
+-- inputs. `row_collector` will hold `done` high for a single clock
+-- cycle when it has recieved all the rows it expects (note, because of
+-- internal pipelining, that this will be delayed by a few clock cycles).
+--
+-- The fragments are be indexed according to their location on the
+-- ground, then fragments with the same index (same location) are summed
+-- together. A group of RAM IPs is used to store the intermediate sums.
+-- When all the fragments with the same index (same location) have been
+-- recieved by the `row_collector`, they are collected into rows and
+-- emitted out the `row` output.
+--
+-- `row_collector` is able to figure out which fragments correspond to
+-- the same locations on the ground by assuming the satallite ground
+-- speed and the sensor's imaging speed satisfy:
+--
+--        ground_speed = fps * gsd
+--
+-- where ground_speed is the speed at which the sensor's imaging surface
+-- sweeps the ground, fps is the frames-per-second of the sensor, and
+-- gsd is the ground sample distance (the distance between pixel centers
+-- on the ground). It is the job of components external to
+-- `row_collector` to ensure fps is set such that this relation holds.
 entity row_collector is
 generic (
     ROW_WIDTH           : integer;
@@ -75,12 +123,21 @@ architecture rtl of row_collector is
     );
     end component row_buffer;
 
+    -- Like pixel_vector_t, but stores std_logic_vectors
     type lpixel_vector_t is array(integer range <>) of std_logic_vector;
 
+    -- Number of bits needed to ensure pixel summing doesn't overflow.
+    -- In the worst case, we sum together n m-bit pixels, with
+    -- n=MAX_WINDOW_SIZE and m=PIXEL_BITS
     constant SUM_BITS : integer := integer(ceil(log2(real(2) ** real(PIXEL_BITS) * real(MAX_WINDOW_SIZE))));
 
+    -- Number of bits needed to ensure all intermediate sums may be
+    -- stored in RAM
     constant ADDRESS_BITS : integer := integer(ceil(log2(real(ROW_WIDTH / FRAGMENT_WIDTH) * real(N_WINDOWS) * real(MAX_WINDOW_SIZE))));
     subtype address_t is std_logic_vector(ADDRESS_BITS-1 downto 0);
+
+    -- Convenience functions to convert between various pixel
+    -- representations.
 
     pure function to_pixels(lpixels : lpixel_vector_t) return pixel_vector_t is
         variable pixels : pixel_vector_t(lpixels'range)(lpixels(0)'range);
@@ -109,6 +166,7 @@ architecture rtl of row_collector is
         return re;
     end function resize_pixels;
 
+    -- Allow pixel-wise summing of pixel vectors
     pure function "+" (lhs : pixel_vector_t; rhs : pixel_vector_t) return pixel_vector_t is
         variable sum : pixel_vector_t(rhs'range)(rhs(0)'range);
     begin
@@ -118,6 +176,8 @@ architecture rtl of row_collector is
         return sum;
     end function "+";
 
+    -- Index corresponding to first fragment of first row of first
+    -- window of first frame.
     pure function initial_index(windows : window_vector_t) return fragment_idx_t is
         variable index : fragment_idx_t;
     begin
@@ -130,8 +190,16 @@ architecture rtl of row_collector is
         return index;
     end function initial_index;
 
+    -- Gets the `x`-value of a fragment from its index, i.e. the row it
+    -- corresponds to on the final image. Named `x` because two fragments
+    -- with the same `x`-value have the same x-position on the ground.
+    -- Each increase by 1 of the `x`-value corresponds to a distance on
+    -- the ground of gsd.
     pure function x_pos(index : fragment_idx_t; windows : window_vector_t) return integer is
     begin
+        -- `x` increases by 1 every for each frame
+        -- `windows(index.window).lo + index.row` is the position of
+        -- the fragment relative to the leading edge of the sensor.
         return index.frame - windows(index.window).lo - index.row;
     end function x_pos;
 
@@ -140,6 +208,12 @@ architecture rtl of row_collector is
         return std_logic_vector(to_unsigned(i, ADDRESS_BITS));
     end function to_address;
 
+    -- Gets the address in RAM of a particular fragment, according to
+    --
+    --        addr = 128 * (n * i_window + x % n) + i_fragment
+    --
+    -- where n is the maximum window size, and x, i_window and i_fragment
+    -- is the index of the fragment
     pure function to_address(index : fragment_idx_t; windows : window_vector_t) return address_t is
         variable row_position : integer;
         variable row_index : integer;
@@ -155,6 +229,11 @@ architecture rtl of row_collector is
         return to_address(address_i);
     end function to_address;
 
+    -- Synthesizable version of:
+    --
+    --       to_unsigned(floor(log2(real(u))), u'length)
+    --
+    -- Works by finding the index of the MSB
     pure function log2_floor(u : unsigned) return unsigned is
         variable result : unsigned(u'range);
     begin
@@ -166,6 +245,8 @@ architecture rtl of row_collector is
         return result;
     end function log2_floor;
 
+    -- Synthesizable single-cycle division for when `rhs` is a power of
+    -- 2. Works by shifting `lhs` according to `log2(rhs)`
     pure function log2_divide(lhs : unsigned; rhs : unsigned) return unsigned is
         variable quotient : unsigned(lhs'range);
     begin
@@ -174,6 +255,7 @@ architecture rtl of row_collector is
         return quotient;
     end function log2_divide;
 
+    -- Divides a pixel vector by a power of 2
     pure function log2_divide(lhs : pixel_vector_t; rhs : unsigned) return pixel_vector_t is
         variable quotient : pixel_vector_t(lhs'range)(lhs(0)'range);
     begin
@@ -204,6 +286,7 @@ architecture rtl of row_collector is
     signal write_address    : address_t;
     signal write_enable     : std_logic;
 
+    -- Config registers
     signal windows : window_vector_t(N_WINDOWS-1 downto 0);
     signal image_length : integer;
 
