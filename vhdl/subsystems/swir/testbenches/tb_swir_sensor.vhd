@@ -1,8 +1,27 @@
+----------------------------------------------------------------
+-- Copyright 2020 University of Alberta
+
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+
+--     http://www.apache.org/licenses/LICENSE-2.0
+
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+----------------------------------------------------------------
+
+-- Testbench to simulate behaviour of g11508 short-wave infrared sensor
+
+-- TODO: AD_trig signal
+-- 		Assert statement for clock not working
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-
--- TODO: AD_trig signal
 
 entity tb_swir_sensor is
 	port (
@@ -27,111 +46,140 @@ architecture sim of tb_swir_sensor is
 	signal integration_counter	:	integer		:= 0;
 	signal integration_count	:	integer		:= 0;
 	signal data_count			:	integer		:= 0;
-	signal AD_sp_state			:	std_logic	:= '0';	
-	signal video_nodelay		:	integer;
-	
-	type data_array is array(0 to 255) of integer;	-- Integer from 0 to 65535
+
+	type data_array is array(0 to 255) of integer;
 	signal sensor_data 			:	data_array;
 	
-	type swir_state is (reset, collecting, transmitting_first, transmitting, idle);
-	signal state 				: swir_state	:= idle;
-
+	type swir_state is (reset, collecting, transmitting, idle);
+	signal state_reg, state_next:	swir_state	:= idle;
+		
+	signal reset_trigger 		:	std_logic	:= '0';
+	signal collecting_trigger 	:	std_logic	:= '0';
+	signal transmitting_trigger :	std_logic	:= '0';
+	
 begin
 	
+	-- Check that even and odd signals are aligned
 	assert (sensor_clock_even = not sensor_clock_odd) 
-			and not (state = idle) 
+			and not (state_reg = idle) 
 			report "sensor clock error" severity error;
-			
+		
 	assert (sensor_reset_even = not sensor_reset_odd) 
-			and not (state = idle)
-			report "sensor reset error" severity error;
-			
+		and not (state_reg = idle)
+		report "sensor reset error" severity error;
+	
+	-- Check that cf signal are of acceptable values
 	assert ((Cf_select1 = '1' and Cf_select2 = '1') or (Cf_select1 = '1' and Cf_select2 = '0')) 
-			and not (state = idle) 
-			report "sensor cf error" severity error;
+		and not (state_reg = idle) 
+		report "sensor cf error" severity error;
+		
 	
-	process(sensor_clock_even) is
+	-- Process to assign state of main sensor FSM
+	process(sensor_clock_even, sensor_reset_even) is
 	begin
-		if rising_edge(sensor_clock_even) then
-			if sensor_reset_even = '1' then
-				state <= reset;
-				integration_counter <= integration_counter + 1;
+	
+		if sensor_reset_even = '1' then
+			state_reg	<=	reset;
+		elsif rising_edge(sensor_clock_even) then
+			state_reg	<= state_next;
+		end if;
+		
+	end process;
+	
+	-- Main sensor Mealy FSM
+	process(state_reg, reset_trigger, collecting_trigger, transmitting_trigger) is
+	begin
+		state_next <= state_reg;
+		
+		case state_reg is 
+			-- Set sensor in reset if input reset is high, and keep track of how many clock cycles it is high for
+			when reset =>
+				data_count <= 0;
 				
-				AD_sp_state <= '0';
-			end if;
+				if sensor_reset_even = '0' then
+					assert integration_count >= 6 report "hold reset longer" severity error;
+					
+					state_next 			<=	collecting;
+					integration_count 	<=	integration_counter - 1;
+				else 
+					integration_counter <= integration_counter + 1;
+				end if;
 			
-			case state is 
-				when reset =>
-					data_count <= 0;
-					
-					AD_sp_state <= '0';
-					
-					video_even <= 0;
-					video_odd <= 0;
-					
-					if sensor_reset_even = '0' then
-						assert integration_count >= 6 report "hold reset longer" severity error;
-					
-						integration_count <= integration_counter - 1;
-						integration_counter <= 0;
-						
-						state <= collecting;
-					end if;
+			-- Set sensor in collecting mode (integration) for amount of cycles specified by reset signal
+			when collecting =>
+				integration_counter <= 	0;
 				
-				when collecting =>
-					integration_count <= integration_count - 1;
-					
-					if integration_count = 2 then
-						state <= transmitting_first;
-					end if;
-					
-				when transmitting_first =>
-					--wait until falling_edge(sensor_clock_even);
-					AD_sp_state <= '1';
-					
-					video_even <= sensor_data(data_count);
-					video_odd <= sensor_data(data_count) * (-1);
-					
-					data_count <= data_count + 1;
-					
-					state <= transmitting;
-					
-				when transmitting =>
-					--wait until falling_edge(sensor_clock_even);
-					
-					AD_sp_state <= '0';
-					
-					video_even <= sensor_data(data_count);
-					video_odd <= sensor_data(data_count) * (-1);
-					
-					data_count <= data_count + 1;
-
-					if (data_count = 256) then
-						state <= idle;
-						data_count <= 0;
-					end if;
-					
-				when idle =>
-					video_even <= 0;
-					video_odd <= 0;
-					
-			end case;
-		end if;
+				if integration_count = 0 then
+					state_next 			<=	transmitting;
+				else
+					integration_count	<=	integration_count - 1;
+				end if;
+				
+			-- Set sensor to transmit data state for 256 cycles (1 cycle per pixel)
+			when transmitting =>
+				if data_count = (256 - 1) then
+					state_next			<=	idle;
+				else
+					data_count			<=	data_count + 1;
+				end if;
+			
+			-- idle state after transmitting is done and no new reset signal
+			when idle =>
+				data_count			<=	0;
+				
+		end case;
 	end process;
 	
-	process is
+	-- Process to set AD_sp siganl
+	process(sensor_clock_even, sensor_reset_even) is
 	begin
-		if (AD_sp_state = '1') then
-			wait until falling_edge(sensor_clock_even);
-			AD_sp_even <= '1';
-			AD_sp_odd <= '0';
-		elsif (AD_sp_state = '0') then
-			wait until falling_edge(sensor_clock_even);
-			AD_sp_even <= '0';
-			AD_sp_odd <= '1';
+	
+		if sensor_reset_even = '1' then
+			AD_sp_even 		<=	'0';
+			AD_sp_odd		<=	'1';
+		-- AD_sp signal is synchronized with the falling edge of sensor clock, according to datasheet
+		elsif falling_edge(sensor_clock_even) then
+			-- If sensor is done collecting and starting to transmit, create the AD_sp pulse
+			if state_reg = collecting and state_next = transmitting then
+				AD_sp_even 	<=	'1';
+				AD_sp_odd 	<=	'0';
+			else
+				AD_sp_even 	<=	'0';
+				AD_sp_odd 	<=	'1';
+			end if;
 		end if;
+		
 	end process;
 	
+	-- Process to set video signals, which will actually be fed into ADC
+	process (sensor_clock_even, sensor_reset_even) is
+	begin
+	
+		if sensor_reset_even = '1' then
+			video_even		<=	0;
+			video_odd		<=	0;
+		-- In reality, video signal is analog signal which ramps up and is guarunteed to
+		-- be in stable state by falling edge of sensor clk
+		-- In this testbench, the video signal is just set on the falling edge
+		elsif falling_edge(sensor_clock_even) then
+			if state_next = transmitting then
+				video_even	<= 	sensor_data(data_count);
+				video_odd	<= 	sensor_data(data_count) * (-1);
+			else
+				video_even	<=	0;
+				video_odd	<=	0;
+			end if;
+		end if;
+		
+	end process;
+	
+	-- Signals that continually change during a particular state to trigger FSM sensitivity list
+	reset_trigger 			<= not reset_trigger when state_reg = reset and rising_edge(sensor_clock_even) else reset_trigger;
+	collecting_trigger 		<= not collecting_trigger when state_reg = collecting and rising_edge(sensor_clock_even) else collecting_trigger;
+	transmitting_trigger 	<= not transmitting_trigger when state_reg = transmitting and rising_edge(sensor_clock_even) else transmitting_trigger;
+	
+	
+	-- To simulate analog data from sensor, a random array of integers from 0 to 65535 is created
 	sensor_data <= (40404, 26634, 20215, 15590, 11625, 18113, 9442, 4075, 20163, 37863, 23453, 53226, 22379, 32353, 53728, 
 					23674, 55884, 52598, 14179, 48069, 49047, 33908, 59860, 55072, 45777, 18990, 24934, 20191, 16476, 39371, 
 					2144, 31574, 3222, 43408, 5225, 17360, 3128, 54089, 52660, 3504, 22150, 52764, 8397, 47827, 27159, 60565, 
@@ -150,7 +198,8 @@ begin
 					63691, 59556, 14525, 19151, 24409, 55085, 11031, 10026, 5804, 1381, 39201, 16332, 21311, 62461, 26132, 58967, 
 					6936, 45420, 19792);
 	
-	AD_trig_even <= '0';  -- for now
+	-- AD_trig signal set to 0 for now
+	AD_trig_even <= '0';
 	AD_trig_odd <= '1';
 	
 end architecture;
