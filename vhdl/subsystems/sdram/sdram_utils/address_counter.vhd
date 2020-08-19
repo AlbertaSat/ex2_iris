@@ -5,19 +5,19 @@ use ieee.numeric_std.all;
 use work.sdram_types.all;
 
 entity address_counter is 
-    generic(increment_size, address_length : integer);
+    generic(increment_size : integer);
     port(
         clk             : in std_logic;
 
-        start_address   : in unsigned(address_length-1 downto 0);
+        start_address   : in sdram_address_t;
         inc_flag        : in std_logic;
 
-        output_address  : out unsigned(address_length-1 downto 0)
+        output_address  : out sdram_address_t
     );
 end entity address_counter;
 
 architecture rtl of address_counter is
-    signal prev_start : unsigned(address_length-1 downto 0);
+    signal prev_start : sdram_address_t;
     signal count : natural;
 begin
     count_process : process (clk) is
