@@ -104,17 +104,13 @@ begin
 
         --Waiting a bit
         wait until (config_done = '1');
+        wait until rising_edge(clk);
+        next_row_req <= '1';
 
         --Setting the number of rows for the incoming image
         number_vnir_rows <= 3;
         number_swir_rows <= 2;
         wait until (img_config_done = '1');
-        wait until rising_edge(clk);
-        next_row_req <= '1';
-
-        --Waiting until the img is configured, then setting next_row_req low
-        Wait until output_address(28) /= '1';
-        wait until rising_edge(clk);
         next_row_req <= '0';
 
         --Additionally, next row type waiting is red, then waiting 10 clks for next_row_req as it transmits vnir header
@@ -123,7 +119,7 @@ begin
         next_row_req <= '1';
 
         --Waiting for address to change
-        wait for clk_period * 3;
+        wait for clk_period * 4;
 
         --Output is now swir header
         next_row_req <= '0';
@@ -131,76 +127,76 @@ begin
 
         --Output is now red row, blue row next
         next_row_req <= '1';
-        wait for clk_period * 3;
+        wait for clk_period * 4;
         next_row_type <= blue_row;
         next_row_req <= '0';
         wait for clk_period * 10;
 
         --Output is now blue row, another red row next
         next_row_req <= '1';
-        wait for clk_period * 2;
+        wait for clk_period * 3;
         next_row_type <= red_row;
         next_row_req <= '0';
         wait for clk_period * 10;
 
         --Output is now red row, another red row next
         next_row_req <= '1';
-        wait for clk_period * 2;
+        wait for clk_period * 3;
         next_row_req <= '0';
         wait for clk_period * 10;
 
         --Output is now red row, nir row next
         next_row_req <= '1';
-        wait for clk_period * 2;
+        wait for clk_period * 3;
         next_row_type <= nir_row;
         next_row_req <= '0';
         wait for clk_period * 10;
         
         --Output is now nir row, swir row next
         next_row_req <= '1';
-        wait for clk_period * 2;
+        wait for clk_period * 3;
         next_row_type <= swir_row;
         next_row_req <= '0';
         wait for clk_period * 10;
         
         --Output is now swir row, blue row next
         next_row_req <= '1';
-        wait for clk_period * 2;
+        wait for clk_period * 3;
         next_row_type <= blue_row;
         next_row_req <= '0';
         wait for clk_period * 10;
         
         --Output is now blue row, blue row next
         next_row_req <= '1';
-        wait for clk_period * 2;
+        wait for clk_period * 3;
         next_row_req <= '0';
         wait for clk_period * 10;
         
         --Output is now blue row, swir row next
         next_row_req <= '1';
-        wait for clk_period * 2;
+        wait for clk_period * 3;
         next_row_type <= swir_row;
         next_row_req <= '0';
         wait for clk_period * 10;
         
         --Output is now swir row, nir row next
         next_row_req <= '1';
-        wait for clk_period * 2;
+        wait for clk_period * 3;
         next_row_type <= nir_row;
         next_row_req <= '0';
         wait for clk_period * 10;
         
         --Output is now nir row, nir row next to finish
         next_row_req <= '1';
-        wait for clk_period * 2;
+        wait for clk_period * 3;
         next_row_req <= '0';
         wait for clk_period * 10;
         next_row_req <= '1';
-        wait for clk_period * 2;
+        wait for clk_period * 3;
         next_row_req <= '0';
         wait for clk_period * 10;
         next_row_req <= '1';
-        wait for clk_period * 2;
+        wait for clk_period * 3;
         next_row_req <= '0';
 
     end process;
