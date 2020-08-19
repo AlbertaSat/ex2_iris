@@ -44,7 +44,7 @@ use work.frame_requester_pkg.all;
 --
 -- `frame_requester` is a wrapper for `frame_requester_mainclock`, which
 -- operates entirely in the main clock domain. `frame_requester`
--- transates the sensor input signals (`frame_request` and
+-- translates the sensor input signals (`frame_request` and
 -- `exposure_start`) to the sensor clock domain.
 entity frame_requester is
 generic (
