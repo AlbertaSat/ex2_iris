@@ -7,13 +7,16 @@
 #include "task.h"
 #include "semphr.h"
 
-/* Altera hardware lib includes */
-#include "alt_bridge_manager.h"
+void vConfigureInterrupts(void)
+{
 
 
-/* HPS includes */
-#include "gic.c"
-#include "init_seq"
+}
+
+void vApplicationIRQHandler(uint32_t ulICCIAR)
+{
+
+}
 
 int main(void)
 {

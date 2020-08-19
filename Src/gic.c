@@ -25,38 +25,58 @@
 
 /* Altera hardware includes */
 #include "alt_interrupt.h"
+#include "alt_interrupt_common.h"
+
 
 /**
  * @brief
- * 		Configures GIC on the HPS
+ * 		Performs Initialization sequence for the GIC and calls the interrupt configurations
  */
 void config_gic(void)
 {
-        alt_int_cpu_init();             // Initialization steps needed by the interrupt controller CPU interface.
-        alt_int_cpu_enable_all();       // Enables all secure and non-secure interrupt forwarding from the interrupt controller to the target CPU.
-        config_interrupt(163, 0);       // Configure can0_sts_IRQ interrupt (Soruce Block: CAN0).
+        alt_int_cpu_init();
+        alt_int_cpu_enable_all();
+
+        /* Configure interrupts */
+        vRegisterIRQHandler(ALT_INT_INTERRUPT_CAN0_STS_IRQ, ( alt_int_callback_t ) FreeRTOS_Tick_Handler, NULL );
+        config_interrupt(ALT_INT_INTERRUPT_CAN0_STS_IRQ, 0);
+        alt_int_dist_trigger(ALT_INT_INTERRUPT_CAN0_STS_IRQ, ALT_INT_TRIGGER_LEVEL);
+
+        vRegisterIRQHandler(ALT_INT_INTERRUPT_F2S_FPGA_IRQ0, ( alt_int_callback_t ) FreeRTOS_Tick_Handler, NULL );
+        config_interrupt(ALT_INT_INTERRUPT_F2S_FPGA_IRQ0, 0);
+        alt_int_dist_trigger(ALT_INT_INTERRUPT_F2S_FPGA_IRQ0, ALT_INT_TRIGGER_LEVEL);
 
         //alt_int_cpu_config_set
         alt_int_cpu_priority_mask_set(255);     // Allowing interrupts at all priorities
 }
 
+
 /**
  * @brief
  * 		Configures specified interrupts
  * @param int_id
- * 		Number of times we extract 32 bits and write it.
+ * 		Interrupt identifier
  * @param target
- * 		Target CPU which the interrupt is being forwarded to.
+ * 		Target CPU which the interrupt is being forwarded to
  */
 void config_interrupt(ALT_INT_INTERRUPT_t int_id, alt_int_cpu_target_t target)
 {
+
         alt_int_dist_enable(int_id); // Enable the interrupt sourced from CAN controller (0 or 1)
         alt_int_dist_priority_set(int_id, 0); // Set the interrupt to highest priority
-        alt_int_dist_target_set(int_id, target); // Set the CPU to foward interrupt to
-        // alt_int_dist_trigger(int_id, ); // Type of trigger??
+        alt_int_dist_target_set(int_id, target); // Set which CPU to foward interrupts to
 }
 
-int main(void)
+
+/**
+ * @brief
+ * 		Configures specified interrupts
+ * @param int_id
+ * 		Interrupt identifier
+ * @param target
+ * 		Target CPU which the interrupt is being forwarded to
+ */
+int gic_init(void)
 {
         alt_int_global_init(); // Interrupt controller Initialization
         alt_int_global_disable_all(); // Disable all interrupt forwarding from controller to CPU

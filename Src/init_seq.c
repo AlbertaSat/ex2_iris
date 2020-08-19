@@ -25,9 +25,10 @@
 
 /* Altera library includes. */
 #include "socal/socal.h"
-#include "socal/alt_gpio.h"
-#include "alt_generalpurpose_io.h"
-#include "alt_address_space.h"
+// #include "socal/alt_gpio.h"
+// #include "alt_generalpurpose_io.h"
+// #include "alt_address_space.h"
+
 
 /**
  * @brief
@@ -58,12 +59,10 @@ void extract_bits(unsigned int cycles, unsigned long long bits)
 /**
  * @brief
  * 		Sends configuration data from OBC to FPGA subsystem until both system and imaging configuration are set.
- * @param
- *
  * @return
  * 		Returns
  */
-void init_sequence()
+void init_sequence(void)
 {
         // Sending system config data
         while (alt_read_word() != 0b00010100) {
