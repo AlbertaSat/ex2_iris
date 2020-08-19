@@ -20,34 +20,33 @@ use ieee.numeric_std.all;
 use work.fpga_types.all;
 
 package sdram_types is
-    subtype sdram_address is unsigned (31 downto 0);
-    type sdram_address_block_t is array (0 to 1) of sdram_address;
+    --An SDRAM Address is a 29 bit signed, any negative addresses are invalid
+    constant ADDRESS_LENGTH : integer := 29;
+    constant HEADER_LENGTH  : integer := 160;
 
-    subtype sdram_header_t is std_logic_vector (159 downto 0);
+    subtype sdram_address_t is signed (ADDRESS_LENGTH-1 downto 0);
+    constant UNDEFINED_ADDRESS : sdram_address_t := (ADDRESS_LENGTH-1 => '1', others => '0');
+
+    type sdram_address_block_t is array (0 to 1) of sdram_address_t;
+
+    subtype sdram_header_t is std_logic_vector (HEADER_LENGTH-1 downto 0);
     
     type sdram_error_t is (no_error, full, mpu_check_failed);
 
     type vnir_row_available_t is (no_row, blue_row, red_row, nir_row);
-
     type sdram_next_row_fed_t is (no_row, blue_row, red_row, nir_row, swir_row);
 
     type sdram_config_to_sdram_t is record
-        memory_base     : unsigned(31 downto 0);
-        memory_bounds   : unsigned(31 downto 0);
+        memory_base     : sdram_address_t;
+        memory_bounds   : sdram_address_t;
     end record sdram_config_to_sdram_t;
 
     type partition_t is record
-        base               : unsigned(31 downto 0);
-        bounds             : unsigned(31 downto 0);
-        fill_bounds        : unsigned(31 downto 0);
-        fill_base          : unsigned(31 downto 0);
+        base               : sdram_address_t;
+        bounds             : sdram_address_t;
+        fill_bounds        : sdram_address_t;
+        fill_base          : sdram_address_t;
     end record partition_t;
-
-    constant UNDEFINED_PARTITION : partition_t := (
-        base => to_unsigned(0, 32),
-        bounds => to_unsigned(0, 32),
-        fill_base => to_unsigned(0, 32),
-        fill_bounds => to_unsigned(0, 32));
 
     type sdram_partitions_t is record
         vnir        : partition_t;
