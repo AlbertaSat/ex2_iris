@@ -335,7 +335,7 @@ begin
                 max_rows := (others => image_length);
             elsif p2_done = '1' then
                 o_fragment <= fragment_p2;
-                o_fragment_available <= index_p2.window;
+                o_fragment_window <= index_p2.window;
                 if is_last_fragment(index_p2) then
                     n_rows(index_p2.window) := n_rows(index_p2.window) + 1;
                     if n_rows = max_rows then

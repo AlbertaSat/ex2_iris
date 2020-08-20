@@ -49,7 +49,7 @@ architecture tests of row_collector_sum_tb is
     signal done                 : std_logic := '0';
     signal i_fragment           : pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
 	signal i_fragment_available : std_logic := '0';
-    signal o_fragment           : pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
+    signal o_fragment           : pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
     signal o_fragment_window    : integer;
     signal status               : status_t;
 
@@ -141,7 +141,7 @@ begin
             end loop;
             report "Recieved row " & integer'image(o_fragment_window);
 
-            case row_window is
+            case o_fragment_window is
                 when 0 => readline(colour0_file, file_row);
                 when 1 => readline(colour1_file, file_row);
                 when 2 => readline(colour2_file, file_row);
@@ -185,7 +185,7 @@ begin
         wait until rising_edge(clock);
         start <= '0';
 
-        fragment_available <= '1';
+        i_fragment_available <= '1';
         while not endfile(row_file) loop
             readline(row_file, row);
 
@@ -196,7 +196,7 @@ begin
                 wait until rising_edge(clock);
             end loop;
         end loop;
-        fragment_available <= '0';
+        i_fragment_available <= '0';
         report "Uploading finished";
         wait;
     end process;

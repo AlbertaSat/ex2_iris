@@ -64,7 +64,7 @@ architecture tests of vnir_subsystem_tb is
     signal status               : status_t;
     
     signal row                  : row_t;
-    signal row_available        : window_type_t;
+    signal row_available        : window_type_t := WINDOW_NONE;
 
     component vnir_subsystem is
     generic (
@@ -163,18 +163,20 @@ architecture tests of vnir_subsystem_tb is
 
 begin
 
-    row_collect : process (clock)
+    row_collect : process
     begin
         for i_fragment in 0 to ROW_WIDTH/FRAGMENT_WIDTH-1 loop
-            row_available <= WINDOW_NONE;
-            wait until rising_edge(clock) and fragment_available /= WINDOW_NONE;
-            row_available <= WINDOW_NONE;
+            loop
+                wait until rising_edge(clock);
+                row_available <= WINDOW_NONE;
+                exit when fragment_available /= WINDOW_NONE;
+            end loop;
             for i_pixel in 0 to FRAGMENT_WIDTH-1 loop
-                row(i_fragment + i_pixel * (ROW_WIDTH/FRAGMENT_WIDTH)) := fragment(i_pixel);
+                row(i_fragment + i_pixel * (ROW_WIDTH/FRAGMENT_WIDTH)) <= fragment(i_pixel);
             end loop;
         end loop;
         row_available <= fragment_available;
-    end loop;
+    end process row_collect;
 
     sensor_clock <= sensor_clock_source and sensor_clock_enable;
 
@@ -355,8 +357,8 @@ begin
         do_imaging => do_imaging,
         imaging_done => imaging_done,
         num_rows => num_rows,
-        row => row,
-        row_available => row_available,
+        fragment => fragment,
+        fragment_available => fragment_available,
         spi_out => spi.from_master,
         spi_in => spi.to_master,
         frame_request => frame_request,
