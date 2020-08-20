@@ -52,8 +52,8 @@ entity sdram_subsystem is
         sdram_busy          : out std_logic;
         sdram_error         : out sdram_error_t;
         
-        sdram_avalon_out    : out avalonmm_rw_from_master_t;
-        sdram_avalon_in     : in avalonmm_rw_to_master_t
+        sdram_avalon_out    : out avalonmm_from_master_t;
+        sdram_avalon_in     : in avalonmm_to_master_t
     );
 end entity sdram_subsystem;
 
@@ -78,11 +78,11 @@ architecture rtl of sdram_subsystem is
 
             --Ouput image row address config
             next_row_type       : in sdram_next_row_fed_t;
-            row_address         : out unsigned (31 downto 0);
+            next_row_req        : in std_logic;
+            output_address      : out sdram_address_t;
 
             --Read data to be read from sdram due to mpu interaction
-            sdram_error         : out sdram_error_t;
-            read_data           : in avalonmm_read_to_master_t
+            sdram_error         : out sdram_error_t
         );
     end component memory_map;
 
@@ -129,10 +129,8 @@ architecture rtl of sdram_subsystem is
             mup_memory_change   : in sdram_address_block_t;
 
             --Avalon bridge for reading and writing to stuff
-            read_in             : in avalonmm_read_to_master_t;
-            read_out            : out avalonmm_read_from_master_t;
-            write_in            : in avalonmm_write_to_master_t;
-            write_out           : out avalonmm_write_from_master_t
+            sdram_avalon_out    : out avalonmm_from_master_t;
+            sdram_avalon_in     : in avalonmm_to_master_t
         );
     end component command_creator;
 
