@@ -47,34 +47,34 @@ architecture tests of row_collector_sum_tb is
     signal read_config          : std_logic := '0';
     signal start                : std_logic := '0';
     signal done                 : std_logic := '0';
-    signal fragment             : pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
-	signal fragment_available   : std_logic := '0';
-    signal row                  : pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
-    signal row_window           : integer;
+    signal i_fragment           : pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+	signal i_fragment_available : std_logic := '0';
+    signal o_fragment           : pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
+    signal o_fragment_window    : integer;
     signal status               : status_t;
 
     component row_collector is
     generic (
-        ROW_WIDTH           : integer := ROW_WIDTH;
-        FRAGMENT_WIDTH      : integer := FRAGMENT_WIDTH;
-        PIXEL_BITS          : integer := PIXEL_BITS;
-        ROW_PIXEL_BITS      : integer := ROW_PIXEL_BITS;
-        N_WINDOWS           : integer := N_WINDOWS;
-        METHOD              : string := "SUM";
-        MAX_WINDOW_SIZE     : integer := MAX_WINDOW_SIZE
+        ROW_WIDTH               : integer := ROW_WIDTH;
+        FRAGMENT_WIDTH          : integer := FRAGMENT_WIDTH;
+        PIXEL_BITS              : integer := PIXEL_BITS;
+        ROW_PIXEL_BITS          : integer := ROW_PIXEL_BITS;
+        N_WINDOWS               : integer := N_WINDOWS;
+        METHOD                  : string := "SUM";
+        MAX_WINDOW_SIZE         : integer := MAX_WINDOW_SIZE
     );
     port (
-        clock               : in std_logic;
-        reset_n             : in std_logic;
-        config              : in config_t;
-        read_config         : in std_logic;
-        start               : in std_logic;
-        done                : out std_logic;
-        fragment            : in pixel_vector_t;
-        fragment_available  : in std_logic;
-        row                 : out pixel_vector_t;
-        row_window          : out integer;
-        status              : out status_t
+        clock                   : in std_logic;
+        reset_n                 : in std_logic;
+        config                  : in config_t;
+        read_config             : in std_logic;
+        start                   : in std_logic;
+        done                    : out std_logic;
+        i_fragment              : in pixel_vector_t;
+        i_fragment_available    : in std_logic;
+        o_fragment              : out pixel_vector_t;
+        o_fragment_window       : out integer;
+        status                  : out status_t
     );
     end component row_collector;
 
@@ -127,13 +127,19 @@ begin
         file colour1_file : text open read_mode is OUT_DIR & "sum/colour1.out";
         file colour2_file : text open read_mode is OUT_DIR & "sum/colour2.out";
         variable file_row : pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
+        variable row      : pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
     begin
         assert N_WINDOWS = 3;
         wait until reset_n = '1';
 
         loop
-            wait until rising_edge(clock) and row_window >= 0;
-            report "Recieved row " & integer'image(row_window);
+            for f in 0 to ROW_WIDTH/FRAGMENT_WIDTH-1 loop
+                wait until rising_edge(clock) and o_fragment_window >= 0;
+                for p in 0 to FRAGMENT_WIDTH-1 loop
+                    row(f + p * (ROW_WIDTH / FRAGMENT_WIDTH)) := o_fragment(p);
+                end loop;
+            end loop;
+            report "Recieved row " & integer'image(o_fragment_window);
 
             case row_window is
                 when 0 => readline(colour0_file, file_row);
@@ -185,7 +191,7 @@ begin
 
             for f in 0 to N_FRAGMENTS-1 loop
                 for i in 0 to FRAGMENT_WIDTH-1 loop
-                    fragment(i) <= row(f + N_FRAGMENTS * i);
+                    i_fragment(i) <= row(f + N_FRAGMENTS * i);
                 end loop;
                 wait until rising_edge(clock);
             end loop;
@@ -202,10 +208,10 @@ begin
         read_config => read_config,
         start => start,
         done => done,
-        fragment => fragment,
-        fragment_available => fragment_available,
-        row => row,
-        row_window => row_window,
+        i_fragment => i_fragment,
+        i_fragment_available => i_fragment_available,
+        o_fragment => o_fragment,
+        o_fragment_window => o_fragment_window,
         status => status
     );
 

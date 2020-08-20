@@ -28,31 +28,31 @@ use work.row_collector_pkg.all;
 
 entity row_collector is
 generic (
-    ROW_WIDTH           : integer;
-    FRAGMENT_WIDTH      : integer;
-    PIXEL_BITS          : integer;
-    ROW_PIXEL_BITS      : integer;
-    N_WINDOWS           : integer range 1 to MAX_N_WINDOWS;
-    METHOD              : string;
-    MAX_WINDOW_SIZE     : integer
+    ROW_WIDTH               : integer;
+    FRAGMENT_WIDTH          : integer;
+    PIXEL_BITS              : integer;
+    ROW_PIXEL_BITS          : integer;
+    N_WINDOWS               : integer range 1 to MAX_N_WINDOWS;
+    METHOD                  : string;
+    MAX_WINDOW_SIZE         : integer
 );
 port (
-    clock               : in std_logic;
-    reset_n             : in std_logic;
+    clock                   : in std_logic;
+    reset_n                 : in std_logic;
 
-    config              : in config_t;
-    read_config         : in std_logic;
+    config                  : in config_t;
+    read_config             : in std_logic;
 
-    start               : in std_logic;
-    done                : out std_logic;
+    start                   : in std_logic;
+    done                    : out std_logic;
 
-    fragment            : in pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
-    fragment_available  : in std_logic;
+    i_fragment              : in pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
+    i_fragment_available    : in std_logic;
 
-    row                 : out pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
-    row_window          : out integer;
+    o_fragment              : out pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
+    o_fragment_window       : out integer;
 
-    status              : out status_t
+    status                  : out status_t
 );
 end entity row_collector;
 
@@ -240,12 +240,12 @@ begin
         read_address <= (others => '0');  -- Get rid of some annoying warnings
 
         if reset_n = '1' then
-            status.fragment_available <= fragment_available;
+            status.i_fragment_available <= i_fragment_available;
 
             if start = '1' then
                 index := initial_index(windows);
                 max_x := image_length - 1;
-            elsif fragment_available = '1' then
+            elsif i_fragment_available = '1' then
                 -- Filter out rows outside of image boundaries
                 x := x_pos(index, windows);
                 status.fragment_x <= x;
@@ -256,7 +256,7 @@ begin
                         read_enable <= '1';
                     end if;
                     -- Advance to next pipeline stage
-                    fragment_p0 <= fragment;
+                    fragment_p0 <= i_fragment;
                     index_p0 <= index;
                     p0_done <= '1';
                 end if;
@@ -319,33 +319,26 @@ begin
         end if;
     end process p2;
 
-    -- Pipeline stage 3: collect the averaged fragments from the previous pipeline stage into
-    -- rows.
+    -- Pipeline stage 3: output
     p3 : process
-        variable offset : integer;
-        variable stride : integer;
-        variable n_rows : integer_vector_t(2 downto 0);
-        variable n_rows_target : integer_vector_t(2 downto 0);
+        variable n_rows : integer_vector_t(N_WINDOWS-1 downto 0);
+        variable max_rows : integer_vector_t(N_WINDOWS-1 downto 0);
     begin
         wait until rising_edge(clock);
 
-        row_window <= -1;
+        o_fragment_window <= -1;
         done <= '0';
 
         if reset_n = '1' then
             if start = '1' then
                 n_rows := (others => 0);
-                n_rows_target := (others => image_length);
+                max_rows := (others => image_length);
             elsif p2_done = '1' then
-                offset := index_p2.fragment;
-                stride := index_p2.fragments_per_row;
-                for i in fragment_p2'range loop
-                    row(offset + i * stride) <= fragment_p2(i);
-                end loop;
+                o_fragment <= fragment_p2;
+                o_fragment_available <= index_p2.window;
                 if is_last_fragment(index_p2) then
-                    row_window <= index_p2.window;
                     n_rows(index_p2.window) := n_rows(index_p2.window) + 1;
-                    if n_rows = n_rows_target then
+                    if n_rows = max_rows then
                         done <= '1';
                     end if;
                 end if;

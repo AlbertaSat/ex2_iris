@@ -39,6 +39,7 @@ package vnir is
     constant MAX_FPS : integer := 2000;
 
     subtype pixel_t is vnir_base.pixel_t(PIXEL_BITS-1 downto 0);
+    subtype fragment_t is vnir_base.pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
     subtype row_t is vnir_base.pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
     
     subtype window_t is vnir_base.window_t;
@@ -58,7 +59,7 @@ package vnir is
         exposure_time   : integer;
     end record image_config_t;
 
-    type row_type_t is (ROW_NONE, ROW_NIR, ROW_BLUE, ROW_RED);
+    type window_type_t is (WINDOW_NONE, WINDOW_NIR, WINDOW_BLUE, WINDOW_RED);
     
     type lvds_t is record
         clock   : std_logic;

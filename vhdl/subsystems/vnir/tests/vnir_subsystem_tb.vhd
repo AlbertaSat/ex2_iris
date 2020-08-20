@@ -52,8 +52,8 @@ architecture tests of vnir_subsystem_tb is
     signal do_imaging           : std_logic := '0';
     signal imaging_done         : std_logic;
     signal num_rows             : integer;
-    signal row                  : row_t;
-    signal row_available        : row_type_t;
+    signal fragment             : fragment_t;
+    signal fragment_available   : window_type_t;
     signal spi                  : spi_t;
     signal frame_request        : std_logic;
     signal exposure_start       : std_logic;
@@ -63,6 +63,9 @@ architecture tests of vnir_subsystem_tb is
     );
     signal status               : status_t;
     
+    signal row                  : row_t;
+    signal row_available        : window_type_t;
+
     component vnir_subsystem is
     generic (
         POWER_ON_DELAY_us   : integer := 0;
@@ -87,8 +90,8 @@ architecture tests of vnir_subsystem_tb is
         num_rows            : out integer;
         do_imaging          : in std_logic;
         imaging_done        : out std_logic;
-        row                 : out row_t;
-        row_available       : out row_type_t;
+        fragment            : out fragment_t;
+        fragment_available  : out window_type_t;
         spi_out             : out spi_from_master_t;
         spi_in              : in spi_to_master_t;
         frame_request       : out std_logic;
@@ -160,6 +163,19 @@ architecture tests of vnir_subsystem_tb is
 
 begin
 
+    row_collect : process (clock)
+    begin
+        for i_fragment in 0 to ROW_WIDTH/FRAGMENT_WIDTH-1 loop
+            row_available <= WINDOW_NONE;
+            wait until rising_edge(clock) and fragment_available /= WINDOW_NONE;
+            row_available <= WINDOW_NONE;
+            for i_pixel in 0 to FRAGMENT_WIDTH-1 loop
+                row(i_fragment + i_pixel * (ROW_WIDTH/FRAGMENT_WIDTH)) := fragment(i_pixel);
+            end loop;
+        end loop;
+        row_available <= fragment_available;
+    end loop;
+
     sensor_clock <= sensor_clock_source and sensor_clock_enable;
 
     debug : process (clock)
@@ -177,13 +193,13 @@ begin
             if exposure_start = '1' then
                 report "exposure_start = 1";
             end if;
-            if row_available = ROW_NIR then
+            if row_available = WINDOW_NIR then
                 report "row available = NIR";
             end if;
-            if row_available = ROW_BLUE then
+            if row_available = WINDOW_BLUE then
                 report "row available = BLUE";
             end if;
-            if row_available = ROW_RED then
+            if row_available = WINDOW_RED then
                 report "row available = RED";
             end if;
         end if;
@@ -199,17 +215,17 @@ begin
 
         loop
             wait until rising_edge(clock);
-            if row_available = ROW_NIR then
+            if row_available = WINDOW_NIR then
                 report "Recieved NIR row";
                 assert not endfile(nir_file) report "Received extra NIR row" severity failure;
                 readline(nir_file, file_row);
                 assert row = file_row report "Received mismatched NIR row" severity failure;
-            elsif row_available = ROW_BLUE then
+            elsif row_available = WINDOW_BLUE then
                 report "Recieved blue row";
                 assert not endfile(blue_file) report "Received extra blue row" severity failure;
                 readline(blue_file, file_row);
                 assert row = file_row report "Received mismatched blue row" severity failure;
-            elsif row_available = ROW_RED then
+            elsif row_available = WINDOW_RED then
                 report "Recieved red row";
                 assert not endfile(red_file) report "Received extra red row" severity failure;
                 readline(red_file, file_row);

@@ -71,8 +71,8 @@ architecture rtl of electra is
         num_rows            : out integer;
         do_imaging          : in std_logic;
         imaging_done        : out std_logic;
-        row                 : out vnir.row_t;
-        row_available       : out vnir.row_type_t;
+        fragment            : out vnir.fragment_t;
+        fragment_available  : out vnir.window_type_t;
         spi_out             : out spi_from_master_t;
         spi_in              : in spi_to_master_t;
         frame_request       : out std_logic;
@@ -97,8 +97,8 @@ architecture rtl of electra is
     
     -- vnir <=> sdram
     signal vnir_num_rows : integer;
-    signal vnir_row : vnir.row_t;
-    signal vnir_row_available : vnir.row_type_t;
+    signal vnir_fragment : vnir.fragment_t;
+    signal vnir_fragment_available : vnir.window_type_t;
 
     attribute keep: boolean;
     
@@ -127,8 +127,8 @@ architecture rtl of electra is
     attribute keep of vnir_sensor_clock_enable: signal is true;
     
     attribute keep of vnir_num_rows: signal is true;
-    attribute keep of vnir_row: signal is true;
-    attribute keep of vnir_row_available: signal is true;
+    attribute keep of vnir_fragment: signal is true;
+    attribute keep of vnir_fragment_available: signal is true;
      
 	
 	 
@@ -155,8 +155,8 @@ begin
         image_config_done => vnir_image_config_done,
         num_rows => vnir_num_rows,
         do_imaging => do_imaging,
-        row => vnir_row,
-        row_available => vnir_row_available,
+        fragment => vnir_fragment,
+        fragment_available => vnir_fragment_available,
         spi_out => vnir_spi_out,
         spi_in => vnir_spi_in,
         frame_request => vnir_frame_request,

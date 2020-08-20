@@ -30,7 +30,7 @@ entity sdram_subsystem is
         clock               : in std_logic;
         reset_n             : in std_logic;
 
-        vnir_row_available  : in vnir.row_type_t;
+        vnir_row_available  : in vnir.window_type_t;
         vnir_num_rows       : in integer;
         vnir_row            : in vnir.row_t;
         

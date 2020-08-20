@@ -61,8 +61,8 @@ port (
     do_imaging          : in std_logic;
     imaging_done        : out std_logic;
 
-    row                 : out vnir.row_t;
-    row_available       : out vnir.row_type_t;
+    fragment            : out vnir.fragment_t;
+    fragment_available  : out vnir.window_type_t;
     
     spi_out             : out spi_from_master_t;
     spi_in              : in spi_to_master_t;
@@ -175,26 +175,26 @@ architecture rtl of vnir_subsystem is
 
     component row_collector is
     generic (
-        ROW_WIDTH           : integer := vnir.ROW_WIDTH;
-        FRAGMENT_WIDTH      : integer := vnir.FRAGMENT_WIDTH;
-        PIXEL_BITS          : integer := vnir.PIXEL_BITS;
-        ROW_PIXEL_BITS      : integer := vnir.ROW_PIXEL_BITS;
-        N_WINDOWS           : integer range 1 to row_collector_pkg.MAX_N_WINDOWS := vnir.N_WINDOWS;
-        METHOD              : string := vnir.METHOD;
-        MAX_WINDOW_SIZE     : integer := vnir.MAX_WINDOW_SIZE
+        ROW_WIDTH               : integer := vnir.ROW_WIDTH;
+        FRAGMENT_WIDTH          : integer := vnir.FRAGMENT_WIDTH;
+        PIXEL_BITS              : integer := vnir.PIXEL_BITS;
+        ROW_PIXEL_BITS          : integer := vnir.ROW_PIXEL_BITS;
+        N_WINDOWS               : integer range 1 to row_collector_pkg.MAX_N_WINDOWS := vnir.N_WINDOWS;
+        METHOD                  : string := vnir.METHOD;
+        MAX_WINDOW_SIZE         : integer := vnir.MAX_WINDOW_SIZE
     );
     port (
-        clock               : in std_logic;
-        reset_n             : in std_logic;
-        config              : in row_collector_pkg.config_t;
-        read_config         : in std_logic;
-        start               : in std_logic;
-        done                : out std_logic;
-        fragment            : in pixel_vector_t;
-        fragment_available  : in std_logic;
-        row                 : out pixel_vector_t;
-        row_window          : out integer;
-        status              : out row_collector_pkg.status_t
+        clock                   : in std_logic;
+        reset_n                 : in std_logic;
+        config                  : in row_collector_pkg.config_t;
+        read_config             : in std_logic;
+        start                   : in std_logic;
+        done                    : out std_logic;
+        i_fragment              : in pixel_vector_t;
+        i_fragment_available    : in std_logic;
+        o_fragment              : out pixel_vector_t;
+        o_fragment_window       : out integer;
+        status                  : out row_collector_pkg.status_t
     );
     end component row_collector;
 
@@ -223,14 +223,14 @@ architecture rtl of vnir_subsystem is
 
     signal row_collector_config : row_collector_pkg.config_t;
 
-    signal fragment                 : pixel_vector_t(vnir.FRAGMENT_WIDTH-1 downto 0)(vnir.PIXEL_BITS-1 downto 0);
-    signal fragment_control         : control_t;
-    signal fragment_available       : std_logic;
+    signal fragment_decoded             : pixel_vector_t(vnir.FRAGMENT_WIDTH-1 downto 0)(vnir.PIXEL_BITS-1 downto 0);
+    signal fragment_decoded_control     : control_t;
+    signal fragment_decoded_available   : std_logic;
     
     signal image_length : integer;
     signal num_frames   : integer;
 
-    signal row_window   : integer;
+    signal fragment_window   : integer;
 
 begin
 
@@ -353,9 +353,9 @@ begin
         lvds_clock => lvds.clock,
         lvds_control => lvds.control,
         lvds_data => lvds.data,
-        fragment => fragment,
-        fragment_control => fragment_control,
-        fragment_available => fragment_available,
+        fragment => fragment_decoded,
+        fragment_control => fragment_decoded_control,
+        fragment_available => fragment_decoded_available,
         status => status.lvds_decoder
     );
 
@@ -366,10 +366,10 @@ begin
         read_config => start_frame_requester_config,
         start => do_imaging,
         done => imaging_done_s,
-        fragment => fragment,
-        fragment_available => fragment_available and fragment_control.dval,
-        row => row,
-        row_window => row_window,
+        i_fragment => fragment_decoded,
+        i_fragment_available => fragment_decoded_available and fragment_decoded_control.dval,
+        o_fragment => fragment,
+        o_fragment_window => fragment_window,
         status => status.row_collector
     );
     imaging_done <= imaging_done_s;
@@ -411,10 +411,10 @@ begin
         )
     );
 
-    row_available <= vnir.ROW_RED when row_window = 0 else
-                     vnir.ROW_NIR when row_window = 1 else
-                     vnir.ROW_BLUE when row_window = 2 else
-                     vnir.ROW_NONE;
+    fragment_available <= vnir.WINDOW_RED when fragment_window = 0 else
+                          vnir.WINDOW_NIR when fragment_window = 1 else
+                          vnir.WINDOW_BLUE when fragment_window = 2 else
+                          vnir.WINDOW_NONE;
     
     num_rows <= image_length when calc_image_length_done = '1' else 0;
 
