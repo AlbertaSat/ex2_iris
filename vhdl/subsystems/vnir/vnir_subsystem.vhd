@@ -31,6 +31,114 @@ use work.frame_requester_pkg;
 use work.vnir;
 
 
+-- Top-level VNIR sensor subsystem component
+--
+-- Along with the `vnir` package, provides the interface through which
+-- external subsystems interact with the VNIR subsystem.
+--
+-- Parameters
+-- ----------
+-- clock [in]
+--     Main clock, must be >= 48MHz.
+--
+-- reset_n [in]
+--     Synchronous, active-low reset. Both clocks must be running before
+--      reset_n is set to '1'.
+--
+-- sensor_clock [in]
+--     48MHz clock for sensor control input.
+--
+-- sensor_power [out]
+--     Will be held at '1' when the `vnir_subsystem` needs
+--     to enable the sensor's various voltage inputs.
+--
+-- sensor_clock_enable [out]
+--     Will be held at '1' when the `vnir_subsystem` needs the sensor to
+--     recieve a clock input. Note that the `sensor_clock` input is
+--     always required to be on, regardless of of the value of this
+--     input -- `sensor_clock_enable` is to be used to gate the clock
+--     input of the sensor, not of `vnir_subsystem`.
+--
+-- sensor_reset_n [out]
+--     Sensor reset signal
+--
+-- config [in]
+--     Configuration values. Allows setting the positions and widths of
+--     the red, blue and NIR windows, and the sensor calibration values.
+--
+-- start_config [in]
+--     Hold at '1' for a single clock cycle to begin configuring, which
+--     will initialize all the various components of `vnir_subsystem`.
+--     The `config` input will be read and its values used to control
+--     the configuration sequence.
+--     Configuration may only occur after a reset, or after imaging has
+--     been requested, then finished.
+--
+-- config_done [out]
+--     Held high for a single clock cycle when the `vnir_subsystem` is
+--     finished configuring.
+--
+-- image_config [in]
+--     Image-configuration values. Allows setting per-image
+--     configuration values: duration, fps, and exposure time.
+--
+-- start_image_config [in]
+--     Hold high for a single clock cycle to begin initializing per-
+--     image configuration.
+--     Per-image configuration must occur after general configuration
+--     has finished, and not while `vnir_subsystem` is imaging.
+--
+-- image_config_done [out]
+--     Held high for a single clock cycle when the `vnir_subsystem` has
+--     finished per-image configuration.
+--
+-- num_rows [out]
+--     Set for a single clock cycle at some point during per-image
+--     configuration to the number of rows of the output image
+--     (calculated from the fps and imaging duration). Set to 0 for all
+--     other clock cycles.
+--
+-- do_imaging [in]
+--     Hold high for a single clock cycle to enter imaging mode (after
+--     doing both general and per-image configuration). `vnir_subsystem`
+--     will repeatedly request frames from the sensor, process the
+--     resulting frames, and make the image available on the `row` and
+--     `row_available` outputs.
+--
+-- imaging_done [out]
+--     Held high for a single clock cycle to indicate when imaging mode
+--     is done.
+--
+-- row [out]
+--     When in imaging mode, will yield the output image row by row.
+--
+-- row_available [out]
+--     When set to something other than ROW_NONE, indicates that the
+--     `row` output contains valid data to be read. Indicates which
+--     window the row in question belongs to (red, blue or NIR).
+--     Will be set to non-ROW_NONE values for only single clock cycles.
+--
+-- spi_out [out]
+--     SPI output signals to the VNIR sensor
+--
+-- spi_in [in]
+--     SPI input signals from the VNIR sensor
+--
+-- frame_request [out]
+--     To be attached to the sensor's frame-request signal. Indicates
+--     that the sensor should stop exposure and eventually emit a new
+--     frame.
+--
+-- exposure_start [out]
+--     To be attached to the sensor's exposure-start signal. Indicates
+--     that the sensor should start exposing a new frame.
+--
+-- lvds [in]
+--     LVDS input from the sensor. This is how the sensor gives the
+--     `vnir_subsystem` image data.
+--
+-- status
+--     Status register, for debugging
 entity vnir_subsystem is
 generic (
     CLOCKS_PER_SEC      : integer := 50000000;
@@ -198,6 +306,8 @@ architecture rtl of vnir_subsystem is
     );
     end component row_collector;
 
+    -- Maximum number of bits needed to store the product of fps and
+    -- CLOCKS_PER_SEC
     constant MUL_BITS : integer := integer(
         ceil(log2(real(vnir.MAX_FPS) * real(CLOCKS_PER_SEC)))
     );
@@ -233,6 +343,14 @@ architecture rtl of vnir_subsystem is
     signal row_window   : integer;
 
 begin
+
+    -- General config sequence is:
+    -- Configure sensor (power on, initialize, etc.) => align LVDS
+    -- decoding.
+
+    -- Per-image config sequence is:
+    -- Calculate image length => Configure frame-requester (calculate
+    -- exposure-start/frame-request scheduling, etc.)
 
     fsm : process
         variable state : vnir.state_t;
@@ -384,8 +502,12 @@ begin
         done => calc_image_length_done
     );
 
+    -- `row_collector` requires an additional number of frames equal to
+    -- the maximum row number of all the rows in the row windows
     num_frames <= image_length + config_reg.window_blue.hi; -- TODO: move into row_collector
     
+    -- Construct various per-component config values from the config
+    -- registers.
     sensor_configurer_config <= (
         flip => config_reg.flip,
         calibration => config_reg.calibration,
