@@ -43,6 +43,7 @@ entity swir_subsystem is
     );
 end entity swir_subsystem;
 
+
 architecture rtl of swir_subsystem is
 begin
-end architecture;
+end architecture rtl;

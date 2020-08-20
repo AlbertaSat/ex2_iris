@@ -18,7 +18,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.vnir_types.all;  -- Gives outputs to the VNIR subsystem
+use work.vnir;  -- Gives outputs to the VNIR subsystem
 use work.swir_types.all;  -- Gives outputs from SWIR subsystem
 use work.sdram_types.all;  -- Gives outptu to sdram subsystem
 use work.fpga_types.all;  -- For timestamp_t
@@ -29,11 +29,11 @@ entity fpga_subsystem is
         clock                    : in std_logic;
         reset_n                  : in std_logic;
         
-        vnir_config              : out vnir_config_t;
+        vnir_config              : out vnir.config_t;
         vnir_config_done         : in std_logic;
         swir_config              : out swir_config_t;
         swir_config_done         : in std_logic;
-        sdram_config_in          : in sdram_partitions_t;
+        sdram_config_in          : in sdram_config_from_sdram_t;
         sdram_config_out         : out sdram_config_to_sdram_t;
         sdram_config_done        : in std_logic;
 
@@ -52,4 +52,4 @@ end entity fpga_subsystem;
 
 architecture rtl of fpga_subsystem is
 begin
-end architecture;
+end architecture rtl;
