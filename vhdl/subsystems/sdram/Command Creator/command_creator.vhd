@@ -20,7 +20,7 @@ use ieee.numeric_std.all;
 
 use work.spi_types.all;
 use work.avalonmm_types.all;
-use work.vnir_types.all;
+use work.vnir;
 use work.swir_types.all;
 use work.sdram_types.all;
 use work.fpga_types.all;

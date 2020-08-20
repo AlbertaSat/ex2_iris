@@ -20,7 +20,7 @@ use ieee.numeric_std.all;
 
 use work.spi_types.all;
 use work.avalonmm_types.all;
-use work.vnir_types.all;
+use work.vnir;
 use work.swir_types.all;
 use work.sdram_types.all;
 use work.fpga_types.all;
@@ -32,7 +32,7 @@ entity imaging_buffer is
         reset_n         : in std_logic;
 
         --Rows of Data
-        vnir_rows       : in vnir_rows_t;
+        vnir_rows       : in vnir.row_t;
         swir_row        : in swir_row_t;
 
         --Rows out
@@ -50,4 +50,5 @@ end entity imaging_buffer;
 architecture rtl of imaging_buffer is
 
 begin
+    
 end architecture;
