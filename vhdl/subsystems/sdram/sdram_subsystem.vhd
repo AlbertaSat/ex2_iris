@@ -20,7 +20,7 @@ use ieee.numeric_std.all;
 
 use work.avalonmm_types.all;
 use work.sdram_types.all;
-use work.vnir_types.all;
+use work.vnir;
 use work.swir_types.all;
 use work.fpga_types.all;
 
@@ -34,7 +34,7 @@ entity sdram_subsystem is
         --VNIR row signals
         vnir_rows_available : in std_logic;
         vnir_num_rows       : in integer;
-        vnir_rows           : in vnir_rows_t;
+        vnir_rows           : in vnir.row_t;
         
         --SWIR row signals
         swir_row_available  : in std_logic;
@@ -119,7 +119,7 @@ architecture rtl of sdram_subsystem is
             swir_img_header     : in sdram_header_t;
 
             --Rows
-            row_data            : in vnir_row_t;
+            row_data            : in vnir.row_t;
 
             --Addy
             address             : in sdram_address_block_t;
@@ -145,7 +145,7 @@ architecture rtl of sdram_subsystem is
             swir_row        : in swir_row_t;
 
             --Rows out
-            vnir_row_out    : out vnir_row_t;
+            vnir_row_out    : out vnir.row_t;
             swir_row_out    : out swir_row_t;
             row_request     : in std_logic;
 
