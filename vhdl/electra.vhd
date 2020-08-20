@@ -56,7 +56,7 @@ architecture rtl of electra is
         --VNIR row signals
         vnir_rows_available : in std_logic;
         vnir_num_rows       : in integer;
-        vnir_rows           : in vnir_rows_t;
+        vnir_rows           : in vnir.row_t;
         
         --SWIR row signals
         swir_row_available  : in std_logic;
@@ -83,7 +83,7 @@ architecture rtl of electra is
     signal reset_n  : std_logic;  -- Main reset
     
     -- vnir <=> sdram
-    signal vnir_rows : vnir_rows_t;
+    signal vnir_rows : vnir.row_t;
     signal vnir_rows_available : std_logic;
 
     -- vnir <=> sdram, fpga
@@ -109,6 +109,25 @@ architecture rtl of electra is
 
     -- sdram <=> RAM
     signal sdram_avalon : avalonmm_t;
+
+    attribute keep of clock :signal is true;
+    attribute keep of reset_n :signal is true;
+    attribute keep of vnir_rows :signal is true;
+    attribute keep of vnir_rows_available :signal is true;
+    attribute keep of vnir_num_rows :signal is true;
+    attribute keep of swir_num_rows :signal is true;
+    attribute keep of swir_row :signal is true;
+    attribute keep of swir_row_available :signal is true;
+    attribute keep of timestamp :signal is true;
+    attribute keep of start_config :signal is true;
+    attribute keep of mpu_memory_change :signal is true;
+    attribute keep of sdram_config :signal is true;
+    attribute keep of sdram_partitions :signal is true;
+    attribute keep of sdram_config_done :signal is true;
+    attribute keep of sdram_img_config_done :signal is true;
+    attribute keep of sdram_busy :signal is true;
+    attribute keep of sdram_error :signal is true;
+    attribute keep of sdram_avalon :signal is true;
 
 begin
 
