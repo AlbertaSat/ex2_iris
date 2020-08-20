@@ -65,6 +65,7 @@ architecture tests of vnir_subsystem_tb is
     
     signal row                  : row_t;
     signal row_available        : window_type_t := WINDOW_NONE;
+    signal row_collection_done  : std_logic;
 
     component vnir_subsystem is
     generic (
@@ -176,6 +177,7 @@ begin
             end loop;
         end loop;
         row_available <= fragment_available;
+        row_collection_done <= imaging_done;
     end process row_collect;
 
     sensor_clock <= sensor_clock_source and sensor_clock_enable;
@@ -233,7 +235,7 @@ begin
                 readline(red_file, file_row);
                 assert row = file_row report "Received mismatched red row" severity failure;
             end if;
-            exit when imaging_done = '1';
+            exit when row_collection_done = '1';
         end loop;
 
         assert endfile(nir_file) and endfile(blue_file) and endfile(red_file);
