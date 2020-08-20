@@ -46,9 +46,8 @@ entity command_creator is
         mup_memory_change   : in sdram_address_block_t;
 
         --Avalon bridge for reading and writing to stuff
-        read_out            : out avalonmm_read_from_master_t;
-        write_in            : in avalonmm_write_to_master_t;
-        write_out           : out avalonmm_write_from_master_t
+        sdram_avalon_out    : out avalonmm_from_master_t;
+        sdram_avalon_in     : in avalonmm_to_master_t
     );
 end entity command_creator;
 
