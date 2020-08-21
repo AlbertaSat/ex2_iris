@@ -345,7 +345,8 @@ begin
         spi_in => spi.to_master,
         frame_request => frame_request,
         exposure_start => exposure_start,
-        lvds => lvds
+        lvds => lvds,
+        status => status
     );
 
 end tests;
