@@ -42,9 +42,9 @@
 --	@param[in] NUM_CHANNELS
 --		Number of data channels from VNIR to FPGA
 --
---	@param[in] clock_sys
+--	@param[in] system_clock
 --		Main system clock
---	@param[in] reset_sys
+--	@param[in] system_reset
 --		Main system synchronous reset
 --
 --	@param[in]] lvds_signal_in
@@ -52,7 +52,7 @@
 --	@param[in] lvds_clock_in
 --		VNIR LVDS clock signal, synchronous to incoming data
 --
---`	@param[in] cmd_start_align
+--`	@param[in] cmd_align_channel
 --		Pulse HIGH to initiate word alignment on the data and control
 --		channels
 --	@param[out] alignment_done
@@ -81,60 +81,50 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.LVDS_data_array_pkg.all;
 
 entity lvds_reader_top is
 	generic (
-		NUM_CHANNELS	: integer := 16
+		NUM_CHANNELS			: integer := 16;
+		DATA_TRAINING_PATTERN	: std_logic_vector (9 downto 0) := "0001010101"
 	);
 	port(
 		-- main system clock and reset
-		clock_sys		: in std_logic;
-		reset_sys		: in std_logic;
+		system_clock		: in std_logic;
+		system_reset		: in std_logic;
 		
 		-- Input from LVDS data and clock pins
-		lvds_signal_in	: in std_logic_vector(16 downto 0);
-		lvds_clock_in	: in std_logic;
+		lvds_data_in		: in std_logic_vector(NUM_CHANNELS-1 downto 0);
+		lvds_ctrl_in		: in std_logic;
+		lvds_clock_in		: in std_logic;
 		
 		-- Word alignment signals
-		alignment_done	: out std_logic;
-		cmd_start_align	: in  std_logic;
+		alignment_done		: out std_logic;
+		cmd_start_align		: in  std_logic;
 		
 		-- Status signals
-		word_alignment_error    : out std_logic;
+		word_alignment_error	: out std_logic;
 		pll_locked				: out std_logic;
 		
+		-- Output parallel LVDS clock
+		lvds_parallel_clock	: out std_logic;
+		
 		-- parallelized output data
-		data_par_00		: out std_logic_vector (9 downto 0);
-		data_par_01		: out std_logic_vector (9 downto 0);
-		data_par_02		: out std_logic_vector (9 downto 0);
-		data_par_03		: out std_logic_vector (9 downto 0);
-		data_par_04		: out std_logic_vector (9 downto 0);
-		data_par_05		: out std_logic_vector (9 downto 0);
-		data_par_06		: out std_logic_vector (9 downto 0);
-		data_par_07		: out std_logic_vector (9 downto 0);
-		data_par_08		: out std_logic_vector (9 downto 0);
-		data_par_09		: out std_logic_vector (9 downto 0);
-		data_par_10		: out std_logic_vector (9 downto 0);
-		data_par_11		: out std_logic_vector (9 downto 0);
-		data_par_12		: out std_logic_vector (9 downto 0);
-		data_par_13		: out std_logic_vector (9 downto 0);
-		data_par_14		: out std_logic_vector (9 downto 0);
-		data_par_15		: out std_logic_vector (9 downto 0);
-		ctrl_par		: out std_logic_vector (9 downto 0)
+		lvds_parallel_data	: out t_lvds_data_array(NUM_CHANNELS downto 0)(9 downto 0)
 	);
 end entity lvds_reader_top;
 
 architecture rtl of lvds_reader_top is
 
 	-- Data channel and bitslip control
-	signal lvds_bitslip			: std_logic_vector (NUM_CHANNELS downto 0) := (others => '0');
-	signal lvds_pll_reset		: std_logic := '0';
-	signal lvds_output_clock	: std_logic;
-	signal lvds_cda_max			: std_logic_vector (NUM_CHANNELS downto 0);
-	signal pll_locked_extended	: std_logic_vector (NUM_CHANNELS downto 0);
+	signal lvds_bitslip				: std_logic_vector (NUM_CHANNELS downto 0);
+	signal lvds_pll_reset			: std_logic;
+	signal lvds_cda_max				: std_logic_vector (NUM_CHANNELS downto 0);
+	signal pll_locked_extended		: std_logic_vector (NUM_CHANNELS downto 0);
+	signal i_lvds_parallel_clock	: std_logic_vector (NUM_CHANNELS downto 0);
 	
 	-- Signals align_channel_process to perform word alignment on selected channel
-	signal start_align			: std_logic;
+	signal align_channel			: std_logic;
 	
 	-- Finite state machine states for main process
 	type t_main_process_FSM is (s_IDLE, s_START_ALIGN, s_ALIGN);
@@ -160,16 +150,16 @@ architecture rtl of lvds_reader_top is
 	signal counter : t_counter;
 	
 	-- Array to hold data from SERDES
-	type t_lvds_data_array is array (NUM_CHANNELS downto 0) of
-							std_logic_vector (9 downto 0);
-	signal lvds_data_array : t_lvds_data_array := (others => (others => '0'));
+	--type t_lvds_data_array is array (NUM_CHANNELS downto 0) of
+							--std_logic_vector (9 downto 0);
+	signal lvds_data_array : t_lvds_data_array(NUM_CHANNELS downto 0)(9 downto 0);
 	
 	-- Basically a constant to check that all pll_locked signals are HIGH because Quartus 
 	-- can't handle unary AND operations :(
 	constant check_pll_locked : std_logic_vector (NUM_CHANNELS downto 0) := (others => '1');
 
 	-- Component instantiation for ALTLVDS_RX IP
-	component lvds_reader_ip
+	component lvds_reader_ip is
 	port
 	(
 		pll_areset				: in  std_logic;
@@ -181,7 +171,7 @@ architecture rtl of lvds_reader_top is
 		rx_out					: out std_logic_vector (9 downto 0);
 		rx_outclock				: out std_logic 
 	);
-end component;
+	end component;
 
 begin
 
@@ -193,7 +183,15 @@ begin
 	begin
 		-- Done to avoid error and convert std_logic to std_logic_vector (0 downto 0)
 		internal_lvds_bitslip 	<= "" & lvds_bitslip(i_gen);
-		internal_lvds_signal_in <= "" & lvds_signal_in(i_gen);
+		
+		-- Check if data or control channel
+		gen_test_index1 : if (i_gen = NUM_CHANNELS) generate
+			internal_lvds_signal_in(0) <= lvds_ctrl_in;
+		end generate gen_test_index1;
+		
+		gen_test_index2 : if (i_gen < NUM_CHANNELS) generate
+			internal_lvds_signal_in(0) <= lvds_data_in(i_gen);
+		end generate gen_test_index2;
 		
 		inst_lvds_ip : lvds_reader_ip port map (
 		pll_areset	 			=> lvds_pll_reset,
@@ -203,56 +201,53 @@ begin
 		rx_cda_max	 			=> internal_lvds_cda_max,
 		rx_locked	 			=> pll_locked_extended(i_gen),
 		rx_out	 				=> lvds_data_array(i_gen),
-		rx_outclock	 			=> lvds_output_clock
+		rx_outclock	 			=> i_lvds_parallel_clock(i_gen)
 		);
 		
 		lvds_cda_max(i_gen)	<= internal_lvds_cda_max(0);
-	end generate;
+	end generate gen_lvds_ip;
 	
-	-- Set data in array to correct outputs
-	data_par_00 <= lvds_data_array(0);
-	data_par_01 <= lvds_data_array(1);
-	data_par_02 <= lvds_data_array(2);
-	data_par_03	<= lvds_data_array(3);
-	data_par_04 <= lvds_data_array(4);
-	data_par_05 <= lvds_data_array(5);
-	data_par_06 <= lvds_data_array(6);
-	data_par_07 <= lvds_data_array(7);
-	data_par_08 <= lvds_data_array(8);
-	data_par_09 <= lvds_data_array(9);
-	data_par_10 <= lvds_data_array(10);
-	data_par_11 <= lvds_data_array(11);
-	data_par_12 <= lvds_data_array(12);
-	data_par_13 <= lvds_data_array(13);
-	data_par_14 <= lvds_data_array(14);
-	data_par_15 <= lvds_data_array(15);
-	ctrl_par	<= lvds_data_array(16);
 	
 	-- Check if any pll_signal loses lock
 	pll_locked <= '1' when pll_locked_extended = check_pll_locked else '0';
 	
+	-- Transfer parallelized data array to output
+	lvds_parallel_data 	<= lvds_data_array;
+	
+	-- Send PLL parallel clock to output
+	lvds_parallel_clock	<= i_lvds_parallel_clock(0);
 	
 	
-	main_process : process (clock_sys)
+	main_process : process (system_clock, i_lvds_parallel_clock(0), system_reset)
 	begin
-		if rising_edge(clock_sys) then
-			if (reset_sys = '1') then
-				
-				-- Set signals to default values
-				start_align 		 <= '0';
-				alignment_done		 <= '0';
-				main_process_FSM 	 <= s_IDLE;
-				channel_select 		 <= 0;
-				alignment_word		 <= (others => '0');
-				current_data		 <= (others => '0');
-				lvds_pll_reset		 <= '1';
 			
-			else
-				-- Default values
-				start_align 	<= '0';
-				alignment_done 	<= '0';
-				lvds_pll_reset	<= '0';
+		if (system_reset = '1') then
 				
+			-- Set signals to default values
+			align_channel 		 <= '0';
+			alignment_done		 <= '0';
+			main_process_FSM 	 <= s_IDLE;
+			channel_select 		 <= 0;
+			alignment_word		 <= (others => '0');
+			current_data		 <= (others => '0');
+			lvds_pll_reset		 <= '1';
+			
+		else
+			-- Outside rising_edge elsewise PLL never exits reset
+			lvds_pll_reset	<= '0';
+			
+			-- If PLL loses lock, stop alignment
+			-- Outside of rising_edge since lvds_clock_output might stop
+			-- if (pll_locked_extended /= check_pll_locked) then
+				-- main_process_FSM <= s_IDLE;
+			-- end if;
+		
+			if rising_edge(i_lvds_parallel_clock(0)) then
+			
+				-- Default values
+				align_channel 	<= '0';
+				alignment_done 	<= '0';
+								
 				-- FSM
 				case main_process_FSM is
 					when s_IDLE =>
@@ -262,7 +257,7 @@ begin
 						end if;
 						
 					when s_START_ALIGN =>
-						start_align 		<= '1';
+						align_channel 		<= '1';
 						main_process_FSM 	<= s_ALIGN;
 					
 					-- Iterate through and align each data channel
@@ -283,19 +278,14 @@ begin
 				
 				-- Generate training word (known word generated by VNIR)
 				if (channel_select = NUM_CHANNELS) then
-					alignment_word		<= (others => '0');
-					alignment_word(9)	<= '1';
+					alignment_word		<= (9 => '1', others => '0');
 				else
-					alignment_word		<= "0001010101";
+					--alignment_word		<= "0001010101";
+					alignment_word		<= DATA_TRAINING_PATTERN;
 				end if;
 				
 				-- If error in finding word boundary
 				if (lvds_cda_max(channel_select) = '1') then
-					main_process_FSM <= s_IDLE;
-				end if;
-				
-				-- If PLL loses lock, stop alignment
-				if (pll_locked_extended /= check_pll_locked) then
 					main_process_FSM <= s_IDLE;
 				end if;
 					
@@ -305,19 +295,28 @@ begin
 		
 	
 	-- Controls word alignment for an individual channel
-	align_channel_process : process(clock_sys)
+	align_channel_process : process(i_lvds_parallel_clock(0), system_reset)
 	begin
-		if rising_edge(clock_sys) then
-			if (reset_sys = '1') then
+		
+		if (system_reset = '1') then
 			
-				-- Set signals to default values
-				lvds_bitslip 	<= (others => '0');
-				channel_done	<= '0';
-				alignment_FSM	<= s_IDLE;
-				counter			<= 3;
-				word_alignment_error <= '0';
+			-- Set signals to default values
+			lvds_bitslip 	<= (others => '0');
+			channel_done	<= '0';
+			alignment_FSM	<= s_IDLE;
+			counter			<= 3;
+			word_alignment_error <= '0';
+			
+		else
+			-- If PLL loses lock, stop alignment
+			-- Outside of rising_edge since lvds_clock_output might stop
+			-- if (pll_locked_extended /= check_pll_locked) then
+				-- alignment_FSM <= s_IDLE;
+			-- end if;
+		
+		
+			if rising_edge(i_lvds_parallel_clock(0)) then
 				
-			else
 				-- Set default values
 				lvds_bitslip <= (others => '0');
 				channel_done <= '0';
@@ -325,7 +324,7 @@ begin
 				-- FSM
 				case alignment_FSM is
 					when s_IDLE =>
-						if (start_align = '1') then
+						if (align_channel = '1') then
 							alignment_FSM <= s_CHECKVALUE;						
 						end if;
 						
@@ -358,11 +357,6 @@ begin
 						end if;
 						
 				end case;
-				
-				-- If PLL loses lock, stop alignment
-				if (pll_locked_extended /= check_pll_locked) then
-					alignment_FSM <= s_IDLE;
-				end if;
 					
 			end if;
 		end if;

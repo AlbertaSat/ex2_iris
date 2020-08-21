@@ -1,5 +1,5 @@
 Restore Archived Project report for lvds_reader_top
-Wed Aug 12 20:54:50 2020
+Thu Aug 20 21:25:59 2020
 Quartus Prime Version 17.0.0 Build 595 04/25/2017 SJ Standard Edition
 
 
@@ -37,7 +37,7 @@ agreement for further details.
 +-------------------------------------------------------------------------+
 ; Restore Archived Project Summary                                        ;
 +---------------------------------+---------------------------------------+
-; Restore Archived Project Status ; Successful - Wed Aug 12 20:54:50 2020 ;
+; Restore Archived Project Status ; Successful - Thu Aug 20 21:25:59 2020 ;
 ; Revision Name                   ; lvds_reader_top                       ;
 ; Top-level Entity Name           ; lvds_reader_top                       ;
 ; Family                          ; Cyclone V                             ;
@@ -51,26 +51,27 @@ Info: Successfully restored 'D:/Campbells_Stuff/University_of_Alberta/AlbertaSAT
 Info: Generated report 'lvds_reader_top.restore.rpt'
 
 
-+-------------------------+
-; Files Restored          ;
-+-------------------------+
-; File Name               ;
-+-------------------------+
-; qar_info.json           ;
-; LVDS_reader_IP.bsf      ;
-; LVDS_reader_IP.cmp      ;
-; LVDS_reader_IP.inc      ;
-; LVDS_reader_IP.ppf      ;
-; LVDS_reader_IP.qip      ;
-; LVDS_reader_IP.vhd      ;
-; LVDS_reader_IP_inst.vhd ;
-; LVDS_reader_IP_syn.v    ;
-; lvds_reader_top.qsf     ;
-; lvds_reader_top.vhd     ;
-; lvds_reader_v3.qpf      ;
-; testbench_1.vhd         ;
-; assignment_defaults.qdf ;
-+-------------------------+
++---------------------------+
+; Files Restored            ;
++---------------------------+
+; File Name                 ;
++---------------------------+
+; qar_info.json             ;
+; LVDS_reader_IP.bsf        ;
+; LVDS_reader_IP.cmp        ;
+; LVDS_reader_IP.inc        ;
+; LVDS_reader_IP.ppf        ;
+; LVDS_reader_IP.qip        ;
+; LVDS_reader_IP.vhd        ;
+; LVDS_reader_IP_inst.vhd   ;
+; LVDS_reader_IP_syn.v      ;
+; LVDS_reader_packages.vhd  ;
+; lvds_reader_top.qsf       ;
+; lvds_reader_top.vhd       ;
+; lvds_reader_v3.qpf        ;
+; testbench_LVDS_reader.vhd ;
+; assignment_defaults.qdf   ;
++---------------------------+
 
 
 +--------------------+
