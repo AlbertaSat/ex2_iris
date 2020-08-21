@@ -201,11 +201,12 @@ begin
     -- Pipeline stage 0: tag fragment with index
     -- TODO: should probably be its own entity
     p0 : process (clock, reset_n)
-        variable i_fragment  : integer;
-        variable i_row       : integer;
-        variable i_window    : integer;
-        variable i_frame     : integer;
-        variable rollover    : boolean;
+        variable i_fragment : integer;
+        variable i_row      : integer;
+        variable i_window   : integer;
+        variable i_frame    : integer;
+        variable rollover   : boolean;
+        variable x          : integer;
     begin
         if reset_n = '0' then
             p0_done <= '0';
@@ -218,9 +219,11 @@ begin
                 i_window := 0;
                 i_frame := 0;
             elsif fragment_available = '1' then
+                x := i_frame - windows(i_window).lo - i_row;
+                status.fragment_x <= x;
                 fragment_p0 <= fragment;
                 index_p0 <= (
-                    x => i_frame - windows(i_window).lo - i_row,
+                    x => x,
                     i_fragment => i_fragment,
                     i_window => i_window,
                     is_leading => i_row = 0,
