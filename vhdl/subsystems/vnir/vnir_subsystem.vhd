@@ -22,7 +22,7 @@ use ieee.math_real.all;
 use work.spi_types.all;
 
 use work.vnir_base.all;
-use work.row_collector_pkg;
+use work.pixel_integrator_pkg;
 use work.sensor_configurer_pkg;
 use work.sensor_configurer_defaults;
 use work.lvds_decoder_pkg;
@@ -251,20 +251,20 @@ architecture rtl of vnir_subsystem is
     );
     end component frame_requester;
 
-    component row_collector is
+    component pixel_integrator is
     generic (
         ROW_WIDTH           : integer := vnir.ROW_WIDTH;
         FRAGMENT_WIDTH      : integer := vnir.FRAGMENT_WIDTH;
         PIXEL_BITS          : integer := vnir.PIXEL_BITS;
         ROW_PIXEL_BITS      : integer := vnir.ROW_PIXEL_BITS;
-        N_WINDOWS           : integer range 1 to row_collector_pkg.MAX_N_WINDOWS := vnir.N_WINDOWS;
+        N_WINDOWS           : integer range 1 to pixel_integrator_pkg.MAX_N_WINDOWS := vnir.N_WINDOWS;
         METHOD              : string := vnir.METHOD;
         MAX_WINDOW_SIZE     : integer := vnir.MAX_WINDOW_SIZE
     );
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
-        config              : in row_collector_pkg.config_t;
+        config              : in pixel_integrator_pkg.config_t;
         read_config         : in std_logic;
         start               : in std_logic;
         done                : out std_logic;
@@ -272,9 +272,9 @@ architecture rtl of vnir_subsystem is
         fragment_available  : in std_logic;
         row                 : out pixel_vector_t;
         row_window          : out integer;
-        status              : out row_collector_pkg.status_t
+        status              : out pixel_integrator_pkg.status_t
     );
-    end component row_collector;
+    end component pixel_integrator;
 
     signal config_reg       : vnir.config_t;
     signal image_config_reg : vnir.image_config_t := (others => 0);
@@ -292,7 +292,7 @@ architecture rtl of vnir_subsystem is
     signal start_align : std_logic;
     signal align_done  : std_logic;
 
-    signal row_collector_config : row_collector_pkg.config_t;
+    signal pixel_integrator_config : pixel_integrator_pkg.config_t;
 
     signal fragment                 : pixel_vector_t(vnir.FRAGMENT_WIDTH-1 downto 0)(vnir.PIXEL_BITS-1 downto 0);
     signal fragment_control         : control_t;
@@ -438,10 +438,10 @@ begin
         status => status.lvds_decoder
     );
 
-    row_collector_component : row_collector port map (
+    pixel_integrator_component : pixel_integrator port map (
         clock => clock,
         reset_n => reset_n,
-        config => row_collector_config,
+        config => pixel_integrator_config,
         read_config => start_frame_requester_config,
         start => do_imaging,
         done => imaging_done_s,
@@ -449,7 +449,7 @@ begin
         fragment_available => fragment_available and fragment_control.dval,
         row => row,
         row_window => row_window,
-        status => status.row_collector
+        status => status.pixel_integrator
     );
     imaging_done <= imaging_done_s;
 
@@ -468,7 +468,7 @@ begin
         frame_clocks => image_config_reg.frame_clocks,
         exposure_clocks => image_config_reg.exposure_clocks
     );
-    row_collector_config <= (
+    pixel_integrator_config <= (
         length => image_config_reg.length,
         windows => (
             0 => config_reg.window_red,

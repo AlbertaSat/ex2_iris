@@ -22,7 +22,7 @@ use ieee.numeric_std.all;
 use work.vnir_base.all;
 use work.integer_types.all;
 
-package row_collector_pkg is
+package pixel_integrator_pkg is
     constant MAX_N_WINDOWS : integer := 10;
 
     type config_t is record
@@ -69,9 +69,9 @@ package row_collector_pkg is
     -- Divides a pixel vector by a power of 2
     pure function shift_divide(lhs : pixel_vector_t; rhs : unsigned) return pixel_vector_t;
 
-end package row_collector_pkg;
+end package pixel_integrator_pkg;
 
-package body row_collector_pkg is
+package body pixel_integrator_pkg is
 
     pure function sizes(windows : window_vector_t) return integer_vector_t is
         variable sizes : integer_vector_t(windows'range);
@@ -151,4 +151,4 @@ package body row_collector_pkg is
         return quotient;
     end function shift_divide;
 
-end package body row_collector_pkg;
+end package body pixel_integrator_pkg;

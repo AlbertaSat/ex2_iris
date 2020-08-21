@@ -21,7 +21,7 @@ use ieee.numeric_std.all;
 use work.vnir_base;
 use work.frame_requester_pkg;
 use work.lvds_decoder_pkg;
-use work.row_collector_pkg;
+use work.pixel_integrator_pkg;
 use work.sensor_configurer_pkg;
 
 -- Together with `vnir_subsystem` provides the public-facing interface
@@ -72,7 +72,7 @@ package vnir is
         state               : state_t;
         frame_requester     : frame_requester_pkg.status_t;
         lvds_decoder        : lvds_decoder_pkg.status_t;
-        row_collector       : row_collector_pkg.status_t;
+        pixel_integrator       : pixel_integrator_pkg.status_t;
         sensor_configurer   : sensor_configurer_pkg.status_t;
     end record status_t;
 

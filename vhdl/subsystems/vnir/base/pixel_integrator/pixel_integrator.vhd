@@ -23,35 +23,34 @@ use ieee.math_real.all;
 use work.integer_types.all;
 
 use work.vnir_base.all;
-use work.row_collector_pkg.all;
-
+use work.pixel_integrator_pkg.all;
 
 -- Collects pixels from the sensor, stores and sums (or averages) the
 -- overlapping pixels, then outputs the sum (or average).
 --
--- `row_collector` is configured with two values:
+-- `pixel_integrator` is configured with two values:
 -- * `windows`: an array of windows, with `windows(0)` corresponding to
 --   the leading window, and `windows(N_WINDOWS-1)` corresponding to the
 --   lagging window. These must match the windows used to configure the
 --   sensor.
 -- * `image_length`: the number of rows the output image will have. Note
 --   that this is different than the number of input frames
---   `row_collector` expects to recieve from the sensor, because
---   `row_collector` needs to recieve some extra frames at the beginning
+--   `pixel_integrator` expects to recieve from the sensor, because
+--   `pixel_integrator` needs to recieve some extra frames at the beginning
 --   and end of imaging so as to be able to maintain the same number of
 --   passes over the pixels near the edges of the image. In particular,
 --   the required number of input frames is:
 --
 --       image_frames = image_length + windows(N_WINDOWS-1).hi
 --
--- To configure `row_collector`, set it's `config` input to the desired
+-- To configure `pixel_integrator`, set it's `config` input to the desired
 -- values and assert `read_config` for a single clock cycle.
 --
 -- Once configured, assert `start` for a single clock cycle.
 --
 -- Then, the image frames are to be input row by row, with rows input
 -- fragment by fragment, through the `fragment` and `fragment_available`
--- inputs. `row_collector` will hold `done` high for a single clock
+-- inputs. `pixel_integrator` will hold `done` high for a single clock
 -- cycle when it has recieved all the rows it expects (note, because of
 -- internal pipelining, that this will be delayed by a few clock cycles).
 --
@@ -59,10 +58,10 @@ use work.row_collector_pkg.all;
 -- ground, then fragments with the same index (same location) are summed
 -- together. A group of RAM IPs is used to store the intermediate sums.
 -- When all the fragments with the same index (same location) have been
--- recieved by the `row_collector`, they are collected into rows and
+-- recieved by the `pixel_integrator`, they are collected into rows and
 -- emitted out the `row` output.
 --
--- `row_collector` is able to figure out which fragments correspond to
+-- `pixel_integrator` is able to figure out which fragments correspond to
 -- the same locations on the ground by assuming the satallite ground
 -- speed and the sensor's imaging speed satisfy:
 --
@@ -72,8 +71,8 @@ use work.row_collector_pkg.all;
 -- sweeps the ground, fps is the frames-per-second of the sensor, and
 -- gsd is the ground sample distance (the distance between pixel centers
 -- on the ground). It is the job of components external to
--- `row_collector` to ensure fps is set such that this relation holds.
-entity row_collector is
+-- `pixel_integrator` to ensure fps is set such that this relation holds.
+entity pixel_integrator is
 generic (
     ROW_WIDTH           : integer;
     FRAGMENT_WIDTH      : integer;
@@ -101,12 +100,12 @@ port (
 
     status              : out status_t
 );
-end entity row_collector;
+end entity pixel_integrator;
 
 
-architecture rtl of row_collector is
+architecture rtl of pixel_integrator is
 
-    component row_buffer is
+    component pixel_integrator_fifo is
     generic (
         WORD_SIZE       : integer;
         ADDRESS_SIZE    : integer
@@ -120,7 +119,7 @@ architecture rtl of row_collector is
         write_address   : in std_logic_vector;
         write_enable    : in std_logic
     );
-    end component row_buffer;
+    end component pixel_integrator_fifo;
 
     constant FRAGMENTS_PER_ROW : integer := ROW_WIDTH / FRAGMENT_WIDTH;
     -- Number of bits needed to ensure pixel summing doesn't overflow.
@@ -364,7 +363,7 @@ begin
     -- takes a single clock cycle
     generate_RAM : for i in 0 to FRAGMENT_WIDTH-1 generate
 
-        RAM : row_buffer generic map (
+        RAM : pixel_integrator_fifo generic map (
             WORD_SIZE => SUM_BITS,
             ADDRESS_SIZE => ADDRESS_BITS
         ) port map (
