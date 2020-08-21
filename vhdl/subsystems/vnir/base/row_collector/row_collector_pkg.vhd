@@ -30,15 +30,14 @@ package row_collector_pkg is
         length : integer;
     end record config_t;
 
-    type fragment_idx_t is record
-        fragment : integer;
-        row      : integer;
-        window   : integer;
-        frame    : integer;
+    type edge_type_t is (INTERIOR, LEADING, LAGGING);
 
-        fragments_per_row : integer;
-        rows_per_window : integer_vector_t(MAX_N_WINDOWS-1 downto 0);
-        windows_per_frame : integer;
+    type fragment_idx_t is record
+        x           : integer;
+        i_fragment  : integer;
+        i_window    : integer;
+        is_leading  : boolean;
+        is_lagging  : boolean;
     end record fragment_idx_t;
 
     type status_t is record
@@ -46,55 +45,11 @@ package row_collector_pkg is
         fragment_x          : integer;
     end record status_t;
 
-    pure function is_last_fragment (idx : fragment_idx_t) return boolean;
-    pure function is_last_row (idx : fragment_idx_t) return boolean;
-    pure function is_last_window (idx : fragment_idx_t) return boolean;
-    pure function window_size (idx : fragment_idx_t) return integer;
-    procedure clear (idx : inout fragment_idx_t);
-    procedure increment (idx : inout fragment_idx_t);
-
     pure function sizes(windows : window_vector_t) return integer_vector_t;
 
 end package row_collector_pkg;
 
 package body row_collector_pkg is
-
-    pure function is_last_fragment(idx : fragment_idx_t) return boolean is
-    begin
-        return idx.fragment = idx.fragments_per_row - 1;
-    end function is_last_fragment;
-
-    pure function is_last_row(idx : fragment_idx_t) return boolean is
-    begin
-        return idx.row = idx.rows_per_window(idx.window) - 1;
-    end function is_last_row;
-
-    pure function is_last_window(idx : fragment_idx_t) return boolean is
-    begin
-        return idx.window = idx.windows_per_frame - 1;
-    end function is_last_window;
-
-    pure function window_size(idx : fragment_idx_t) return integer is
-    begin
-        return idx.rows_per_window(idx.window);
-    end function window_size;
-
-    procedure clear (idx : inout fragment_idx_t) is
-    begin
-        idx.fragment := 0;
-        idx.row := 0;
-        idx.window := 0;
-        idx.frame := 0;
-    end procedure clear;
-
-    procedure increment (idx : inout fragment_idx_t) is
-        variable rolled_over : boolean;
-    begin
-        increment_rollover(idx.fragment, idx.fragments_per_row, true, rolled_over);
-        increment_rollover(idx.row, idx.rows_per_window(idx.window), rolled_over, rolled_over);
-        increment_rollover(idx.window, idx.windows_per_frame, rolled_over, rolled_over);
-        increment(idx.frame, rolled_over);
-    end procedure increment;
 
     pure function sizes(windows : window_vector_t) return integer_vector_t is
         variable sizes : integer_vector_t(windows'range);
