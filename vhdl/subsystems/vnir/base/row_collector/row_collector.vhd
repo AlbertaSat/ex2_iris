@@ -123,64 +123,13 @@ architecture rtl of row_collector is
     end component row_buffer;
 
     constant FRAGMENTS_PER_ROW : integer := ROW_WIDTH / FRAGMENT_WIDTH;
-
-    -- Like pixel_vector_t, but stores std_logic_vectors
-    type lpixel_vector_t is array(integer range <>) of std_logic_vector;
-
     -- Number of bits needed to ensure pixel summing doesn't overflow.
     -- In the worst case, we sum together n m-bit pixels, with
     -- n=MAX_WINDOW_SIZE and m=PIXEL_BITS
     constant SUM_BITS : integer := integer(ceil(log2(real(2) ** real(PIXEL_BITS) * real(MAX_WINDOW_SIZE))));
-
     -- Number of bits needed to ensure all intermediate sums may be
     -- stored in RAM
     constant ADDRESS_BITS : integer := integer(ceil(log2(real(ROW_WIDTH / FRAGMENT_WIDTH) * real(N_WINDOWS) * real(MAX_WINDOW_SIZE))));
-    subtype address_t is std_logic_vector(ADDRESS_BITS-1 downto 0);
-
-    -- Convenience functions to convert between various pixel
-    -- representations.
-
-    pure function to_pixels(lpixels : lpixel_vector_t) return pixel_vector_t is
-        variable pixels : pixel_vector_t(lpixels'range)(lpixels(0)'range);
-    begin
-        for i in pixels'range loop
-            pixels(i) := unsigned(lpixels(i));
-        end loop;
-        return pixels;
-    end function to_pixels;
-
-    pure function to_lpixels(pixels : pixel_vector_t) return lpixel_vector_t is
-        variable lpixels : lpixel_vector_t(pixels'range)(pixels(0)'range);
-    begin
-        for i in lpixels'range loop
-            lpixels(i) := std_logic_vector(pixels(i));
-        end loop;
-        return lpixels;
-    end function to_lpixels;
-
-    pure function resize_pixels(pixels : pixel_vector_t; new_size : integer) return pixel_vector_t is
-        variable re : pixel_vector_t(pixels'range)(new_size-1 downto 0);
-    begin
-        for i_pixel in pixels'range loop
-            re(i_pixel) := resize(pixels(i_pixel), new_size);
-        end loop;
-        return re;
-    end function resize_pixels;
-
-    -- Allow pixel-wise summing of pixel vectors
-    pure function "+" (lhs : pixel_vector_t; rhs : pixel_vector_t) return pixel_vector_t is
-        variable sum : pixel_vector_t(rhs'range)(rhs(0)'range);
-    begin
-        for i in lhs'range loop
-            sum(i) := lhs(i) + rhs(i);
-        end loop;
-        return sum;
-    end function "+";
-
-    pure function to_address(i : integer) return address_t is
-    begin
-        return std_logic_vector(to_unsigned(i, ADDRESS_BITS));
-    end function to_address;
 
     -- Gets the address in RAM of a particular fragment, according to
     --
@@ -188,51 +137,16 @@ architecture rtl of row_collector is
     --
     -- where n is the maximum window size, and x, i_window and i_fragment
     -- is the index of the fragment
-    pure function to_address(index : fragment_idx_t; windows : window_vector_t) return address_t is
+    pure function to_address(index : fragment_idx_t; windows : window_vector_t) return std_logic_vector is
     begin
-        return to_address(
+        return std_logic_vector(to_unsigned(
             FRAGMENTS_PER_ROW * (
                 index.i_window * max_n(sizes(windows)) +
                 index.x rem max_n(sizes(windows))
-            ) + index.i_fragment
-        );
+            ) + index.i_fragment,
+            ADDRESS_BITS
+        ));
     end function to_address;
-
-    -- Synthesizable version of:
-    --
-    --       to_unsigned(floor(log2(real(u))), u'length)
-    --
-    -- Works by finding the index of the MSB
-    pure function log2_floor(u : unsigned) return unsigned is
-        variable result : unsigned(u'range);
-    begin
-        for i in 0 to u'length-1 loop
-            if u(i) then
-                result := to_unsigned(i, result'length);
-            end if;
-        end loop;
-        return result;
-    end function log2_floor;
-
-    -- Synthesizable single-cycle division for when `rhs` is a power of
-    -- 2. Works by shifting `lhs` according to `log2(rhs)`
-    pure function shift_divide(lhs : unsigned; rhs : unsigned) return unsigned is
-        variable quotient : unsigned(lhs'range);
-    begin
-        assert is_power_of_2(to_integer(rhs));
-        quotient := shift_right(lhs, to_integer(log2_floor(rhs)));
-        return quotient;
-    end function shift_divide;
-
-    -- Divides a pixel vector by a power of 2
-    pure function shift_divide(lhs : pixel_vector_t; rhs : unsigned) return pixel_vector_t is
-        variable quotient : pixel_vector_t(lhs'range)(lhs(0)'range);
-    begin
-        for i in lhs'range loop
-            quotient(i) := pixel_t(shift_divide(unsigned(lhs(i)), rhs));
-        end loop;
-        return quotient;
-    end function shift_divide;
 
     -- Pipeline stage 0 output
     signal fragment_p0  : pixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(PIXEL_BITS-1 downto 0);
@@ -253,10 +167,10 @@ architecture rtl of row_collector is
 
     -- RAM signals
     signal read_data        : lpixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(SUM_BITS-1 downto 0);
-    signal read_address     : address_t;
+    signal read_address     : std_logic_vector(ADDRESS_BITS-1 downto 0);
     signal read_enable      : std_logic;
     signal write_data       : lpixel_vector_t(FRAGMENT_WIDTH-1 downto 0)(SUM_BITS-1 downto 0);
-    signal write_address    : address_t;
+    signal write_address    : std_logic_vector(ADDRESS_BITS-1 downto 0);
     signal write_enable     : std_logic;
 
     -- Config registers

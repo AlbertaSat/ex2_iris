@@ -45,7 +45,29 @@ package row_collector_pkg is
         fragment_x          : integer;
     end record status_t;
 
+    -- Like pixel_vector_t, but stores std_logic_vectors
+    type lpixel_vector_t is array(integer range <>) of std_logic_vector;
+
     pure function sizes(windows : window_vector_t) return integer_vector_t;
+
+    pure function to_pixels(lpixels : lpixel_vector_t) return pixel_vector_t;
+    pure function to_lpixels(pixels : pixel_vector_t) return lpixel_vector_t;
+
+    pure function resize_pixels(pixels : pixel_vector_t; new_size : integer) return pixel_vector_t;
+    -- Allow pixel-wise summing of pixel vectors
+    pure function "+" (lhs : pixel_vector_t; rhs : pixel_vector_t) return pixel_vector_t;
+    
+    -- Synthesizable version of:
+    --
+    --       to_unsigned(floor(log2(real(u))), u'length)
+    --
+    -- Works by finding the index of the MSB
+    pure function log2_floor(u : unsigned) return unsigned;
+    -- Synthesizable single-cycle division for when `rhs` is a power of
+    -- 2. Works by shifting `lhs` according to `log2(rhs)`
+    pure function shift_divide(lhs : unsigned; rhs : unsigned) return unsigned;
+    -- Divides a pixel vector by a power of 2
+    pure function shift_divide(lhs : pixel_vector_t; rhs : unsigned) return pixel_vector_t;
 
 end package row_collector_pkg;
 
@@ -59,5 +81,74 @@ package body row_collector_pkg is
         end loop;
         return sizes;
     end function sizes;
+
+    pure function to_pixels(lpixels : lpixel_vector_t) return pixel_vector_t is
+        variable pixels : pixel_vector_t(lpixels'range)(lpixels(0)'range);
+    begin
+        for i in pixels'range loop
+            pixels(i) := unsigned(lpixels(i));
+        end loop;
+        return pixels;
+    end function to_pixels;
+
+    pure function to_lpixels(pixels : pixel_vector_t) return lpixel_vector_t is
+        variable lpixels : lpixel_vector_t(pixels'range)(pixels(0)'range);
+    begin
+        for i in lpixels'range loop
+            lpixels(i) := std_logic_vector(pixels(i));
+        end loop;
+        return lpixels;
+    end function to_lpixels;
+
+    pure function resize_pixels(pixels : pixel_vector_t; new_size : integer) return pixel_vector_t is
+        variable re : pixel_vector_t(pixels'range)(new_size-1 downto 0);
+    begin
+        for i_pixel in pixels'range loop
+            re(i_pixel) := resize(pixels(i_pixel), new_size);
+        end loop;
+        return re;
+    end function resize_pixels;
+
+    pure function "+" (lhs : pixel_vector_t; rhs : pixel_vector_t) return pixel_vector_t is
+        variable sum : pixel_vector_t(rhs'range)(rhs(0)'range);
+    begin
+        for i in lhs'range loop
+            sum(i) := lhs(i) + rhs(i);
+        end loop;
+        return sum;
+    end function "+";
+
+    pure function to_address(i : integer; ADDRESS_BITS : integer) return std_logic_vector is
+    begin
+        return std_logic_vector(to_unsigned(i, ADDRESS_BITS));
+    end function to_address;
+
+    pure function log2_floor(u : unsigned) return unsigned is
+        variable result : unsigned(u'range);
+    begin
+        for i in 0 to u'length-1 loop
+            if u(i) then
+                result := to_unsigned(i, result'length);
+            end if;
+        end loop;
+        return result;
+    end function log2_floor;
+
+    pure function shift_divide(lhs : unsigned; rhs : unsigned) return unsigned is
+        variable quotient : unsigned(lhs'range);
+    begin
+        assert is_power_of_2(to_integer(rhs));
+        quotient := shift_right(lhs, to_integer(log2_floor(rhs)));
+        return quotient;
+    end function shift_divide;
+
+    pure function shift_divide(lhs : pixel_vector_t; rhs : unsigned) return pixel_vector_t is
+        variable quotient : pixel_vector_t(lhs'range)(lhs(0)'range);
+    begin
+        for i in lhs'range loop
+            quotient(i) := pixel_t(shift_divide(unsigned(lhs(i)), rhs));
+        end loop;
+        return quotient;
+    end function shift_divide;
 
 end package body row_collector_pkg;
