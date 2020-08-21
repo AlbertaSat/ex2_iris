@@ -23,7 +23,22 @@ use lpm.lpm_components.all;
 
 use work.unsigned_types.all;
 
-
+-- Multi-clock-cycle pipelined unsigned-int divider
+--
+-- Gives the result of the division after `N_CLOCKS` clock cycles. For
+-- ease of use, the inputs and outputs are given as 64-bit unsigned
+-- integers, but the actual division uses a configurable number of bits
+-- in the numerator and denominator (e.g. setting `NUMERATOR_BITS` and
+-- `DENOMINATOR_BITS` to 10 performs 10-bit division).
+--
+-- Hold `start` high on the clock cycle the input data is available at,
+-- to make `done` be held high on the clock cycle the quotient is
+-- available.
+--
+-- Note: `udivide` will simulate correctly with more values of N_CLOCKS
+-- than it will synthesize with. If you get setup/hold timing violations
+-- from `udivide`, increase `N_CLOCKS` or decrease `NUMERATOR_BITS` or
+-- DENOMINATOR_BITS.
 entity udivide is
 generic (
     N_CLOCKS : integer := 4;
@@ -79,6 +94,7 @@ architecture rtl of udivide is
 
 begin
 
+    -- Pipelined division
     compute_quotient : LPM_DIVIDE port map (
         clock => clock,
         aclr => not reset_n,
@@ -88,6 +104,7 @@ begin
     );
     quotient <= to_u64(quotient_logic);
 
+    -- Pipelined done flag
     delay : n_delay port map (
         clock => clock,
         reset_n => reset_n,

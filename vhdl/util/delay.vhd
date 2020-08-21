@@ -14,16 +14,12 @@
 -- limitations under the License.
 ----------------------------------------------------------------
 
-
--- Based on https://stackoverflow.com/questions/45218347/how-to-delay-a-signal-for-several-clock-cycles-in-vhdl
-
-
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-
-
+-- Delays a signal by DELAY_CLOCKS clock cycles
+-- Based on https://stackoverflow.com/questions/45218347/how-to-delay-a-signal-for-several-clock-cycles-in-vhdl
 entity n_delay is
 generic (
     DELAY_CLOCKS : integer
@@ -55,10 +51,16 @@ begin
 end architecture rtl;
 
 
-
 library ieee;
 use ieee.std_logic_1164.all;
 
+-- When activated by holding `start` high for a singe clock cycle, waits
+-- until `condition` is high, then outputs single-clock-cycle pulse on
+-- `done`.
+--
+-- Designed to function as a compatibility layer between an architecture
+-- that emits a start-process pulse and expects a process-done pulse, and
+-- one that just holds process-done high indefinitely.
 entity delay_until is
 port (
     clock       : in std_logic;
@@ -101,10 +103,10 @@ begin
 end architecture rtl;
 
 
-
 library ieee;
 use ieee.std_logic_1164.all;
 
+-- Delays a signal by a single clock cycle
 entity single_delay is
 port (
     clock   : in std_logic;

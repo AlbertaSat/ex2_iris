@@ -24,6 +24,8 @@ use work.lvds_decoder_pkg;
 use work.row_collector_pkg;
 use work.sensor_configurer_pkg;
 
+-- Together with `vnir_subsystem` provides the public-facing interface
+-- to the VNIR sensor subsystem.
 package vnir is
 
     subtype flip_t is sensor_configurer_pkg.flip_t;
