@@ -27,7 +27,7 @@ package row_collector_pkg is
 
     type config_t is record
         windows : window_vector_t(MAX_N_WINDOWS-1 downto 0);
-        image_length : integer;
+        length : integer;
     end record config_t;
 
     type fragment_idx_t is record

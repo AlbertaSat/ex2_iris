@@ -288,7 +288,7 @@ architecture rtl of row_collector is
 
     -- Config registers
     signal windows : window_vector_t(N_WINDOWS-1 downto 0);
-    signal image_length : integer;
+    signal length : integer;
 
 begin
 
@@ -304,7 +304,7 @@ begin
             end loop;
             
             windows <= config.windows(N_WINDOWS-1 downto 0);
-            image_length <= config.image_length;
+            length <= config.length;
         end if;
     end process config_process;
 
@@ -327,7 +327,7 @@ begin
 
             if start = '1' then
                 index := initial_index(windows);
-                max_x := image_length - 1;
+                max_x := length - 1;
             elsif fragment_available = '1' then
                 -- Filter out rows outside of image boundaries
                 x := x_pos(index, windows);
@@ -418,7 +418,7 @@ begin
         if reset_n = '1' then
             if start = '1' then
                 n_rows := (others => 0);
-                n_rows_target := (others => image_length);
+                n_rows_target := (others => length);
             elsif p2_done = '1' then
                 offset := index_p2.fragment;
                 stride := index_p2.fragments_per_row;

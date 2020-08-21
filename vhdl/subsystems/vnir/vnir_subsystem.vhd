@@ -20,7 +20,6 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 
 use work.spi_types.all;
-use work.unsigned_types.all;
 
 use work.vnir_base.all;
 use work.row_collector_pkg;
@@ -186,34 +185,6 @@ end entity vnir_subsystem;
 
 architecture rtl of vnir_subsystem is
 
-    component delay_until is
-    port (
-        clock           : in std_logic;
-        reset_n         : in std_logic;
-        condition       : in std_logic;
-        start           : in std_logic;
-        done            : out std_logic
-    );
-    end component delay_until;
-
-    component udivide is
-    generic (
-        N_CLOCKS : integer;
-        NUMERATOR_BITS : integer;
-        DENOMINATOR_BITS : integer
-    );
-    port (
-        clock       : in std_logic;
-        reset_n     : in std_logic;
-        numerator   : in u64;
-        denominator : in u64;
-        quotient    : out u64;
-        start       : in std_logic;
-        done        : out std_logic
-    );
-    end component udivide;
-        
-
     component sensor_configurer is
     generic (
         FRAGMENT_WIDTH      : integer := vnir.FRAGMENT_WIDTH;
@@ -263,8 +234,7 @@ architecture rtl of vnir_subsystem is
     component frame_requester is
     generic (
         FRAGMENT_WIDTH      : integer := vnir.FRAGMENT_WIDTH;
-        CLOCKS_PER_SEC      : integer := CLOCKS_PER_SEC;
-        MAX_FPS             : integer := vnir.MAX_FPS
+        CLOCKS_PER_SEC      : integer := CLOCKS_PER_SEC
     );
     port (
         clock               : in std_logic;
@@ -306,19 +276,10 @@ architecture rtl of vnir_subsystem is
     );
     end component row_collector;
 
-    -- Maximum number of bits needed to store the product of fps and
-    -- CLOCKS_PER_SEC
-    constant MUL_BITS : integer := integer(
-        ceil(log2(real(vnir.MAX_FPS) * real(CLOCKS_PER_SEC)))
-    );
-
     signal config_reg       : vnir.config_t;
     signal image_config_reg : vnir.image_config_t := (others => 0);
 
     signal imaging_done_s : std_logic;
-
-    signal start_calc_image_length : std_logic;
-    signal calc_image_length_done  : std_logic;
 
     signal start_frame_requester_config : std_logic;
     signal frame_requester_config       : frame_requester_pkg.config_t;
@@ -338,7 +299,6 @@ architecture rtl of vnir_subsystem is
     signal fragment_available       : std_logic;
     
     signal image_length : integer;
-    signal num_frames   : integer;
 
     signal row_window   : integer;
 
@@ -358,7 +318,7 @@ begin
         wait until rising_edge(clock);
         
         start_sensor_config <= '0';
-        start_calc_image_length <= '0';
+        start_frame_requester_config <= '0';
         config_done <= '0';
         image_config_done <= '0';
 
@@ -390,7 +350,8 @@ begin
             assert do_imaging = '0';
             if start_image_config = '1' then
                 image_config_reg <= image_config;
-                start_calc_image_length <= '1';
+                start_frame_requester_config <= '1';
+                num_rows <= image_config.length;
                 state := vnir.IMAGE_CONFIGURING;
             end if;
         when vnir.IMAGE_CONFIGURING =>
@@ -414,7 +375,8 @@ begin
             end if;
             if start_image_config = '1' then
                 image_config_reg <= image_config;
-                start_calc_image_length <= '1';
+                start_frame_requester_config <= '1';
+                num_rows <= image_config.length;
                 state := vnir.IMAGE_CONFIGURING;
             end if;
             if do_imaging = '1' then
@@ -433,7 +395,6 @@ begin
         status.state <= state;
     end process fsm;
 
-    start_frame_requester_config <= calc_image_length_done;
     start_align <= sensor_config_done;
 
     sensor_configurer_component : sensor_configurer port map (
@@ -492,22 +453,6 @@ begin
     );
     imaging_done <= imaging_done_s;
 
-    calc_image_length : udivide generic map (5, MUL_BITS, 10) port map (
-        clock => clock,
-        reset_n => reset_n,
-        numerator => to_unsigned(image_config_reg.duration, 32) * to_unsigned(image_config_reg.fps, 32),
-        denominator => to_u64(1000),
-        to_integer(quotient) => image_length,
-        start => start_calc_image_length,
-        done => calc_image_length_done
-    );
-
-    -- `row_collector` requires an additional number of frames equal to
-    -- the maximum row number of all the rows in the row windows
-    num_frames <= image_length + config_reg.window_blue.hi; -- TODO: move into row_collector
-    
-    -- Construct various per-component config values from the config
-    -- registers.
     sensor_configurer_config <= (
         flip => config_reg.flip,
         calibration => config_reg.calibration,
@@ -519,12 +464,12 @@ begin
         )
     );
     frame_requester_config <= (
-        num_frames => num_frames,
-        fps => image_config_reg.fps,
-        exposure_time => image_config_reg.exposure_time
+        num_frames => image_config_reg.length + config_reg.window_blue.hi,
+        frame_clocks => image_config_reg.frame_clocks,
+        exposure_clocks => image_config_reg.exposure_clocks
     );
     row_collector_config <= (
-        image_length => image_length,
+        length => image_config_reg.length,
         windows => (
             0 => config_reg.window_red,
             1 => config_reg.window_nir,
@@ -537,7 +482,5 @@ begin
                      vnir.ROW_NIR when row_window = 1 else
                      vnir.ROW_BLUE when row_window = 2 else
                      vnir.ROW_NONE;
-    
-    num_rows <= image_length when calc_image_length_done = '1' else 0;
 
 end architecture rtl;

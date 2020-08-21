@@ -99,7 +99,7 @@ architecture tests of row_collector_sum_tb is
         end loop;
 
         readline(f, f_line);
-        read(f_line, config.image_length);
+        read(f_line, config.length);
     end procedure read;
 
     procedure read(file f : text; i : out integer) is

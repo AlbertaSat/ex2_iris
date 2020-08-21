@@ -38,8 +38,6 @@ package vnir is
     constant MAX_WINDOW_SIZE : integer := 16;
     constant METHOD : string := "AVERAGE";  -- "AVERAGE" or "SUM"
 
-    constant MAX_FPS : integer := 2000;
-
     subtype pixel_t is vnir_base.pixel_t(PIXEL_BITS-1 downto 0);
     subtype row_t is vnir_base.pixel_vector_t(ROW_WIDTH-1 downto 0)(ROW_PIXEL_BITS-1 downto 0);
     
@@ -55,9 +53,9 @@ package vnir is
     end record config_t;
 
     type image_config_t is record
-        duration        : integer;
-        fps             : integer;
-        exposure_time   : integer;
+        length          : integer;
+        frame_clocks    : integer;
+        exposure_clocks : integer;
     end record image_config_t;
 
     type row_type_t is (ROW_NONE, ROW_NIR, ROW_BLUE, ROW_RED);
