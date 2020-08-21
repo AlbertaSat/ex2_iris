@@ -28,6 +28,7 @@ entity swir_subsystem is
         
         config          : in swir_config_t;
         control         : out swir_control_t;
+        start_config    : in std_logic;
         config_done     : out std_logic;
         
         do_imaging      : in std_logic;
