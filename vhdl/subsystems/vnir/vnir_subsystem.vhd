@@ -303,7 +303,7 @@ architecture rtl of vnir_subsystem is
     signal row_window   : integer;
 
 begin
-
+    
     -- General config sequence is:
     -- Configure sensor (power on, initialize, etc.) => align LVDS
     -- decoding.
@@ -312,87 +312,87 @@ begin
     -- Calculate image length => Configure frame-requester (calculate
     -- exposure-start/frame-request scheduling, etc.)
 
-    fsm : process
+    fsm : process (clock, reset_n)
         variable state : vnir.state_t;
     begin
-        wait until rising_edge(clock);
-        
-        start_sensor_config <= '0';
-        start_frame_requester_config <= '0';
-        config_done <= '0';
-        image_config_done <= '0';
-
         if reset_n = '0' then
-            state := vnir.RESET;
-        end if;
-
-        case state is
-        when vnir.RESET =>
+            start_sensor_config <= '0';
+            start_frame_requester_config <= '0';
+            config_done <= '0';
+            image_config_done <= '0';
             state := vnir.PRE_CONFIG;
-        when vnir.PRE_CONFIG =>
-            assert start_image_config = '0';
-            assert do_imaging = '0';
-            if start_config = '1' then
-                config_reg <= config;
-                start_sensor_config <= '1';
-                state := vnir.CONFIGURING;
-            end if;
-        when vnir.CONFIGURING =>
-            assert start_config = '0';
-            assert start_image_config = '0';
-            assert do_imaging = '0';
-            if align_done = '1' then
-                config_done <= '1';
-                state := vnir.PRE_IMAGE_CONFIG;
-            end if;
-        when vnir.PRE_IMAGE_CONFIG =>
-            assert start_config = '0';
-            assert do_imaging = '0';
-            if start_image_config = '1' then
-                image_config_reg <= image_config;
-                start_frame_requester_config <= '1';
-                num_rows <= image_config.length;
-                state := vnir.IMAGE_CONFIGURING;
-            end if;
-        when vnir.IMAGE_CONFIGURING =>
-            assert start_config = '0';
-            assert start_image_config = '0';
-            assert do_imaging = '0';
-            if frame_requester_config_done = '1' then
-                image_config_done <= '1';
-                state := vnir.IDLE;
-            end if;
-        when vnir.IDLE =>
-            assert (start_config = '0' and start_image_config = '0' and do_imaging = '0') or
-                   (start_config = '1' and start_image_config = '0' and do_imaging = '0') or
-                   (start_config = '0' and start_image_config = '1' and do_imaging = '0') or
-                   (start_config = '0' and start_image_config = '0' and do_imaging = '1');
-                   
-            if start_config = '1' then
-                config_reg <= config;
-                start_sensor_config <= '1';
-                state := vnir.CONFIGURING;
-            end if;
-            if start_image_config = '1' then
-                image_config_reg <= image_config;
-                start_frame_requester_config <= '1';
-                num_rows <= image_config.length;
-                state := vnir.IMAGE_CONFIGURING;
-            end if;
-            if do_imaging = '1' then
-                -- TODO: might want to start the frame_requester here instead of it starting independently
-                state := vnir.IMAGING;
-            end if;
-        when vnir.IMAGING =>
-            assert start_config = '0';
-            assert start_image_config = '0';
-            assert do_imaging = '0';
-            if imaging_done_s = '1' then -- TODO: might want to make sure row_collator is finished
-                state := vnir.IDLE; 
-            end if;
-        end case;
+        elsif rising_edge(clock) then
+            start_sensor_config <= '0';
+            start_frame_requester_config <= '0';
+            config_done <= '0';
+            image_config_done <= '0';
 
-        status.state <= state;
+            case state is
+            when vnir.PRE_CONFIG =>
+                assert start_image_config = '0';
+                assert do_imaging = '0';
+                if start_config = '1' then
+                    config_reg <= config;
+                    start_sensor_config <= '1';
+                    state := vnir.CONFIGURING;
+                end if;
+            when vnir.CONFIGURING =>
+                assert start_config = '0';
+                assert start_image_config = '0';
+                assert do_imaging = '0';
+                if align_done = '1' then
+                    config_done <= '1';
+                    state := vnir.PRE_IMAGE_CONFIG;
+                end if;
+            when vnir.PRE_IMAGE_CONFIG =>
+                assert start_config = '0';
+                assert do_imaging = '0';
+                if start_image_config = '1' then
+                    image_config_reg <= image_config;
+                    start_frame_requester_config <= '1';
+                    num_rows <= image_config.length;
+                    state := vnir.IMAGE_CONFIGURING;
+                end if;
+            when vnir.IMAGE_CONFIGURING =>
+                assert start_config = '0';
+                assert start_image_config = '0';
+                assert do_imaging = '0';
+                if frame_requester_config_done = '1' then
+                    image_config_done <= '1';
+                    state := vnir.IDLE;
+                end if;
+            when vnir.IDLE =>
+                assert (start_config = '0' and start_image_config = '0' and do_imaging = '0') or
+                    (start_config = '1' and start_image_config = '0' and do_imaging = '0') or
+                    (start_config = '0' and start_image_config = '1' and do_imaging = '0') or
+                    (start_config = '0' and start_image_config = '0' and do_imaging = '1');
+                    
+                if start_config = '1' then
+                    config_reg <= config;
+                    start_sensor_config <= '1';
+                    state := vnir.CONFIGURING;
+                end if;
+                if start_image_config = '1' then
+                    image_config_reg <= image_config;
+                    start_frame_requester_config <= '1';
+                    num_rows <= image_config.length;
+                    state := vnir.IMAGE_CONFIGURING;
+                end if;
+                if do_imaging = '1' then
+                    -- TODO: might want to start the frame_requester here instead of it starting independently
+                    state := vnir.IMAGING;
+                end if;
+            when vnir.IMAGING =>
+                assert start_config = '0';
+                assert start_image_config = '0';
+                assert do_imaging = '0';
+                if imaging_done_s = '1' then -- TODO: might want to make sure row_collator is finished
+                    state := vnir.IDLE; 
+                end if;
+            end case;
+
+            status.state <= state;
+        end if;
     end process fsm;
 
     start_align <= sensor_config_done;

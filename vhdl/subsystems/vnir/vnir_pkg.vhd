@@ -66,7 +66,7 @@ package vnir is
         data    : std_logic_vector(FRAGMENT_WIDTH-1 downto 0);
     end record lvds_t;
 
-    type state_t is (RESET, PRE_CONFIG, CONFIGURING, PRE_IMAGE_CONFIG, IMAGE_CONFIGURING, IDLE, IMAGING);
+    type state_t is (PRE_CONFIG, CONFIGURING, PRE_IMAGE_CONFIG, IMAGE_CONFIGURING, IDLE, IMAGING);
 
     type status_t is record
         state               : state_t;
