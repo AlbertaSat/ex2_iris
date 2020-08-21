@@ -113,14 +113,12 @@ end entity single_delay;
 architecture rtl of single_delay is
 begin
     
-    process (clock)
+    process (clock, reset_n)
     begin
-        if rising_edge(clock) then
-            if reset_n = '0' then
-                o <= '0';
-            else
-                o <= i;
-            end if;
+        if reset_n = '0' then
+            o <= '0';
+        elsif rising_edge(clock) then
+            o <= i;
         end if;
     end process;
 
