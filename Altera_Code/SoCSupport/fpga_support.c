@@ -46,13 +46,12 @@ ALT_STATUS_CODE fpga_init(void) {
 	        // Use the above symbols to extract the FPGA image information.
 	        const char *   fpga_image      = &_binary_soc_system_dc_rbf_start;
 	        const uint32_t fpga_image_size = &_binary_soc_system_dc_rbf_end - &_binary_soc_system_dc_rbf_start;
-
+	        const uint32_t full_config_retry = 5;
 	        // Trace the FPGA image information.
 	        printf("INFO: FPGA Image binary at %p.\n", fpga_image);
 	        printf("INFO: FPGA Image size is %u bytes.\n", (unsigned int)fpga_image_size);
 
 	        // Try the full configuration a few times.
-	        const uint32_t full_config_retry = 5;
 	        for (i = 0; i < full_config_retry; ++i)
 	        {
 	            status = alt_fpga_configure(fpga_image, fpga_image_size);

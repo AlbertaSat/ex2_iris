@@ -24,8 +24,34 @@
 #include <stdio.h>
 
 /* Altera hardware includes */
-#include "alt_interrupt.h"
-#include "alt_interrupt_common.h"
+#include "../Altera_Code/HardwareLibrary/include/alt_interrupt.h"
+#include "../Altera_Code/HardwareLibrary/include/alt_interrupt_common.h"
+
+
+void CAN_int_handler(void)
+{
+
+}
+
+void FPGA_int_handler(void)
+{
+
+}
+
+/**
+ * @brief
+ * 		Configures specified interrupts
+ * @param int_id
+ * 		Interrupt identifier
+ * @param target
+ * 		Target CPU which the interrupt is being forwarded to
+ */
+void config_interrupt(ALT_INT_INTERRUPT_t int_id, alt_int_cpu_target_t target)
+{
+        alt_int_dist_enable(int_id); // Enable the interrupt source from CAN controller (0 or 1)
+        alt_int_dist_priority_set(int_id, 0); // Set the interrupt to highest priority
+        alt_int_dist_target_set(int_id, target); // Set which CPU to forward interrupts to
+}
 
 
 /**
@@ -38,11 +64,11 @@ void config_gic(void)
         alt_int_cpu_enable_all();
 
         /* Configure interrupts */
-        vRegisterIRQHandler(ALT_INT_INTERRUPT_CAN0_STS_IRQ, ( alt_int_callback_t ) FreeRTOS_Tick_Handler, NULL );
+        // vRegisterIRQHandler(ALT_INT_INTERRUPT_CAN0_STS_IRQ, ( alt_int_callback_t ) CAN_int_handler, NULL);
         config_interrupt(ALT_INT_INTERRUPT_CAN0_STS_IRQ, 0);
         alt_int_dist_trigger(ALT_INT_INTERRUPT_CAN0_STS_IRQ, ALT_INT_TRIGGER_LEVEL);
 
-        vRegisterIRQHandler(ALT_INT_INTERRUPT_F2S_FPGA_IRQ0, ( alt_int_callback_t ) FreeRTOS_Tick_Handler, NULL );
+        // vRegisterIRQHandler(ALT_INT_INTERRUPT_F2S_FPGA_IRQ0, ( alt_int_callback_t ) FPGA_int_handler, NULL);
         config_interrupt(ALT_INT_INTERRUPT_F2S_FPGA_IRQ0, 0);
         alt_int_dist_trigger(ALT_INT_INTERRUPT_F2S_FPGA_IRQ0, ALT_INT_TRIGGER_LEVEL);
 
@@ -59,24 +85,7 @@ void config_gic(void)
  * @param target
  * 		Target CPU which the interrupt is being forwarded to
  */
-void config_interrupt(ALT_INT_INTERRUPT_t int_id, alt_int_cpu_target_t target)
-{
-
-        alt_int_dist_enable(int_id); // Enable the interrupt sourced from CAN controller (0 or 1)
-        alt_int_dist_priority_set(int_id, 0); // Set the interrupt to highest priority
-        alt_int_dist_target_set(int_id, target); // Set which CPU to foward interrupts to
-}
-
-
-/**
- * @brief
- * 		Configures specified interrupts
- * @param int_id
- * 		Interrupt identifier
- * @param target
- * 		Target CPU which the interrupt is being forwarded to
- */
-int gic_init(void)
+void gic_init(void)
 {
         alt_int_global_init(); // Interrupt controller Initialization
         alt_int_global_disable_all(); // Disable all interrupt forwarding from controller to CPU

@@ -24,7 +24,7 @@
 #include <stdio.h>
 
 /* Altera library includes. */
-#include "socal/socal.h"
+#include "../Altera_Code/HardwareLibrary/include/socal/socal.h"
 // #include "socal/alt_gpio.h"
 // #include "alt_generalpurpose_io.h"
 // #include "alt_address_space.h"
@@ -42,13 +42,17 @@
  */
 void extract_bits(unsigned int cycles, unsigned long long bits)
 {
-        for (int i = 0; i < cycles; i++) {
-                unsigned int r = 0;
-                for (unsigned int i=0; i<=31; i++) {
+		unsigned int result;
+		unsigned int r;
+		unsigned int i;
+
+        for (i = 0; i < cycles; i++) {
+                r = 0;
+                for (i = 0; i <= 31; i++) {
                         r |= 1 << i;
                 }
 
-                unsigned int result = r & bits;
+                result = r & bits;
                 alt_write_word(0x00000000, result);
                 bits = bits>>32;
 
@@ -65,14 +69,14 @@ void extract_bits(unsigned int cycles, unsigned long long bits)
 void init_sequence(void)
 {
         // Sending system config data
-        while (alt_read_word() != 0b00010100) {
+        while (alt_read_word(0x00000000) != 20) {
                 // Read config from CAN bus
                 unsigned int bits = CAN_read();
                 extract_bits(2, bits);
         }
 
         // Sending imaging config data
-        while (alt_read_word() != 0b00010101) {
+        while (alt_read_word(0x00000000) != 21) {
                 unsigned int bits = CAN_read();
                 extract_bits(2, bits);
         }

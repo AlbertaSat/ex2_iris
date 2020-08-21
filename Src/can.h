@@ -48,12 +48,12 @@
 #define IF2DA *((uint32_t *) 0xFFC00000 + 0x130)
 #define IF2DB *((uint32_t *) 0xFFC00000 + 0x134)
 
-void config_CAN_message(void)
+void config_CAN_message(void);
 
-void config_CAN_controller(uint8_t can_controller)
+void config_CAN_controller(uint8_t can_controller);
 
-void CAN_RAM_Init(uint8_t can_ram)
+void CAN_RAM_Init(uint8_t can_ram);
 
-int can_init(void)
+int can_init(void);
 
 #endif

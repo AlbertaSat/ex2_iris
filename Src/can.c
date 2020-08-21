@@ -24,8 +24,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "socal/socal.h"
-#include "socal/can.h"
+#include "../Altera_Code/HardwareLibrary/include/socal/alt_can.h"
+#include "../Altera_Code/HardwareLibrary/include/socal/socal.h"
 #include "can.h"
 
 /**
@@ -34,16 +34,16 @@
  */
 void config_CAN_message(void)
 {
+    	unsigned int ARB_field;
+    	unsigned int MSK_field;
+    	unsigned int MCTR_field;
+    	unsigned int CMR_field;
+
         /* Receive message configuration */
         while (alt_read_word(IF1CMR) & ALT_CAN_MSGIF_IF1CMR_BUSY_GET(1)); //While register is busy
 
-        unsigned int MSK_field;
-        unsigned int ARB_field;
-        unsigned int MCTR_field;
-        unsigned int CMR_field;
-
-        MSK_field = ALT_CAN_MSGIF_IF1MSK_MSK_SET(0b11111111) |
-                        ALT_CAN_MSGIF_IF1MSK_MDIR_SET(1) |
+        MSK_field = ALT_CAN_MSGIF_IF1MSK_MSK_SET(127)|
+                        ALT_CAN_MSGIF_IF1MSK_MDIR_SET(1)|
                         ALT_CAN_MSGIF_IF1MSK_MXTD_SET(1);
 
         ARB_field = ALT_CAN_MSGIF_IF1ARB_MSGVAL_SET(1) |
@@ -63,8 +63,8 @@ void config_CAN_message(void)
 
         while (alt_read_word(IF2CMR) & ALT_CAN_MSGIF_IF2CMR_BUSY_GET(1)); //While register is busy
 
-        MSK_field = ALT_CAN_MSGIF_IF2MSK_MSK_SET(0b11111111) |
-                        ALT_CAN_MSGIF_IF2MSK_MDIR_SET(1) |
+        MSK_field = ALT_CAN_MSGIF_IF2MSK_MSK_SET(127) |
+                    	ALT_CAN_MSGIF_IF2MSK_MDIR_SET(1) |
                         ALT_CAN_MSGIF_IF2MSK_MXTD_SET(1);
 
         ARB_field = ALT_CAN_MSGIF_IF2ARB_MSGVAL_SET(1) |
@@ -95,6 +95,7 @@ void config_CAN_controller(uint8_t can_controller)
         unsigned int CCTRL_field = 0x00000000;
         unsigned int INIT = ALT_CAN_PROTO_CCTL_INIT_SET(1);
         unsigned int CCE = ALT_CAN_PROTO_CCTL_CCE_SET(1);
+
         CCTRL_field = INIT | CCE;
 
         if (can_controller == 0) {
@@ -113,8 +114,8 @@ void config_CAN_controller(uint8_t can_controller)
         }
 
         /* Setting Init and CCE bit back to 0 in the CCTRL register */
-        INIT = ALT_CAN_PROTO_CCTL_INIT_SET(1));
-        CCE = ALT_CAN_PROTO_CCTL_CCE_SET(1));
+        INIT = ALT_CAN_PROTO_CCTL_INIT_SET(1);
+        CCE = ALT_CAN_PROTO_CCTL_CCE_SET(1);
         CCTRL_field = INIT | CCE;
 
         if (can_controller == 0) {
@@ -128,7 +129,7 @@ void config_CAN_controller(uint8_t can_controller)
  * @brief
  * 		Initialize CAN message RAM and clears all message objects.
  * @param can_ram
- * 	        Specifies which CAN RAM to initalize. 0 or 1.
+ * 	        Specifies which CAN RAM to initialize. 0 or 1.
  */
 void CAN_RAM_Init(uint8_t can_ram)
 {
@@ -144,10 +145,11 @@ void CAN_RAM_Init(uint8_t can_ram)
 
 /**
  * @brief
- * 		Performs entire CAN node init sequence   
+ * 		Performs entire CAN node init sequence
  */
 int can_init(void)
 {
         config_CAN_controller(0);
         config_CAN_message();
+        return 0;
 }
