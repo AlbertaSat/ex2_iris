@@ -36,13 +36,12 @@ end entity n_delay;
 architecture rtl of n_delay is
 begin
 
-    process
+    process (clock, reset_n)
         variable delay : std_logic_vector(DELAY_CLOCKS-1 downto 0);
     begin
-        wait until rising_edge(clock);
         if reset_n = '0' then
             delay := (others => '0');
-        else
+        elsif rising_edge(clock) then
             delay := i & delay(DELAY_CLOCKS-1 downto 1);
         end if;
         o <= delay(0);
@@ -73,32 +72,27 @@ end entity delay_until;
 
 architecture rtl of delay_until is
 begin
-    process
-        type state_t is (RESET, IDLE, WAITING);
+    process (clock, reset_n)
+        type state_t is (IDLE, WAITING);
         variable state : state_t;
     begin
-        wait until rising_edge(clock);
-
-        done <= '0';
-
         if reset_n = '0' then
-            state := RESET;
-        end if;
-        
-        case state is
-        when RESET =>
             state := IDLE;
-        when IDLE =>
-            if start = '1' then
-                state := WAITING;
-            end if;
-        when WAITING =>
-            if condition = '1' then
-                state := IDLE;
-                done <= '1';
-            end if;
-        end case;
-        
+            done <= '0';
+        elsif rising_edge(clock) then
+            done <= '0';
+            case state is
+            when IDLE =>
+                if start = '1' then
+                    state := WAITING;
+                end if;
+            when WAITING =>
+                if condition = '1' then
+                    state := IDLE;
+                    done <= '1';
+                end if;
+            end case;
+        end if;
     end process;
 end architecture rtl;
 
