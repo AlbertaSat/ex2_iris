@@ -19,10 +19,10 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.spi_types.all;
-use work.avalonmm_types.all;
-use work.vnir_types.all;
+use work.avalonmm;
+use work.vnir;
 use work.swir_types.all;
-use work.sdram_types.all;
+use work.sdram;
 use work.fpga_types.all;
 
 entity header_creator is 
@@ -35,8 +35,8 @@ entity header_creator is
         timestamp       : in timestamp_t;
 
         --Header rows
-        swir_img_header : out sdram_header_t;
-        vnir_img_header : out sdram_header_t;
+        swir_img_header : out sdram.header_t;
+        vnir_img_header : out sdram.header_t;
 
         -- Number of rows being created by the imagers
         vnir_rows       : in integer;

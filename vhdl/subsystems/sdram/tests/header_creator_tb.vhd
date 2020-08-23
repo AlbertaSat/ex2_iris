@@ -19,10 +19,10 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.spi_types.all;
-use work.avalonmm_types.all;
-use work.vnir_types.all;
+use work.avalonmm;
+use work.vnir;
 use work.swir_types.all;
-use work.sdram_types.all;
+use work.sdram.all;
 use work.fpga_types.all;
 
 entity header_creator_tb is

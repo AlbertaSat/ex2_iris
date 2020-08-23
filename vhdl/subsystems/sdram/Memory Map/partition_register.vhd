@@ -3,10 +3,10 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.spi_types.all;
-use work.avalonmm_types.all;
-use work.vnir_types.all;
+use work.avalonmm;
+use work.vnir;
 use work.swir_types.all;
-use work.sdram_types.all;
+use work.sdram;
 use work.fpga_types.all;
 
 entity partition_register is
@@ -18,13 +18,13 @@ entity partition_register is
         bounds_write, filled_add, filled_subtract : in std_logic;
 
         --Values to write
-        base, bounds, add_length, sub_length : in sdram_address_t;
+        base, bounds, add_length, sub_length : in sdram.address_t;
 
         --Partition read from the register
-        part_out : out partition_t;
+        part_out : out sdram.partition_t;
 
         --Unsigneds representing the new image
-        img_start, img_end : out sdram_address_t;
+        img_start, img_end : out sdram.address_t;
 
         --Error signals
         full, bad_mpu_check : out std_logic
@@ -36,18 +36,18 @@ architecture rtl of partition_register is
     signal state, next_state : state_t;
 
     --This signal allows the register to see what's in the part_out signal
-    signal buffer_part : partition_t;
+    signal buffer_part : sdram.partition_t;
 
     --These signals are combinational, and can be written to at any time
-    signal buffer_base, buffer_bounds           : sdram_address_t;
-    signal buffer_fill_base, buffer_fill_bounds : sdram_address_t;
-    signal buffer_img_start, buffer_img_end     : sdram_address_t;
+    signal buffer_base, buffer_bounds           : sdram.address_t;
+    signal buffer_fill_base, buffer_fill_bounds : sdram.address_t;
+    signal buffer_img_start, buffer_img_end     : sdram.address_t;
 
     --A flag saying the partition cannot be added to
     signal no_add, no_sub : std_logic;
 
     --Checks if the image will overflow the position, returns 1 if it does
-    function check_overflow(partition : partition_t; address_size : sdram_address_t) return std_logic is
+    function check_overflow(partition : sdram.partition_t; address_size : sdram.address_t) return std_logic is
     begin
         if (partition.fill_bounds + address_size > partition.bounds) then
             return '1';
@@ -57,7 +57,7 @@ architecture rtl of partition_register is
     end function check_overflow;
     
     --Checks if the image won't fit in the memory because it is too full, returns 1 if it does
-    function check_full(partition : partition_t; address_size : sdram_address_t; start_address : sdram_address_t) return std_logic is
+    function check_full(partition : sdram.partition_t; address_size : sdram.address_t; start_address : sdram.address_t) return std_logic is
     begin
         if (start_address <= partition.fill_base and start_address + address_size >= partition.fill_base) then
             return '1';
@@ -128,18 +128,18 @@ begin
         if (reset_n = '0') then
             --The default undefined address is 0x80000000
             state <= init;
-            buffer_part.base        <= (ADDRESS_LENGTH-1 => '1', others => '0');
-            buffer_part.bounds      <= (ADDRESS_LENGTH-1 => '1', others => '0');
-            buffer_part.fill_base   <= (ADDRESS_LENGTH-1 => '1', others => '0');
-            buffer_part.fill_bounds <= (ADDRESS_LENGTH-1 => '1', others => '0');
+            buffer_part.base        <= sdram.UNDEFINED_ADDRESS;
+            buffer_part.bounds      <= sdram.UNDEFINED_ADDRESS;
+            buffer_part.fill_base   <= sdram.UNDEFINED_ADDRESS;
+            buffer_part.fill_bounds <= sdram.UNDEFINED_ADDRESS;
 
-            part_out.base           <= (ADDRESS_LENGTH-1 => '1', others => '0');
-            part_out.bounds         <= (ADDRESS_LENGTH-1 => '1', others => '0');
-            part_out.fill_base      <= (ADDRESS_LENGTH-1 => '1', others => '0');
-            part_out.fill_bounds    <= (ADDRESS_LENGTH-1 => '1', others => '0');
+            part_out.base           <= sdram.UNDEFINED_ADDRESS;
+            part_out.bounds         <= sdram.UNDEFINED_ADDRESS;
+            part_out.fill_base      <= sdram.UNDEFINED_ADDRESS;
+            part_out.fill_bounds    <= sdram.UNDEFINED_ADDRESS;
 
-            img_start               <= (ADDRESS_LENGTH-1 => '1', others => '0');
-            img_end                 <= (ADDRESS_LENGTH-1 => '1', others => '0');
+            img_start               <= sdram.UNDEFINED_ADDRESS;
+            img_end                 <= sdram.UNDEFINED_ADDRESS;
 
             full                    <= '0';
             bad_mpu_check           <= '0';

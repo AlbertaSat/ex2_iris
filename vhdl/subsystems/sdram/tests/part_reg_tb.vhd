@@ -3,10 +3,10 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.spi_types.all;
-use work.avalonmm_types.all;
-use work.vnir_types.all;
+use work.avalonmm;
+use work.vnir;
 use work.swir_types.all;
-use work.sdram_types.all;
+use work.sdram;
 use work.fpga_types.all;
 
 entity part_reg_tb is
@@ -20,11 +20,11 @@ architecture sim of part_reg_tb is
     signal reset_n : std_logic := '0';
 
     signal bounds_write, filled_add, filled_subtract : std_logic := '0';
-    signal base, bounds, add_length, sub_length : sdram_address_t := (others => '0');
+    signal base, bounds, add_length, sub_length : sdram.address_t := (others => '0');
 
-    signal partition : partition_t;
+    signal partition : sdram.partition_t;
 
-    signal img_start, img_end : sdram_address_t;
+    signal img_start, img_end : sdram.address_t;
     signal full, bad_mpu_check : std_logic;
 
     component partition_register is port(
@@ -35,13 +35,13 @@ architecture sim of part_reg_tb is
         bounds_write, filled_add, filled_subtract : in std_logic;
 
         --Values to write
-        base, bounds, add_length, sub_length : in sdram_address_t;
+        base, bounds, add_length, sub_length : in sdram.address_t;
 
         --Partition read from the register
-        part_out : out partition_t;
+        part_out : out sdram.partition_t;
 
         --Unsigneds representing the new image
-        img_start, img_end : out sdram_address_t;
+        img_start, img_end : out sdram.address_t;
 
         --Error signals
         full, bad_mpu_check : out std_logic);
@@ -55,34 +55,34 @@ begin
         reset_n <= '1';
         wait until rising_edge(clk);
         wait until rising_edge(clk);
-        base <= to_signed(16#400#, ADDRESS_LENGTH);
-        bounds <= to_signed(16#1600#, ADDRESS_LENGTH);
+        base <= to_signed(16#400#, sdram.ADDRESS_LENGTH);
+        bounds <= to_signed(16#1600#, sdram.ADDRESS_LENGTH);
         wait until rising_edge(clk);
         bounds_write <= '1';
         wait until rising_edge(clk);
-        base <= to_signed(16#600#, ADDRESS_LENGTH);
-        bounds <= to_signed(16#800#, ADDRESS_LENGTH);
+        base <= to_signed(16#600#, sdram.ADDRESS_LENGTH);
+        bounds <= to_signed(16#800#, sdram.ADDRESS_LENGTH);
         wait until rising_edge(clk);
         bounds_write <= '0';
         wait until rising_edge(clk);
         wait until rising_edge(clk);
-        add_length <= to_signed(16#600#, ADDRESS_LENGTH);
+        add_length <= to_signed(16#600#, sdram.ADDRESS_LENGTH);
         filled_add <= '1';
         wait until rising_edge(clk);
         filled_add <= '0';
         wait until rising_edge(clk);
-        add_length <= to_signed(16#400#, ADDRESS_LENGTH);
+        add_length <= to_signed(16#400#, sdram.ADDRESS_LENGTH);
         filled_add <= '1';
         wait until rising_edge(clk);
         filled_add <= '0';
         wait until rising_edge(clk);
-        sub_length <= to_signed(16#500#, ADDRESS_LENGTH);
+        sub_length <= to_signed(16#500#, sdram.ADDRESS_LENGTH);
         filled_subtract <= '1';
         wait until rising_edge(clk);
         filled_subtract <= '0';
         wait until rising_edge(clk);
         wait until rising_edge(clk);
-        sub_length <= to_signed(16#800#, ADDRESS_LENGTH);
+        sub_length <= to_signed(16#800#, sdram.ADDRESS_LENGTH);
         wait until rising_edge(clk);
         filled_subtract <= '1';
         wait until rising_edge(clk);

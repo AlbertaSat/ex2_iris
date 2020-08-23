@@ -19,10 +19,10 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.spi_types.all;
-use work.avalonmm_types.all;
+use work.avalonmm;
 use work.vnir;
 use work.swir_types.all;
-use work.sdram_types.all;
+use work.sdram;
 use work.fpga_types.all;
 
 entity command_creator is
@@ -32,22 +32,22 @@ entity command_creator is
         reset_n             : in std_logic;
 
         --Header data
-        vnir_img_header     : in sdram_header_t;
-        swir_img_header     : in sdram_header_t;
+        vnir_img_header     : in sdram.header_t;
+        swir_img_header     : in sdram.header_t;
 
         --Rows
-        row_data            : in vnir_row_t;
+        row_data            : in vnir.row_t;
 
         --Addy
-        address             : in sdram_address_block_t;
+        address             : in sdram.address_t;
 
         -- Flags for MPU interaction
         sdram_busy          : in std_logic;
-        mup_memory_change   : in sdram_address_block_t;
+        mup_memory_change   : in sdram.address_block_t;
 
         --Avalon bridge for reading and writing to stuff
-        sdram_avalon_out    : out avalonmm_from_master_t;
-        sdram_avalon_in     : in avalonmm_to_master_t
+        sdram_avalon_out    : out avalonmm.from_master_t;
+        sdram_avalon_in     : in avalonmm.to_master_t
     );
 end entity command_creator;
 

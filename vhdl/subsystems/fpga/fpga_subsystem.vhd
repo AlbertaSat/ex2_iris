@@ -20,7 +20,7 @@ use ieee.numeric_std.all;
 
 use work.vnir;  -- Gives outputs to the VNIR subsystem
 use work.swir_types.all;  -- Gives outputs from SWIR subsystem
-use work.sdram_types.all;  -- Gives outptu to sdram subsystem
+use work.sdram;  -- Gives outptu to sdram subsystem
 use work.fpga_types.all;  -- For timestamp_t
 
 
@@ -33,9 +33,10 @@ entity fpga_subsystem is
         vnir_config_done         : in std_logic;
         swir_config              : out swir_config_t;
         swir_config_done         : in std_logic;
-        sdram_config_in          : in sdram_config_from_sdram_t;
-        sdram_config_out         : out sdram_config_to_sdram_t;
+        sdram_config_in          : in sdram.memory_state_t;
+        sdram_config_out         : out sdram.config_to_sdram_t;
         sdram_config_done        : in std_logic;
+        sdram_img_config_done    : in std_logic;
 
         vnir_num_rows            : in integer;
         swir_num_rows            : in integer;

@@ -4,9 +4,9 @@ use ieee.numeric_std.all;
 
 use work.spi_types.all;
 use work.avalonmm_types.all;
-use work.vnir_types.all;
+use work.vnir;
 use work.swir_types.all;
-use work.sdram_types.all;
+use work.sdram.all;
 use work.fpga_types.all;
 
 entity memory_map_tb is
@@ -20,11 +20,11 @@ architecture sim of memory_map_tb is
     signal reset_n : std_logic := '0';
 
     --SDRAM config signals to and from the FPGA
-    signal config              : sdram_config_to_sdram_t := (
+    signal config              : config_to_sdram_t := (
         memory_base => to_signed(0, ADDRESS_LENGTH),
         memory_bounds => to_signed(0, ADDRESS_LENGTH)
     );
-    signal memory_state        : sdram_partitions_t;
+    signal memory_state        : memory_state_t;
 
     signal start_config        : std_logic := '0';
     signal config_done         : std_logic;
@@ -35,12 +35,12 @@ architecture sim of memory_map_tb is
     signal number_vnir_rows    : natural := 0;
 
     --Ouput image row address config
-    signal next_row_type       : sdram_next_row_fed_t := no_row;
+    signal next_row_type       : row_type_t := no_row;
     signal next_row_req        : std_logic := '0';
-    signal output_address      : sdram_address_t;
+    signal output_address      : address_t;
 
     --Read data to be read from sdram due to mpu interaction
-    signal sdram_error         : sdram_error_t := no_error;
+    signal sdram_error         : error_t := no_error;
 
     component memory_map port(
         --Control signals
@@ -48,8 +48,8 @@ architecture sim of memory_map_tb is
         reset_n             : in std_logic;
 
         --SDRAM config signals to and from the FPGA
-        config              : in sdram_config_to_sdram_t;
-        memory_state        : out sdram_partitions_t;
+        config              : in config_to_sdram_t;
+        memory_state        : out memory_state_t;
 
         start_config        : in std_logic;
         config_done         : out std_logic;
@@ -60,12 +60,12 @@ architecture sim of memory_map_tb is
         number_vnir_rows    : in natural;
 
         --Ouput image row address config
-        next_row_type       : in sdram_next_row_fed_t;
+        next_row_type       : in row_type_t;
         next_row_req        : in std_logic;
-        output_address      : out sdram_address_t;
+        output_address      : out address_t;
 
         --Read data to be read from sdram due to mpu interaction
-        sdram_error         : out sdram_error_t);
+        sdram_error         : out error_t);
     end component;
 begin
     memory_map_comp : memory_map port map (

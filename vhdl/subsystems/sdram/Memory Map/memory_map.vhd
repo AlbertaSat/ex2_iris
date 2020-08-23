@@ -19,10 +19,10 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.spi_types.all;
-use work.avalonmm_types.all;
+use work.avalonmm;
 use work.vnir;
 use work.swir_types.all;
-use work.sdram_types.all;
+use work.sdram.all;
 use work.fpga_types.all;
 
 entity memory_map is
@@ -32,62 +32,62 @@ entity memory_map is
         reset_n             : in std_logic;
 
         --SDRAM config signals to and from the FPGA
-        config              : in sdram_config_to_sdram_t;
-        memory_state        : out sdram_partitions_t;
+        config              : in config_to_sdram_t;
+        memory_state        : out memory_state_t;
 
         start_config        : in std_logic;
         config_done         : out std_logic;
         img_config_done     : out std_logic;
 
         --Image Config signals
-        number_swir_rows    : in natural;
-        number_vnir_rows    : in natural;
+        number_swir_rows    : in integer;
+        number_vnir_rows    : in integer;
 
         --Ouput image row address config
-        next_row_type       : in sdram_next_row_fed_t;
+        next_row_type       : in row_type_t;
         next_row_req        : in std_logic;
-        output_address      : out sdram_address_t;
+        output_address      : out address_t;
 
         --Read data to be read from sdram due to mpu interaction
-        sdram_error         : out sdram_error_t
+        sdram_error         : out error_t
     );
 end entity memory_map;
 
 architecture rtl of memory_map is
     --FSM signals
-    type t_state is (init, idle, img_config_vnir, img_config_swir, imaging);
-    signal state, next_state : t_state;
+    type state_t is (init, idle, img_config_vnir, img_config_swir, imaging);
+    signal state, next_state : state_t;
 
-    signal buffer_address : sdram_address_t;
+    signal buffer_address : address_t;
 
     --Creating buffer partitions for the partitions
-    signal memory_state_i : sdram_partitions_t;
+    signal memory_state_i : memory_state_t;
 
     --Add/subtract address length signals
-    signal vnir_add_length : sdram_address_t;
-    signal swir_add_length : sdram_address_t;
-    signal vnir_temp_add_length : sdram_address_t;
-    signal swir_temp_add_length : sdram_address_t;
+    signal vnir_add_length : address_t;
+    signal swir_add_length : address_t;
+    signal vnir_temp_add_length : address_t;
+    signal swir_temp_add_length : address_t;
 
-    signal vnir_sub_length : sdram_address_t;
-    signal swir_sub_length : sdram_address_t;
-    signal vnir_temp_sub_length : sdram_address_t;
-    signal swir_temp_sub_length : sdram_address_t;
+    signal vnir_sub_length : address_t;
+    signal swir_sub_length : address_t;
+    signal vnir_temp_sub_length : address_t;
+    signal swir_temp_sub_length : address_t;
 
     --Start addresses for each band for the image
-    signal start_blue_address : sdram_address_t;
-    signal start_red_address  : sdram_address_t;
-    signal start_nir_address  : sdram_address_t;
-    signal start_swir_address : sdram_address_t;
+    signal start_blue_address : address_t;
+    signal start_red_address  : address_t;
+    signal start_nir_address  : address_t;
+    signal start_swir_address : address_t;
 
-    signal start_swir_header_address : sdram_address_t;
-    signal start_vnir_header_address : sdram_address_t;
+    signal start_swir_header_address : address_t;
+    signal start_vnir_header_address : address_t;
 
     --Next addresses out of the memory state
-    signal next_blue_address : sdram_address_t;
-    signal next_red_address  : sdram_address_t;
-    signal next_nir_address  : sdram_address_t;
-    signal next_swir_address : sdram_address_t;
+    signal next_blue_address : address_t;
+    signal next_red_address  : address_t;
+    signal next_nir_address  : address_t;
+    signal next_swir_address : address_t;
 
     --Output signal coming from enumerator
     signal inc_blue_address : std_logic;
@@ -96,21 +96,21 @@ architecture rtl of memory_map is
     signal inc_swir_address : std_logic;
 
     --Various output signals to be Mux'd
-    signal row_assign_address : sdram_address_t;
-    signal img_config_address : sdram_address_t;
+    signal row_assign_address : address_t;
+    signal img_config_address : address_t;
 
     --Img write addresses
-    signal vnir_img_start : sdram_address_t;
-    signal vnir_img_end   : sdram_address_t;
+    signal vnir_img_start : address_t;
+    signal vnir_img_end   : address_t;
 
-    signal swir_img_start : sdram_address_t;
-    signal swir_img_end   : sdram_address_t;
+    signal swir_img_start : address_t;
+    signal swir_img_end   : address_t;
 
-    signal vnir_temp_img_start : sdram_address_t;
-    signal vnir_temp_img_end   : sdram_address_t;
+    signal vnir_temp_img_start : address_t;
+    signal vnir_temp_img_end   : address_t;
 
-    signal swir_temp_img_start : sdram_address_t;
-    signal swir_temp_img_end   : sdram_address_t;
+    signal swir_temp_img_start : address_t;
+    signal swir_temp_img_end   : address_t;
 
     --Partition error signals
     signal vnir_full : std_logic;
@@ -129,18 +129,18 @@ architecture rtl of memory_map is
     signal delete_addresses : std_logic;
     signal no_new_rows      : std_logic;
 
-    signal curr_row_type, prev_row_type : sdram_next_row_fed_t;
+    signal curr_row_type, prev_row_type : row_type_t;
     signal set_part_bounds : std_logic;
 
-    signal vnir_band_length : sdram_address_t;
-    signal swir_band_length : sdram_address_t;
+    signal vnir_band_length : address_t;
+    signal swir_band_length : address_t;
 
     --All these are bounds for the partitions
-    signal vhdl_base, vhdl_bounds, vhdl_size : sdram_address_t;
-    signal vnir_base, vnir_bounds : sdram_address_t;
-    signal swir_base, swir_bounds : sdram_address_t;
-    signal vnir_temp_base, vnir_temp_bounds : sdram_address_t;
-    signal swir_temp_base, swir_temp_bounds : sdram_address_t;
+    signal vhdl_base, vhdl_bounds, vhdl_size : address_t;
+    signal vnir_base, vnir_bounds : address_t;
+    signal swir_base, swir_bounds : address_t;
+    signal vnir_temp_base, vnir_temp_bounds : address_t;
+    signal swir_temp_base, swir_temp_bounds : address_t;
 
     --A signal that detects when the addresses should be incremented
     signal inc_flag : std_logic;
@@ -164,19 +164,19 @@ architecture rtl of memory_map is
         generic(increment_size : integer);
         port(
             clk             : in std_logic;
-            start_address   : in sdram_address_t;
+            start_address   : in address_t;
             inc_flag        : in std_logic;
             
-            output_address  : out sdram_address_t
+            output_address  : out address_t
         );
     end component address_counter;
 
     component partition_register is
         port(
         clk, reset_n, bounds_write, filled_add, filled_subtract : in std_logic;
-        base, bounds, add_length, sub_length : in sdram_address_t;
+        base, bounds, add_length, sub_length : in address_t;
         part_out : out partition_t;
-        img_start, img_end : out sdram_address_t;
+        img_start, img_end : out address_t;
         full, bad_mpu_check : out std_logic
         );
     end component partition_register;

@@ -67,12 +67,12 @@ library ieee;
 entity DMA_write is
 	generic (
 		DATAWIDTH 				: natural := 32;
-		MAXBURSTCOUNT 			: natural := 4;
-		BURSTCOUNTWIDTH 		: natural := 3;
-		BYTEENABLEWIDTH 		: natural := 4;
-		ADDRESSWIDTH			: natural := 32;
-		FIFODEPTH				: natural := 32;	-- must be at least twice MAXBURSTCOUNT in order to be efficient
-		FIFODEPTH_LOG2 			: natural := 5;
+		MAXBURSTCOUNT 			: natural := 128;
+		BURSTCOUNTWIDTH 		: natural := 8;
+		BYTEENABLEWIDTH 		: natural := 16;
+		ADDRESSWIDTH			: natural := 28;
+		FIFODEPTH				: natural := 128;	-- must be at least twice MAXBURSTCOUNT in order to be efficient
+		FIFODEPTH_LOG2 			: natural := 7;
 		FIFOUSEMEMORY 			: string := "ON"	-- set to "OFF" to use LEs instead
 	);
 	port (
@@ -174,21 +174,14 @@ begin
 	SDRAM_fifo: component scfifo
 	generic map(
 		add_ram_output_register			=> "OFF",
-		--allow_rwcycle_when_full		: string	:= "OFF";
-		--almost_empty_value			: natural	:= 0;
 		almost_full_value				=> (FIFODEPTH - 2),
-		--intended_device_family		: string	:= "unused";
-		--enable_ecc					: string	:= "FALSE";
 		lpm_numwords					=> FIFODEPTH,
 		lpm_showahead					=> "ON",
 		lpm_width						=> DATAWIDTH,
-		lpm_widthu						=> FIFODEPTH_LOG2, 			-- ADDED!
+		lpm_widthu						=> FIFODEPTH_LOG2,
 		overflow_checking				=> "OFF",
-		--ram_block_type				: string	:= "AUTO";
 		underflow_checking				=> "OFF",
 		use_eab							=> FIFOUSEMEMORY
-		--lpm_hint						: string	:= "UNUSED";
-		--lpm_type						: string	:= "scfifo"
 	)
 	port map(
 		aclr							=> reset,

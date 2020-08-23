@@ -19,10 +19,10 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.spi_types.all;
-use work.avalonmm_types.all;
-use work.vnir_types.all;
+use work.avalonmm;
+use work.vnir;
 use work.swir_types.all;
-use work.sdram_types.all;
+use work.sdram;
 use work.fpga_types.all;
 
 entity electra is
@@ -33,17 +33,14 @@ architecture rtl of electra is
 
 	component thing
 	port (
-		clk_clk                             : in  std_logic                      := '0';             --                   clk.clk
-		hps_0_f2h_sdram0_data_address       : in  std_logic_vector(27 downto 0)  := (others => '0'); -- hps_0_f2h_sdram0_data.address
-		hps_0_f2h_sdram0_data_burstcount    : in  std_logic_vector(7 downto 0)   := (others => '0'); --                      .burstcount
-		hps_0_f2h_sdram0_data_waitrequest   : out std_logic;                                         --                      .waitrequest
-		hps_0_f2h_sdram0_data_readdata      : out std_logic_vector(127 downto 0);                    --                      .readdata
-		hps_0_f2h_sdram0_data_readdatavalid : out std_logic;                                         --                      .readdatavalid
-		hps_0_f2h_sdram0_data_read          : in  std_logic                      := '0';             --                      .read
-		hps_0_f2h_sdram0_data_writedata     : in  std_logic_vector(127 downto 0) := (others => '0'); --                      .writedata
-		hps_0_f2h_sdram0_data_byteenable    : in  std_logic_vector(15 downto 0)  := (others => '0'); --                      .byteenable
-		hps_0_f2h_sdram0_data_write         : in  std_logic                      := '0';             --                      .write
-		reset_reset_n                       : in  std_logic                      := '0'              --                 reset.reset_n
+		clk_clk                           : in  std_logic                      := '0';             --                   clk.clk
+		hps_0_f2h_sdram0_data_address     : in  std_logic_vector(27 downto 0)  := (others => '0'); -- hps_0_f2h_sdram0_data.address
+		hps_0_f2h_sdram0_data_burstcount  : in  std_logic_vector(7 downto 0)   := (others => '0'); --                      .burstcount
+		hps_0_f2h_sdram0_data_waitrequest : out std_logic;                                         --                      .waitrequest
+		hps_0_f2h_sdram0_data_writedata   : in  std_logic_vector(127 downto 0) := (others => '0'); --                      .writedata
+		hps_0_f2h_sdram0_data_byteenable  : in  std_logic_vector(15 downto 0)  := (others => '0'); --                      .byteenable
+		hps_0_f2h_sdram0_data_write       : in  std_logic                      := '0';             --                      .write
+		reset_reset_n                     : in  std_logic                      := '0'              --                 reset.reset_n
     );
     end component thing;
 
@@ -64,18 +61,18 @@ architecture rtl of electra is
         swir_row            : in swir_row_t;
         
         timestamp           : in timestamp_t;
-        mpu_memory_change   : in sdram_address_block_t;
-        config_in           : in sdram_config_to_sdram_t;
+        mpu_memory_change   : in sdram.address_block_t;
+        config_in           : in sdram.config_to_sdram_t;
         start_config        : in std_logic;
-        config_out          : out sdram_partitions_t;
+        config_out          : out sdram.memory_state_t;
         config_done         : out std_logic;
         img_config_done     : out std_logic;
         
         sdram_busy          : out std_logic;
-        sdram_error         : out sdram_error_t;
+        sdram_error         : out sdram.error_t;
         
-        sdram_avalon_out    : out avalonmm_from_master_t;
-        sdram_avalon_in     : in avalonmm_to_master_t
+        sdram_avalon_out    : out avalonmm.from_master_t;
+        sdram_avalon_in     : in avalonmm.to_master_t
     );
     end component;
 
@@ -99,35 +96,37 @@ architecture rtl of electra is
     -- fpga <=> sdram
     signal timestamp : timestamp_t;
     signal start_config : std_logic;
-    signal mpu_memory_change : sdram_address_block_t;
-    signal sdram_config : sdram_config_to_sdram_t;
-    signal sdram_partitions : sdram_partitions_t;
+    signal mpu_memory_change : sdram.address_block_t;
+    signal sdram_config : sdram.config_to_sdram_t;
+    signal sdram_partitions : sdram.memory_state_t;
     signal sdram_config_done : std_logic;
     signal sdram_img_config_done : std_logic;
     signal sdram_busy : std_logic;
-    signal sdram_error : sdram_error_t;
+    signal sdram_error : sdram.error_t;
 
     -- sdram <=> RAM
-    signal sdram_avalon : avalonmm_t;
+    signal sdram_avalon : avalonmm.bus_t;
 
-    attribute keep of clock :signal is true;
-    attribute keep of reset_n :signal is true;
-    attribute keep of vnir_rows :signal is true;
-    attribute keep of vnir_rows_available :signal is true;
-    attribute keep of vnir_num_rows :signal is true;
-    attribute keep of swir_num_rows :signal is true;
-    attribute keep of swir_row :signal is true;
-    attribute keep of swir_row_available :signal is true;
-    attribute keep of timestamp :signal is true;
-    attribute keep of start_config :signal is true;
-    attribute keep of mpu_memory_change :signal is true;
-    attribute keep of sdram_config :signal is true;
-    attribute keep of sdram_partitions :signal is true;
-    attribute keep of sdram_config_done :signal is true;
-    attribute keep of sdram_img_config_done :signal is true;
-    attribute keep of sdram_busy :signal is true;
-    attribute keep of sdram_error :signal is true;
-    attribute keep of sdram_avalon :signal is true;
+    attribute keep : boolean;
+
+    attribute keep of clock                 : signal is true;
+    attribute keep of reset_n               : signal is true;
+    attribute keep of vnir_rows             : signal is true;
+    attribute keep of vnir_rows_available   : signal is true;
+    attribute keep of vnir_num_rows         : signal is true;
+    attribute keep of swir_num_rows         : signal is true;
+    attribute keep of swir_row              : signal is true;
+    attribute keep of swir_row_available    : signal is true;
+    attribute keep of timestamp             : signal is true;
+    attribute keep of start_config          : signal is true;
+    attribute keep of mpu_memory_change     : signal is true;
+    attribute keep of sdram_config          : signal is true;
+    attribute keep of sdram_partitions      : signal is true;
+    attribute keep of sdram_config_done     : signal is true;
+    attribute keep of sdram_img_config_done : signal is true;
+    attribute keep of sdram_busy            : signal is true;
+    attribute keep of sdram_error           : signal is true;
+    attribute keep of sdram_avalon          : signal is true;
 
 begin
 
@@ -136,9 +135,6 @@ begin
 		hps_0_f2h_sdram0_data_address       => sdram_avalon.from_master.address,
 		hps_0_f2h_sdram0_data_burstcount    => sdram_avalon.from_master.burst_count,
 		hps_0_f2h_sdram0_data_waitrequest   => sdram_avalon.to_master.wait_request,
-		hps_0_f2h_sdram0_data_readdata      => sdram_avalon.to_master.read_data,
-		hps_0_f2h_sdram0_data_readdatavalid => sdram_avalon.to_master.read_data_valid,
-		hps_0_f2h_sdram0_data_read          => sdram_avalon.from_master.read_cmd,
 		hps_0_f2h_sdram0_data_writedata     => sdram_avalon.from_master.write_data,
 		hps_0_f2h_sdram0_data_byteenable    => sdram_avalon.from_master.byte_enable,
 		hps_0_f2h_sdram0_data_write         => sdram_avalon.from_master.write_cmd,
