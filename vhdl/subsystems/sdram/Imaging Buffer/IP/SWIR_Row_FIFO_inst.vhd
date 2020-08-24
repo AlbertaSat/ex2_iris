@@ -6,6 +6,5 @@ SWIR_Row_FIFO_inst : SWIR_Row_FIFO PORT MAP (
 		wrreq	 => wrreq_sig,
 		empty	 => empty_sig,
 		full	 => full_sig,
-		q	 => q_sig,
-		usedw	 => usedw_sig
+		q	 => q_sig
 	);

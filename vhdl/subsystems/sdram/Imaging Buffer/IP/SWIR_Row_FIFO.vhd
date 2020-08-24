@@ -50,8 +50,7 @@ ENTITY SWIR_Row_FIFO IS
 		wrreq		: IN STD_LOGIC ;
 		empty		: OUT STD_LOGIC ;
 		full		: OUT STD_LOGIC ;
-		q		: OUT STD_LOGIC_VECTOR (63 DOWNTO 0);
-		usedw		: OUT STD_LOGIC_VECTOR (6 DOWNTO 0)
+		q		: OUT STD_LOGIC_VECTOR (63 DOWNTO 0)
 	);
 END SWIR_Row_FIFO;
 
@@ -61,7 +60,6 @@ ARCHITECTURE SYN OF swir_row_fifo IS
 	SIGNAL sub_wire0	: STD_LOGIC ;
 	SIGNAL sub_wire1	: STD_LOGIC ;
 	SIGNAL sub_wire2	: STD_LOGIC_VECTOR (63 DOWNTO 0);
-	SIGNAL sub_wire3	: STD_LOGIC_VECTOR (6 DOWNTO 0);
 
 
 
@@ -86,8 +84,7 @@ ARCHITECTURE SYN OF swir_row_fifo IS
 			wrreq	: IN STD_LOGIC ;
 			empty	: OUT STD_LOGIC ;
 			full	: OUT STD_LOGIC ;
-			q	: OUT STD_LOGIC_VECTOR (63 DOWNTO 0);
-			usedw	: OUT STD_LOGIC_VECTOR (6 DOWNTO 0)
+			q	: OUT STD_LOGIC_VECTOR (63 DOWNTO 0)
 	);
 	END COMPONENT;
 
@@ -95,7 +92,6 @@ BEGIN
 	empty    <= sub_wire0;
 	full    <= sub_wire1;
 	q    <= sub_wire2(63 DOWNTO 0);
-	usedw    <= sub_wire3(6 DOWNTO 0);
 
 	scfifo_component : scfifo
 	GENERIC MAP (
@@ -118,8 +114,7 @@ BEGIN
 		wrreq => wrreq,
 		empty => sub_wire0,
 		full => sub_wire1,
-		q => sub_wire2,
-		usedw => sub_wire3
+		q => sub_wire2
 	);
 
 
@@ -147,7 +142,7 @@ END SYN;
 -- Retrieval info: PRIVATE: RAM_BLOCK_TYPE NUMERIC "0"
 -- Retrieval info: PRIVATE: SYNTH_WRAPPER_GEN_POSTFIX STRING "0"
 -- Retrieval info: PRIVATE: UNDERFLOW_CHECKING NUMERIC "0"
--- Retrieval info: PRIVATE: UsedW NUMERIC "1"
+-- Retrieval info: PRIVATE: UsedW NUMERIC "0"
 -- Retrieval info: PRIVATE: Width NUMERIC "64"
 -- Retrieval info: PRIVATE: dc_aclr NUMERIC "0"
 -- Retrieval info: PRIVATE: diff_widths NUMERIC "0"
@@ -179,7 +174,6 @@ END SYN;
 -- Retrieval info: USED_PORT: full 0 0 0 0 OUTPUT NODEFVAL "full"
 -- Retrieval info: USED_PORT: q 0 0 64 0 OUTPUT NODEFVAL "q[63..0]"
 -- Retrieval info: USED_PORT: rdreq 0 0 0 0 INPUT NODEFVAL "rdreq"
--- Retrieval info: USED_PORT: usedw 0 0 7 0 OUTPUT NODEFVAL "usedw[6..0]"
 -- Retrieval info: USED_PORT: wrreq 0 0 0 0 INPUT NODEFVAL "wrreq"
 -- Retrieval info: CONNECT: @aclr 0 0 0 0 aclr 0 0 0 0
 -- Retrieval info: CONNECT: @clock 0 0 0 0 clock 0 0 0 0
@@ -189,7 +183,6 @@ END SYN;
 -- Retrieval info: CONNECT: empty 0 0 0 0 @empty 0 0 0 0
 -- Retrieval info: CONNECT: full 0 0 0 0 @full 0 0 0 0
 -- Retrieval info: CONNECT: q 0 0 64 0 @q 0 0 64 0
--- Retrieval info: CONNECT: usedw 0 0 7 0 @usedw 0 0 7 0
 -- Retrieval info: GEN_FILE: TYPE_NORMAL SWIR_Row_FIFO.vhd TRUE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL SWIR_Row_FIFO.inc FALSE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL SWIR_Row_FIFO.cmp TRUE

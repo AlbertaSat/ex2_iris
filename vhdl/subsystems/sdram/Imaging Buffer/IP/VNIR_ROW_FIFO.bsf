@@ -80,13 +80,6 @@ agreement for further details.
 		(text "empty" (rect 128 81 155 94)(font "Arial" (font_size 8)))
 		(line (pt 176 88)(pt 160 88))
 	)
-	(port
-		(pt 176 104)
-		(output)
-		(text "usedw[6..0]" (rect 0 0 68 14)(font "Arial" (font_size 8)))
-		(text "usedw[6..0]" (rect 99 97 155 110)(font "Arial" (font_size 8)))
-		(line (pt 176 104)(pt 160 104)(line_width 3))
-	)
 	(drawing
 		(text "160 bits x 128 words" (rect 73 133 230 277)(font "Arial" ))
 		(line (pt 16 124)(pt 160 124))
