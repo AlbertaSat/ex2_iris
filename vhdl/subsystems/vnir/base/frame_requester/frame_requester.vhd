@@ -49,8 +49,7 @@ use work.frame_requester_pkg.all;
 entity frame_requester is
 generic (
     FRAGMENT_WIDTH      : integer;
-    CLOCKS_PER_SEC      : integer;
-    MAX_FPS             : integer
+    CLOCKS_PER_SEC      : integer
 );
 port (
     -- Interface w/ subsystems is clocked on the main clock
@@ -78,8 +77,7 @@ architecture rtl of frame_requester is
     component frame_requester_mainclock is
     generic (
         FRAGMENT_WIDTH      : integer := FRAGMENT_WIDTH;
-        CLOCKS_PER_SEC      : integer := CLOCKS_PER_SEC;
-        MAX_FPS             : integer := MAX_FPS
+        CLOCKS_PER_SEC      : integer := CLOCKS_PER_SEC
     );
     port (
         clock               : in std_logic;

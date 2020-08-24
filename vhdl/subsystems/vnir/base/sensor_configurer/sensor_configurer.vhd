@@ -142,7 +142,7 @@ architecture rtl of sensor_configurer is
 
 begin
 
-    main_process : process
+    main_process : process (clock, reset_n)
         variable state : state_t;
 
         variable i : integer;
@@ -151,85 +151,89 @@ begin
         constant N_SPI_INSTRUCTIONS : integer := calc_n_spi_instructions;
         variable spi_instructions : logic16_vector_t(N_SPI_INSTRUCTIONS-1 downto 0);
     begin
-        wait until rising_edge(clock);
-
-        power_on_timer.start <= '0';
-        clock_on_timer.start <= '0';
-        reset_off_timer.start <= '0';
-        spi_settle_timer.start <= '0';
-        config_done <= '0';
-        spi_enable <= '0';
-        spi_cont <= '0';
-
-        if (reset_n = '0') then
-            state := RESET;
-        end if;
-
-        case state is
-        when RESET =>
+        if reset_n = '0' then
             state := OFF;
             sensor_power <= '0';
             sensor_reset_n <= '0';
             sensor_clock_enable <= '0';
-        when OFF =>
-            if start_config = '1' then
-                spi_instructions := all_instructions(config);
-                power_on_timer.start <= '1';
-                state := CONFIG_POWER_ON;
-            end if;
-        when CONFIG_POWER_ON =>
-            sensor_power <= '1';
-            if power_on_timer.done = '1' then
-                clock_on_timer.start <= '1';
-                state := CONFIG_CLOCK_ON;
-            end if;
-        when CONFIG_CLOCK_ON =>
-            sensor_clock_enable <= '1';
-            if clock_on_timer.done = '1' then
-                reset_off_timer.start <= '1';
-                state := CONFIG_RESET_OFF;
-            end if;
-        when IDLE =>
-            if start_config = '1' then
-                spi_instructions := all_instructions(config);
-                sensor_reset_n <= '0';
-                reset_off_timer.start <= '1';
-                state := CONFIG_RESET_OFF;
-            end if;
-        when CONFIG_RESET_OFF =>
-            sensor_reset_n <= '1';
-            if reset_off_timer.done = '1' then
-                i := 0;
-                spi_tx_data <= spi_instructions(i);
-                state := CONFIG_TRANSMIT;
-            end if;
-        when CONFIG_TRANSMIT =>
-            spi_enable <= '1';
-            spi_cont <= '1';
-            if (spi_busy = '1' and spi_busy_prev = '0') then
-                if (i = N_SPI_INSTRUCTIONS - 1) then
-                    state := CONFIG_TRANSMIT_FINISH;
-                else
-                    i := i + 1;
-                    spi_tx_data <= spi_instructions(i);
+            
+            power_on_timer.start <= '0';
+            clock_on_timer.start <= '0';
+            reset_off_timer.start <= '0';
+            spi_settle_timer.start <= '0';
+            config_done <= '0';
+            spi_enable <= '0';
+            spi_cont <= '0';
+        elsif rising_edge(clock) then
+            power_on_timer.start <= '0';
+            clock_on_timer.start <= '0';
+            reset_off_timer.start <= '0';
+            spi_settle_timer.start <= '0';
+            config_done <= '0';
+            spi_enable <= '0';
+            spi_cont <= '0';
+
+            case state is                
+            when OFF =>
+                if start_config = '1' then
+                    spi_instructions := all_instructions(config);
+                    power_on_timer.start <= '1';
+                    state := CONFIG_POWER_ON;
                 end if;
-            end if;
-        when CONFIG_TRANSMIT_FINISH =>
-            if spi_busy = '0' then
-                spi_settle_timer.start <= '1';
-                state := CONFIG_SPI_SETTLE;
-            end if;
-        when CONFIG_SPI_SETTLE =>
-            if spi_settle_timer.done = '1' then
-                config_done <= '1';
-                state := IDLE;
-            end if;
-        end case;
-        
-        spi_busy_prev := spi_busy;
+            when CONFIG_POWER_ON =>
+                sensor_power <= '1';
+                if power_on_timer.done = '1' then
+                    clock_on_timer.start <= '1';
+                    state := CONFIG_CLOCK_ON;
+                end if;
+            when CONFIG_CLOCK_ON =>
+                sensor_clock_enable <= '1';
+                if clock_on_timer.done = '1' then
+                    reset_off_timer.start <= '1';
+                    state := CONFIG_RESET_OFF;
+                end if;
+            when IDLE =>
+                if start_config = '1' then
+                    spi_instructions := all_instructions(config);
+                    sensor_reset_n <= '0';
+                    reset_off_timer.start <= '1';
+                    state := CONFIG_RESET_OFF;
+                end if;
+            when CONFIG_RESET_OFF =>
+                sensor_reset_n <= '1';
+                if reset_off_timer.done = '1' then
+                    i := 0;
+                    spi_tx_data <= spi_instructions(i);
+                    state := CONFIG_TRANSMIT;
+                end if;
+            when CONFIG_TRANSMIT =>
+                spi_enable <= '1';
+                spi_cont <= '1';
+                if (spi_busy = '1' and spi_busy_prev = '0') then
+                    if (i = N_SPI_INSTRUCTIONS - 1) then
+                        state := CONFIG_TRANSMIT_FINISH;
+                    else
+                        i := i + 1;
+                        spi_tx_data <= spi_instructions(i);
+                    end if;
+                end if;
+            when CONFIG_TRANSMIT_FINISH =>
+                if spi_busy = '0' then
+                    spi_settle_timer.start <= '1';
+                    state := CONFIG_SPI_SETTLE;
+                end if;
+            when CONFIG_SPI_SETTLE =>
+                if spi_settle_timer.done = '1' then
+                    config_done <= '1';
+                    state := IDLE;
+                end if;
+            end case;
+            
+            spi_busy_prev := spi_busy;
 
-        status.state <= state;
-
+            status.state <= state;
+        end if;
+    
     end process main_process;
 
     -- Invert ss line to make it active-high as per the CMV2000 datasheet

@@ -38,7 +38,7 @@ package sensor_configurer_pkg is
     -- Possible states of `sensor_configurer`. Defined in a globally-
     -- accessible scope so that the state may be included in the status
     -- register
-    type state_t is (RESET, OFF, IDLE, CONFIG_POWER_ON, CONFIG_CLOCK_ON, CONFIG_RESET_OFF,
+    type state_t is (OFF, IDLE, CONFIG_POWER_ON, CONFIG_CLOCK_ON, CONFIG_RESET_OFF,
                      CONFIG_TRANSMIT, CONFIG_TRANSMIT_FINISH, CONFIG_SPI_SETTLE);
 
     -- `sensor_configurer` status register, to be used for debugging
