@@ -24,6 +24,7 @@ use ieee.numeric_std.all;
 
 use work.spi_types.all;
 use work.vnir;
+use work.sensor_configurer_defaults;
 
 entity vnir_subsystem_avalonmm is
 generic (
@@ -88,11 +89,11 @@ architecture rtl of vnir_subsystem_avalonmm is
         do_imaging          : out std_logic;
         imaging_done        : in  std_logic;
 
-        status              : in  vnir.status_t;
+        status              : in  vnir.status_t
     );
     end component vnir_controller;
 
-    entity vnir_subsystem is
+    component vnir_subsystem is
     generic (
         CLOCKS_PER_SEC      : integer := CLOCKS_PER_SEC;
 
@@ -100,7 +101,7 @@ architecture rtl of vnir_subsystem_avalonmm is
         CLOCK_ON_DELAY_us   : integer := CLOCK_ON_DELAY_us;
         RESET_OFF_DELAY_us  : integer := RESET_OFF_DELAY_us;
         SPI_SETTLE_us       : integer := SPI_SETTLE_us
-    )
+    );
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
@@ -133,7 +134,7 @@ architecture rtl of vnir_subsystem_avalonmm is
     
         status              : out vnir.status_t
     );
-    end entity vnir_subsystem;
+    end component vnir_subsystem;
 
     signal config               : vnir.config_t;
     signal start_config         : std_logic;
@@ -149,7 +150,7 @@ begin
 
     vnir_controller_cmp : vnir_controller port map (
         clock => clock,
-        reset_n => reeset_n,
+        reset_n => reset_n,
         avs_address => avs_address,
         avs_read => avs_read,
         avs_readdata => avs_readdata,

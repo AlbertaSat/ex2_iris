@@ -22,11 +22,12 @@ use work.vnir;  -- Gives outputs to the VNIR subsystem
 use work.swir_types.all;  -- Gives outputs from SWIR subsystem
 use work.sdram_types.all;  -- Gives outptu to sdram subsystem
 use work.fpga_types.all;  -- For timestamp_t
-
+use work.spi_types.all;
 
 entity fpga_subsystem is
     port (
         clock                   : in std_logic;
+        pll_ref_clock           : in std_logic;
         reset_n                 : in std_logic;
 
         -- VNIR external ports
@@ -61,7 +62,7 @@ end entity fpga_subsystem;
 
 architecture rtl of fpga_subsystem is
 
-    entity vnir_subsystem_avalonmm is
+    component vnir_subsystem_avalonmm is
     port (
         clock               : in std_logic;
         reset_n             : in std_logic;
@@ -88,7 +89,7 @@ architecture rtl of fpga_subsystem is
         exposure_start      : out std_logic;
         lvds                : in vnir.lvds_t
     );
-    end entity vnir_subsystem_avalonmm;
+    end component vnir_subsystem_avalonmm;
 
     component interconnect is
     port (
@@ -127,9 +128,18 @@ architecture rtl of fpga_subsystem is
         vnir_controller_avm_readdata   : in    std_logic_vector(31 downto 0) := (others => 'X'); -- readdata
         vnir_controller_avm_write      : out   std_logic;                                        -- write
         vnir_controller_avm_writedata  : out   std_logic_vector(31 downto 0);                    -- writedata
-        vnir_controller_avm_irq_irq    : in    std_logic                     := 'X'              -- irq
+        vnir_controller_avm_irq_irq    : in    std_logic                     := 'X';             -- irq
+        pll_0_refclk_clk               : in    std_logic                     := 'X';             -- clk
+        pll_0_locked_export            : out   std_logic;                                        -- export
+        vnir_sensor_clock_clk          : out   std_logic                                         -- clk
     );
     end component interconnect;
+
+    -- Subsystem reset -- held low until plls are locked
+    signal subsystem_reset_n    : std_logic;
+
+    -- PLL signals
+    signal pll_locked           : std_logic;
 
     -- For connecting VNIR subsystem with AvalonMM interface
     signal vnir_av_address      : std_logic_vector(7 downto 0);
@@ -157,38 +167,63 @@ architecture rtl of fpga_subsystem is
 
     -- VNIR subsystem => SDRAM subsystem
     signal vnir_row             : vnir.row_t;
-    signal vnir_row_available   : std_logic;
+    signal vnir_row_available   : vnir.row_type_t;
+
+    -- VNIR sensor clock signals
+    signal vnir_sensor_clock_ungated : std_logic;
+    signal vnir_sensor_clock_enable  : std_logic;
+
+    attribute keep: boolean;
+    -- Temporary, remove when SDRAM subsystem is added
+    attribute keep of vnir_row              : signal is true;
+    attribute keep of vnir_row_available    : signal is true;
+    attribute keep of sdram_av_address      : signal is true;
+    attribute keep of sdram_av_read         : signal is true;
+    attribute keep of sdram_av_readdata     : signal is true;
+    attribute keep of sdram_av_write        : signal is true;
+    attribute keep of sdram_av_writedata    : signal is true;
+    attribute keep of sdram_av_irq          : signal is true;
+    -- Temporary, remove when SWIR subsystem is added
+    attribute keep of swir_av_address       : signal is true;
+    attribute keep of swir_av_read          : signal is true;
+    attribute keep of swir_av_readdata      : signal is true;
+    attribute keep of swir_av_write         : signal is true;
+    attribute keep of swir_av_writedata     : signal is true;
+    attribute keep of swir_av_irq           : signal is true;
 
 begin
 
+    -- Two-phase reset is required -- can't exit subsystem resets until plls have locked
+    subsystem_reset_n <= '0' when reset_n = '0' or pll_locked = '0' else '1';
+
     vnir_cmp : vnir_subsystem_avalonmm port map (
-        clock => clock,
-        reset_n => reset_n,
+        clock               => clock,
+        reset_n             => subsystem_reset_n,
 
-        avs_address => vnir_av_address,
-        avs_read => vnir_av_read,
-        avs_readdata => vnir_av_readdata,
-        avs_write => vnir_av_write,
-        avs_writedata => vnir_av_writedata,
-        avs_irq => vnir_av_irq,
+        avs_address         => vnir_av_address,
+        avs_read            => vnir_av_read,
+        avs_readdata        => vnir_av_readdata,
+        avs_write           => vnir_av_write,
+        avs_writedata       => vnir_av_writedata,
+        avs_irq             => vnir_av_irq,
 
-        -- TODO,
-        sensor_clock => sensor_clock,
-        sensor_power => sensor_power,
-        sensor_clock_enable => sensor_clock_enable,
-        sensor_reset_n => sensor_reset_n,
+        sensor_clock        => vnir_sensor_clock_ungated,
+        sensor_power        => vnir_sensor_power,
+        sensor_clock_enable => vnir_sensor_clock_enable,
+        sensor_reset_n      => vnir_sensor_reset_n,
 
-        row => vnir_row,
-        row_available => vnir_row_available,
+        row                 => vnir_row,
+        row_available       => vnir_row_available,
 
-        spi_out => vnir_spi_out,
-        spi_in => vnir_spi_in,
+        spi_out             => vnir_spi_out,
+        spi_in              => vnir_spi_in,
 
-        frame_request => frame_request,
-        exposure_start => exposure_start,
-        lvds => lvds
+        frame_request       => vnir_frame_request,
+        exposure_start      => vnir_exposure_start,
+        lvds                => vnir_lvds
     );
-    end entity vnir_subsystem_avalonmm;
+
+    vnir_sensor_clock <= vnir_sensor_clock_ungated and vnir_sensor_clock_enable;
 
     interconnect_cmp : interconnect port map (
         clock_clk                       => clock,
@@ -230,7 +265,11 @@ begin
         vnir_controller_avm_readdata    => vnir_av_readdata,
         vnir_controller_avm_write       => vnir_av_write,
         vnir_controller_avm_writedata   => vnir_av_writedata,
-        vnir_controller_avm_irq_irq     => vnir_av_irq
+        vnir_controller_avm_irq_irq     => vnir_av_irq,
+
+        pll_0_refclk_clk                => pll_ref_clock,
+        pll_0_locked_export             => pll_locked,
+        vnir_sensor_clock_clk           => vnir_sensor_clock_ungated
     );
 
 end architecture rtl;

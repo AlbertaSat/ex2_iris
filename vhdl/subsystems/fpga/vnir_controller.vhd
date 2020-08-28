@@ -16,8 +16,10 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 use work.vnir;
+use work.sensor_configurer_pkg;
 
 entity vnir_controller is
     port (
@@ -42,11 +44,30 @@ entity vnir_controller is
         do_imaging          : out std_logic;
         imaging_done        : in  std_logic;
 
-        status              : in  vnir.status_t;
+        status              : in  vnir.status_t
     );
 end entity vnir_controller;
 
 architecture rtl of vnir_controller is
+
+    pure function read_integer(bits : std_logic_vector) return integer is
+    begin
+        return to_integer(signed(bits));
+    end function read_integer;
+
+    pure function read_flip(bits : std_logic_vector) return vnir.flip_t is
+    begin
+        case bits is
+            when x"00000000" => return sensor_configurer_pkg.FLIP_NONE;
+            when x"00000001" => return sensor_configurer_pkg.FLIP_X;
+            when x"00000002" => return sensor_configurer_pkg.FLIP_Y;
+            when x"00000003" => return sensor_configurer_pkg.FLIP_XY;
+            when others =>
+                report "Invalid bit pattern given to read_flip()" severity failure;
+                return sensor_configurer_pkg.FLIP_NONE;
+        end case;
+    end function read_flip;
+
 begin
 
     process (clock, reset_n)
@@ -58,38 +79,38 @@ begin
                 window_blue => (lo => 0, hi => 0),
                 window_red => (lo => 0, hi => 0),
                 window_nir => (lo => 0, hi => 0),
-                flip => vnir.FLIP_NONE,
+                flip => sensor_configurer_pkg.FLIP_NONE,
                 calibration => (v_ramp1 => 0, v_ramp2 => 0, offset => 0, adc_gain => 0)
             );
             image_config <= (
                 length => 0,
                 frame_clocks => 0,
                 exposure_clocks => 0
-            )
+            );
         elsif rising_edge(clock) then
             
             start_config <= '0';
             start_image_config <= '0';
             if avs_write = '1' then
                 case avs_address is
-                when to_unsigned(00, avs_address'length) => config.window_blue.lo <= to_integer(avs_writedata);
-                when to_unsigned(01, avs_address'length) => config.window_blue.hi <= to_integer(avs_writedata);
-                when to_unsigned(02, avs_address'length) => config.window_red.lo <= to_integer(avs_writedata);
-                when to_unsigned(03, avs_address'length) => config.window_red.hi <= to_integer(avs_writedata);
-                when to_unsigned(04, avs_address'length) => config.window_nir.lo <= to_integer(avs_writedata);
-                when to_unsigned(05, avs_address'length) => config.window_nir.hi <= to_integer(avs_writedata);
-                when to_unsigned(06, avs_address'length) => config.flip <= to_flip(avs_writedata);
-                when to_unsigned(07, avs_address'length) => config.calibration.v_ramp1 <= to_integer(avs_writedata);
-                when to_unsigned(08, avs_address'length) => config.calibration.v_ramp2 <= to_integer(avs_writedata);
-                when to_unsigned(09, avs_address'length) => config.calibration.offset <= to_integer(avs_writedata);
-                when to_unsigned(10, avs_address'length) => config.calibration.adc_gain <= to_integer(avs_writedata);
+                when x"00" => config.window_blue.lo        <= read_integer(avs_writedata);
+                when x"01" => config.window_blue.hi        <= read_integer(avs_writedata);
+                when x"02" => config.window_red.lo         <= read_integer(avs_writedata);
+                when x"03" => config.window_red.hi         <= read_integer(avs_writedata);
+                when x"04" => config.window_nir.lo         <= read_integer(avs_writedata);
+                when x"05" => config.window_nir.hi         <= read_integer(avs_writedata);
+                when x"06" => config.flip                  <= read_flip(avs_writedata);
+                when x"07" => config.calibration.v_ramp1   <= read_integer(avs_writedata);
+                when x"08" => config.calibration.v_ramp2   <= read_integer(avs_writedata);
+                when x"09" => config.calibration.offset    <= read_integer(avs_writedata);
+                when x"0A" => config.calibration.adc_gain  <= read_integer(avs_writedata);
                 
-                when to_unsigned(11, avs_address'length) => image_config.length <= to_integer(avs_writedata);
-                when to_unsigned(12, avs_address'length) => image_config.frame_clocks <= to_integer(avs_writedata);
-                when to_unsigned(13, avs_address'length) => image_config.exposure_clocks <= to_integer(avs_writedata);
+                when x"0B" => image_config.length          <= read_integer(avs_writedata);
+                when x"0C" => image_config.frame_clocks    <= read_integer(avs_writedata);
+                when x"0D" => image_config.exposure_clocks <= read_integer(avs_writedata);
                 
-                when to_unsigned(14, avs_address'length) => start_config <= '1';
-                when to_unsigned(15, avs_address'length) => start_image_config <= '1';
+                when x"0E" => start_config                 <= '1';
+                when x"0F" => start_image_config           <= '1';
                 
                 when others =>
                 end case;
@@ -115,11 +136,11 @@ begin
             end if;
             
             if avs_read = '1' then
-                if avs_address = to_unsigned(14, avs_address'length) then
-                    avs_readdata <= to_integer(config_done_flag);
+                if avs_address = x"0E" then
+                    avs_readdata <= (0 => config_done_flag, others => '0');
                     config_done_flag := '0';
-                elsif avs_address = to_unsigned(15, avs_addresss'length) then
-                    avs_readdata <= to_integer(image_config_done_flag);
+                elsif avs_address = x"0F" then
+                    avs_readdata <= (0 => image_config_done_flag, others => '0');
                     image_config_done_flag := '0';
                 end if;
             end if;
