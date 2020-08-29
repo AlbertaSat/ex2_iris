@@ -91,6 +91,7 @@ begin
             
             start_config <= '0';
             start_image_config <= '0';
+            do_imaging <= '0';
             if avs_write = '1' then
                 case avs_address is
                 when x"00" => config.window_red.lo         <= read_integer(avs_writedata);
@@ -111,6 +112,7 @@ begin
                 
                 when x"0E" => start_config                 <= '1';
                 when x"0F" => start_image_config           <= '1';
+                when x"10" => do_imaging                   <= '1';
                 
                 when others =>
                 end case;
@@ -121,10 +123,12 @@ begin
     process (clock, reset_n)
         variable config_done_flag : std_logic;
         variable image_config_done_flag : std_logic;
+        variable imaging_done_flag : std_logic;
     begin
         if reset_n = '0' then
             config_done_flag := '0';
             image_config_done_flag := '0';
+            imaging_done_flag := '0';
         elsif rising_edge(clock) then
             
             if config_done = '1' then
@@ -134,14 +138,21 @@ begin
             if image_config_done = '1' then
                 image_config_done_flag := '1';
             end if;
+
+            if imaging_done = '1' then
+                imaging_done_flag := '1';
+            end if;
             
             if avs_read = '1' then
-                if avs_address = x"0E" then
+                if avs_address = x"11" then
                     avs_readdata <= (0 => config_done_flag, others => '0');
                     config_done_flag := '0';
-                elsif avs_address = x"0F" then
+                elsif avs_address = x"12" then
                     avs_readdata <= (0 => image_config_done_flag, others => '0');
                     image_config_done_flag := '0';
+                elsif avs_address = x"13" then
+                    avs_readdata <= (0 => imaging_done_flag, others => '0');
+                    imaging_done_flag := '0';
                 end if;
             end if;
             
