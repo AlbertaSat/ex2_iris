@@ -76,9 +76,9 @@ begin
             start_config <= '0';
             start_image_config <= '0';
             config <= (
-                window_blue => (lo => 0, hi => 0),
                 window_red => (lo => 0, hi => 0),
                 window_nir => (lo => 0, hi => 0),
+                window_blue => (lo => 0, hi => 0),
                 flip => sensor_configurer_pkg.FLIP_NONE,
                 calibration => (v_ramp1 => 0, v_ramp2 => 0, offset => 0, adc_gain => 0)
             );
@@ -93,12 +93,12 @@ begin
             start_image_config <= '0';
             if avs_write = '1' then
                 case avs_address is
-                when x"00" => config.window_blue.lo        <= read_integer(avs_writedata);
-                when x"01" => config.window_blue.hi        <= read_integer(avs_writedata);
-                when x"02" => config.window_red.lo         <= read_integer(avs_writedata);
-                when x"03" => config.window_red.hi         <= read_integer(avs_writedata);
-                when x"04" => config.window_nir.lo         <= read_integer(avs_writedata);
-                when x"05" => config.window_nir.hi         <= read_integer(avs_writedata);
+                when x"00" => config.window_red.lo         <= read_integer(avs_writedata);
+                when x"01" => config.window_red.hi         <= read_integer(avs_writedata);
+                when x"02" => config.window_nir.lo         <= read_integer(avs_writedata);
+                when x"03" => config.window_nir.hi         <= read_integer(avs_writedata);
+                when x"04" => config.window_blue.lo        <= read_integer(avs_writedata);
+                when x"05" => config.window_blue.hi        <= read_integer(avs_writedata);
                 when x"06" => config.flip                  <= read_flip(avs_writedata);
                 when x"07" => config.calibration.v_ramp1   <= read_integer(avs_writedata);
                 when x"08" => config.calibration.v_ramp2   <= read_integer(avs_writedata);
