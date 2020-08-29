@@ -27,7 +27,6 @@ use work.fpga_types.all;
 
 entity electra is
 port (
-    reset_n                  : in std_logic;
     clock                    : in std_logic;
     pll_ref_clock            : in std_logic;
 
@@ -99,9 +98,27 @@ architecture rtl of electra is
         HPS_DDR3_RZQ            : in std_logic := 'X'
     );
     end component fpga_subsystem;
-	 
+
+    signal reset_n      : std_logic;
+    signal reset_clocks : integer := 10;  -- Hold reset for 10 clock cycles on startup
+
+    attribute keep : boolean;
+    attribute keep of reset_n : signal is true;
+
 begin
-    
+
+    process (clock)
+    begin
+        if rising_edge(clock) then
+            if reset_clocks > 0 then
+                reset_clocks <= reset_clocks - 1;
+                reset_n <= '0';
+            else
+                reset_n <= '1';
+            end if;
+        end if;
+    end process;
+
     fpga_cmp : fpga_subsystem port map (
         clock               => clock,
         pll_ref_clock       => pll_ref_clock,
