@@ -129,6 +129,12 @@ architecture rtl of fpga_subsystem is
         vnir_controller_avm_write      : out   std_logic;                                        -- write
         vnir_controller_avm_writedata  : out   std_logic_vector(31 downto 0);                    -- writedata
         vnir_controller_avm_irq_irq    : in    std_logic                     := 'X';             -- irq
+        fpga_controller_avm_address    : out   std_logic_vector(7 downto 0);                     -- address
+        fpga_controller_avm_read       : out   std_logic;                                        -- read
+        fpga_controller_avm_readdata   : in    std_logic_vector(31 downto 0) := (others => 'X'); -- readdata
+        fpga_controller_avm_write      : out   std_logic;                                        -- write
+        fpga_controller_avm_writedata  : out   std_logic_vector(31 downto 0);                    -- writedata
+        fpga_controller_avm_irq_irq    : in    std_logic                     := 'X';             -- irq
         pll_0_refclk_clk               : in    std_logic                     := 'X';             -- clk
         pll_0_locked_export            : out   std_logic;                                        -- export
         vnir_sensor_clock_clk          : out   std_logic                                         -- clk
@@ -165,6 +171,14 @@ architecture rtl of fpga_subsystem is
     signal sdram_av_writedata   : std_logic_vector(31 downto 0);
     signal sdram_av_irq         : std_logic;
 
+    -- For connecting FPGA subsystem with AvalonMM interface
+    signal fpga_av_address     : std_logic_vector(7 downto 0);
+    signal fpga_av_read        : std_logic;
+    signal fpga_av_readdata    : std_logic_vector(31 downto 0);
+    signal fpga_av_write       : std_logic;
+    signal fpga_av_writedata   : std_logic_vector(31 downto 0);
+    signal fpga_av_irq         : std_logic;
+
     -- VNIR subsystem => SDRAM subsystem
     signal vnir_row             : vnir.row_t;
     signal vnir_row_available   : vnir.row_type_t;
@@ -191,10 +205,23 @@ architecture rtl of fpga_subsystem is
     attribute keep of swir_av_writedata     : signal is true;
     attribute keep of swir_av_irq           : signal is true;
 
+    attribute keep of subsystem_reset_n     : signal is true;
+
 begin
 
     -- Two-phase reset is required -- can't exit subsystem resets until plls have locked
-    subsystem_reset_n <= '0' when reset_n = '0' or pll_locked = '0' else '1';
+    process (reset_n, clock)
+    begin
+        if reset_n = '0' then
+            subsystem_reset_n <= '0';
+        elsif rising_edge(clock) then
+            if pll_locked = '0' or (fpga_av_write = '1' and fpga_av_address = x"00") then
+                subsystem_reset_n <= '0';
+            else
+                subsystem_reset_n <= '1';
+            end if;
+        end if;
+    end process;
 
     vnir_cmp : vnir_subsystem_avalonmm port map (
         clock               => clock,
@@ -266,6 +293,13 @@ begin
         vnir_controller_avm_write       => vnir_av_write,
         vnir_controller_avm_writedata   => vnir_av_writedata,
         vnir_controller_avm_irq_irq     => vnir_av_irq,
+
+        fpga_controller_avm_address     => fpga_av_address,
+        fpga_controller_avm_read        => fpga_av_read,
+        fpga_controller_avm_readdata    => fpga_av_readdata,
+        fpga_controller_avm_write       => fpga_av_write,
+        fpga_controller_avm_writedata   => fpga_av_writedata,
+        fpga_controller_avm_irq_irq     => fpga_av_irq,
 
         pll_0_refclk_clk                => pll_ref_clock,
         pll_0_locked_export             => pll_locked,

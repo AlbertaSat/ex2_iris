@@ -17,6 +17,22 @@
          type = "int";
       }
    }
+   element fpga_controller
+   {
+      datum _sortIndex
+      {
+         value = "6";
+         type = "int";
+      }
+   }
+   element fpga_controller.avs
+   {
+      datum baseAddress
+      {
+         value = "0";
+         type = "String";
+      }
+   }
    element hps_0
    {
       datum _sortIndex
@@ -45,7 +61,7 @@
    {
       datum baseAddress
       {
-         value = "0";
+         value = "1024";
          type = "String";
       }
    }
@@ -61,7 +77,7 @@
    {
       datum baseAddress
       {
-         value = "1024";
+         value = "2048";
          type = "String";
       }
    }
@@ -77,7 +93,7 @@
    {
       datum baseAddress
       {
-         value = "2048";
+         value = "3072";
          type = "String";
       }
    }
@@ -103,6 +119,16 @@
  <parameter name="useTestBenchNamingPattern" value="false" />
  <instanceScript></instanceScript>
  <interface name="clock" internal="clk_0.clk_in" type="clock" dir="end" />
+ <interface
+   name="fpga_controller_avm"
+   internal="fpga_controller.avm"
+   type="avalon"
+   dir="start" />
+ <interface
+   name="fpga_controller_avm_irq"
+   internal="fpga_controller.avm_irq"
+   type="interrupt"
+   dir="start" />
  <interface name="memory" internal="hps_0.memory" type="conduit" dir="end" />
  <interface name="pll_0_locked" internal="pll_0.locked" type="conduit" dir="end" />
  <interface name="pll_0_refclk" internal="pll_0.refclk" type="clock" dir="end" />
@@ -147,6 +173,13 @@
   <parameter name="clockFrequencyKnown" value="true" />
   <parameter name="inputClockFrequency" value="0" />
   <parameter name="resetSynchronousEdges" value="NONE" />
+ </module>
+ <module
+   name="fpga_controller"
+   kind="controller_interface"
+   version="1.0"
+   enabled="1">
+  <parameter name="AUTO_AVM_IRQ_INTERRUPTS_USED" value="0" />
  </module>
  <module name="hps_0" kind="altera_hps" version="17.0" enabled="1">
   <parameter name="ABSTRACT_REAL_COMPARE_TEST" value="false" />
@@ -908,7 +941,7 @@
    start="hps_0.h2f_lw_axi_master"
    end="vnir_controller.avs">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x0800" />
+  <parameter name="baseAddress" value="0x0c00" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -917,7 +950,7 @@
    start="hps_0.h2f_lw_axi_master"
    end="swir_controller.avs">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x0400" />
+  <parameter name="baseAddress" value="0x0800" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -925,6 +958,15 @@
    version="17.0"
    start="hps_0.h2f_lw_axi_master"
    end="sdram_controller.avs">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x0400" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.0"
+   start="hps_0.h2f_lw_axi_master"
+   end="fpga_controller.avs">
   <parameter name="arbitrationPriority" value="1" />
   <parameter name="baseAddress" value="0x0000" />
   <parameter name="defaultConnection" value="false" />
@@ -944,6 +986,11 @@
    version="17.0"
    start="clk_0.clk"
    end="sdram_controller.clock" />
+ <connection
+   kind="clock"
+   version="17.0"
+   start="clk_0.clk"
+   end="fpga_controller.clock" />
  <connection
    kind="clock"
    version="17.0"
@@ -970,6 +1017,13 @@
    end="sdram_controller.avs_irq">
   <parameter name="irqNumber" value="2" />
  </connection>
+ <connection
+   kind="interrupt"
+   version="17.0"
+   start="hps_0.f2h_irq0"
+   end="fpga_controller.avs_irq">
+  <parameter name="irqNumber" value="3" />
+ </connection>
  <connection kind="reset" version="17.0" start="clk_0.clk_reset" end="pll_0.reset" />
  <connection
    kind="reset"
@@ -986,6 +1040,11 @@
    version="17.0"
    start="clk_0.clk_reset"
    end="sdram_controller.reset_n" />
+ <connection
+   kind="reset"
+   version="17.0"
+   start="clk_0.clk_reset"
+   end="fpga_controller.reset_n" />
  <connection kind="reset" version="17.0" start="hps_0.h2f_reset" end="pll_0.reset" />
  <connection
    kind="reset"
@@ -1002,6 +1061,11 @@
    version="17.0"
    start="hps_0.h2f_reset"
    end="sdram_controller.reset_n" />
+ <connection
+   kind="reset"
+   version="17.0"
+   start="hps_0.h2f_reset"
+   end="fpga_controller.reset_n" />
  <interconnectRequirement for="$system" name="qsys_mm.clockCrossingAdapter" value="HANDSHAKE" />
  <interconnectRequirement for="$system" name="qsys_mm.enableEccProtection" value="FALSE" />
  <interconnectRequirement for="$system" name="qsys_mm.insertDefaultSlave" value="FALSE" />
