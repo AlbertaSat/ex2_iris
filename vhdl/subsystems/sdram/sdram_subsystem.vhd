@@ -32,14 +32,14 @@ entity sdram_subsystem is
         reset_n             : in std_logic;
 
         --VNIR row signals
-        vnir_rows_available : in vnir.row_type_t;
+        vnir_row_available  : in vnir.row_type_t;
         vnir_num_rows       : in integer;
-        vnir_rows           : in vnir.row_t;
+        vnir_row            : in vnir.row_t;
         
         --SWIR row signals
         swir_row_available  : in std_logic;
         swir_num_rows       : in integer;
-        swir_row            : in swir_row_t;
+        swir_pixel          : in swir_pixel_t;
         
         timestamp           : in timestamp_t;
         mpu_memory_change   : in sdram.address_block_t;
@@ -137,22 +137,79 @@ architecture rtl of sdram_subsystem is
     component imaging_buffer is
         port (
             --Control Signals
-            clock           : in std_logic;
-            reset_n         : in std_logic;
-
+            clock               : in std_logic;
+            reset_n             : in std_logic;
+    
             --Rows of Data
-            vnir_rows       : in vnir.row_t;
-            swir_row        : in swir_row_t;
-
+            vnir_row            : in vnir.row_t;
+            swir_pixel          : in swir_pixel_t;
+    
             --Rows out
-            vnir_row_out    : out vnir.row_t;
-            swir_row_out    : out swir_row_t;
-            row_request     : in std_logic;
-
+            vnir_fragment_out   : out row_fragment_t;
+            swir_fragment_out   : out row_fragment_t;
+            row_request         : in std_logic;
+    
             --Flag signals
-            swir_row_ready  : in std_logic;
-            vnir_row_ready  : in vnir.row_type_t
+            swir_pixel_ready    : in std_logic;
+            vnir_row_ready      : in vnir.row_type_t
         );
     end component imaging_buffer;
+
+    --header_creator <==> command_creator
+    signal vnir_header : sdram.header_t;
+    signal swir_header : sdram.header_t;
+
+    --
 begin
+    imaging_buffer_component : imaging_buffer port map(
+        clock               => clock,
+        reset_n             => reset_n,
+        vnir_row            => vnir_row,
+        swir_pixel          => swir_pixel,
+        vnir_fragment_out   => ,
+        swir_fragment_out   => ,
+        row_request         => ,
+        swir_pixel_ready    => ,
+        vnir_row_ready      => vnir_row_available
+    );
+
+    memory_map_component : memory_map port map(
+        clock               => clock,
+        reset_n             => reset_n,
+        config              => ,
+        memory_state        => config_out,
+        start_config        => start_config,
+        config_done         => config_done,
+        img_config_done     => img_config_done,
+        number_swir_rows    => swir_num_rows,
+        number_vnir_rows    => vnir_num_rows,
+        next_row_type       => ,
+        next_row_req        => ,
+        output_address      => ,
+        sdram_error         => 
+    );
+
+    command_creator_component : command_creator port map(
+        clock               => clock,
+        reset               => reset_n,
+        vnir_img_header     => vnir_header,
+        swir_img_header     => swir_header,
+        row_data            => ,
+        address             => ,
+        sdram_busy          => ,
+        mpu_memory_change   => ,
+        sdram_avalon_out    => sdram_avalon_out,
+        sdram_avalon_in     => sdram_avalon_in
+    );
+
+    header_creator_component : header_creator port map(
+        clock           => clock,
+        reset_n         => reset_n,
+        timestamp       => timestamp,
+        swir_img_header => vnir_header,
+        vnir_img_header => swir_header,
+        vnir_rows       => vnir_num_rows,
+        swir_rows       => swir_num_rows,
+        sending_img     => 
+    );
 end architecture;

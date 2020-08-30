@@ -31,18 +31,35 @@ end electra;
 
 architecture rtl of electra is
 
-	component thing
-	port (
-		clk_clk                           : in  std_logic                      := '0';             --                   clk.clk
-		hps_0_f2h_sdram0_data_address     : in  std_logic_vector(27 downto 0)  := (others => '0'); -- hps_0_f2h_sdram0_data.address
-		hps_0_f2h_sdram0_data_burstcount  : in  std_logic_vector(7 downto 0)   := (others => '0'); --                      .burstcount
-		hps_0_f2h_sdram0_data_waitrequest : out std_logic;                                         --                      .waitrequest
-		hps_0_f2h_sdram0_data_writedata   : in  std_logic_vector(127 downto 0) := (others => '0'); --                      .writedata
-		hps_0_f2h_sdram0_data_byteenable  : in  std_logic_vector(15 downto 0)  := (others => '0'); --                      .byteenable
-		hps_0_f2h_sdram0_data_write       : in  std_logic                      := '0';             --                      .write
-		reset_reset_n                     : in  std_logic                      := '0'              --                 reset.reset_n
-    );
-    end component thing;
+	component soc_system is
+		port (
+			clk_clk                           : in    std_logic                      := 'X';             -- clk
+			hps_0_f2h_sdram0_data_address     : in    std_logic_vector(27 downto 0)  := (others => 'X'); -- address
+			hps_0_f2h_sdram0_data_burstcount  : in    std_logic_vector(7 downto 0)   := (others => 'X'); -- burstcount
+			hps_0_f2h_sdram0_data_waitrequest : out   std_logic;                                         -- waitrequest
+			hps_0_f2h_sdram0_data_writedata   : in    std_logic_vector(127 downto 0) := (others => 'X'); -- writedata
+			hps_0_f2h_sdram0_data_byteenable  : in    std_logic_vector(15 downto 0)  := (others => 'X'); -- byteenable
+			hps_0_f2h_sdram0_data_write       : in    std_logic                      := 'X';             -- write
+			memory_mem_a                      : out   std_logic_vector(14 downto 0);                     -- mem_a
+			memory_mem_ba                     : out   std_logic_vector(2 downto 0);                      -- mem_ba
+			memory_mem_ck                     : out   std_logic;                                         -- mem_ck
+			memory_mem_ck_n                   : out   std_logic;                                         -- mem_ck_n
+			memory_mem_cke                    : out   std_logic;                                         -- mem_cke
+			memory_mem_cs_n                   : out   std_logic;                                         -- mem_cs_n
+			memory_mem_ras_n                  : out   std_logic;                                         -- mem_ras_n
+			memory_mem_cas_n                  : out   std_logic;                                         -- mem_cas_n
+			memory_mem_we_n                   : out   std_logic;                                         -- mem_we_n
+			memory_mem_reset_n                : out   std_logic;                                         -- mem_reset_n
+			memory_mem_dq                     : inout std_logic_vector(15 downto 0)  := (others => 'X'); -- mem_dq
+			memory_mem_dqs                    : inout std_logic_vector(1 downto 0)   := (others => 'X'); -- mem_dqs
+			memory_mem_dqs_n                  : inout std_logic_vector(1 downto 0)   := (others => 'X'); -- mem_dqs_n
+			memory_mem_odt                    : out   std_logic;                                         -- mem_odt
+			memory_mem_dm                     : out   std_logic_vector(1 downto 0);                      -- mem_dm
+			memory_oct_rzqin                  : in    std_logic                      := 'X';             -- oct_rzqin
+			reset_reset_n                     : in    std_logic                      := 'X';             -- reset_n
+			hps_0_h2f_reset_reset_n           : out   std_logic                                          -- reset_n
+		);
+	end component soc_system;
 
     component sdram_subsystem
     port (
@@ -51,7 +68,7 @@ architecture rtl of electra is
         reset_n             : in std_logic;
 
         --VNIR row signals
-        vnir_rows_available : in std_logic;
+        vnir_rows_available : in vnir.row_type_t;
         vnir_num_rows       : in integer;
         vnir_rows           : in vnir.row_t;
         
@@ -81,7 +98,7 @@ architecture rtl of electra is
     
     -- vnir <=> sdram
     signal vnir_rows : vnir.row_t;
-    signal vnir_rows_available : std_logic;
+    signal vnir_rows_available : vnir.row_type_t;
 
     -- vnir <=> sdram, fpga
     signal vnir_num_rows : integer;
@@ -130,16 +147,34 @@ architecture rtl of electra is
 
 begin
 
-	u0 : thing port map (
-		clk_clk                             => clock,
-		hps_0_f2h_sdram0_data_address       => sdram_avalon.from_master.address,
-		hps_0_f2h_sdram0_data_burstcount    => sdram_avalon.from_master.burst_count,
-		hps_0_f2h_sdram0_data_waitrequest   => sdram_avalon.to_master.wait_request,
-		hps_0_f2h_sdram0_data_writedata     => sdram_avalon.from_master.write_data,
-		hps_0_f2h_sdram0_data_byteenable    => sdram_avalon.from_master.byte_enable,
-		hps_0_f2h_sdram0_data_write         => sdram_avalon.from_master.write_cmd,
-        reset_reset_n                       => reset_n
-    );
+    u0 : component soc_system
+		port map (
+			clk_clk                           => clock,
+            hps_0_f2h_sdram0_data_address     => sdram_avalon.from_master.address,
+            hps_0_f2h_sdram0_data_burstcount  => sdram_avalon.from_master.burst_count,
+            hps_0_f2h_sdram0_data_waitrequest => sdram_avalon.to_master.wait_request,
+            hps_0_f2h_sdram0_data_writedata   => sdram_avalon.from_master.write_data,
+            hps_0_f2h_sdram0_data_byteenable  => sdram_avalon.from_master.byte_enable,
+            hps_0_f2h_sdram0_data_write       => sdram_avalon.from_master.write_cmd,
+			memory_mem_a                      => open,
+			memory_mem_ba                     => open,
+			memory_mem_ck                     => open,
+			memory_mem_ck_n                   => open,
+			memory_mem_cke                    => open,
+			memory_mem_cs_n                   => open,
+			memory_mem_ras_n                  => open,
+			memory_mem_cas_n                  => open,
+			memory_mem_we_n                   => open,
+			memory_mem_reset_n                => open,
+			memory_mem_dq                     => open,
+			memory_mem_dqs                    => open,
+			memory_mem_dqs_n                  => open,
+			memory_mem_odt                    => open,
+			memory_mem_dm                     => open,
+			memory_oct_rzqin                  => open,
+			reset_reset_n                     => reset_n,
+			hps_0_h2f_reset_reset_n           => open
+		);
 
     sdram_subsystem_component : sdram_subsystem port map (
         clock => clock,
