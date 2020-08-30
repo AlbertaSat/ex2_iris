@@ -26,22 +26,21 @@ package img_buffer_pkg is
     constant NUM_VNIR_ROW_FIFO : integer := 10;
 
     --Number of bits in swir and vnir fifo
-    constant SWIR_FIFO_WORD_LENGTH : integer := 64;
-    constant VNIR_FIFO_WORD_LENGTH : integer := 160;
+    constant FIFO_WORD_LENGTH : integer := 128;
 
     --Number of words in swir and vnir fifo
-    constant FIFO_DEPTH : integer := 128;
+    constant VNIR_FIFO_DEPTH : integer := 160;
+    constant SWIR_FIFO_DEPTH : integer := 64;
 
     --vnir & swir row fragments are split into their respective FIFO word lengths
-    subtype vnir_fragment_t is std_logic_vector (VNIR_FIFO_WORD_LENGTH-1 downto 0);
-    subtype swir_fragment_t is std_logic_vector (SWIR_FIFO_WORD_LENGTH-1 downto 0);
+    subtype row_fragment_t is std_logic_vector (FIFO_WORD_LENGTH-1 downto 0);
 
     --The links between the vnir and swir fifos
-    type vnir_link_a is array (0 to NUM_VNIR_ROW_FIFO) of vnir_fragment_t;
-    type swir_link_a is array (0 to NUM_SWIR_ROW_FIFO) of swir_fragment_t;
+    type vnir_link_a is array (0 to NUM_VNIR_ROW_FIFO) of row_fragment_t;
+    type swir_link_a is array (0 to NUM_SWIR_ROW_FIFO) of row_fragment_t;
 
-    type vnir_row_fragment_a is array (0 to FIFO_DEPTH-1) of vnir_fragment_t;
-    type swir_row_fragment_a is array (0 to FIFO_DEPTH-1) of swir_fragment_t;
+    type vnir_row_fragment_a is array (0 to VNIR_FIFO_DEPTH-1) of row_fragment_t;
+    type swir_row_fragment_a is array (0 to SWIR_FIFO_DEPTH-1) of row_fragment_t;
 
     type row_type_buffer_a is array (0 to NUM_VNIR_ROW_FIFO-1) of vnir.row_type_t;
 
