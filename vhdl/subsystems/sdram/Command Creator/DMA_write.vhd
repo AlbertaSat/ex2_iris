@@ -66,7 +66,7 @@ library ieee;
 
 entity DMA_write is
 	generic (
-		DATAWIDTH 				: natural := 32;
+		DATAWIDTH 				: natural := 128;
 		MAXBURSTCOUNT 			: natural := 128;
 		BURSTCOUNTWIDTH 		: natural := 8;
 		BYTEENABLEWIDTH 		: natural := 16;
@@ -331,6 +331,7 @@ begin
 	-- first short burst enable will only be active on the first transfer (if applicable).  It will either post the amount of words remaining to reach the end of the burst
 	-- boundary or post the remainder of the transfer whichever is shorter.  If the transfer is very short and not aligned on a burst boundary then the same logic as the final short transfer is used
 	first_short_burst_enable <= '1' when (burst_boundary_word_address /= 0) and (first_transfer = '1') else '0';
+	
 	-- if the burst boundary isn't a multiple of 2 then must post a burst of 1 to get to a multiple of 2 for the next burst
 	first_short_burst_count <= to_unsigned(1, first_short_burst_count'length) when burst_boundary_word_address(0) = '1' else
 								(MAXBURSTCOUNT - burst_boundary_word_address) when (MAXBURSTCOUNT - burst_boundary_word_address) < (length_v/BYTEENABLEWIDTH) else
@@ -341,6 +342,7 @@ begin
 	final_short_burst_enable <= '1' when length_v < (MAXBURSTCOUNT*BYTEENABLEWIDTH) else '0';
 	final_short_burst_count_fullLength <= (length_v/BYTEENABLEWIDTH);
 	final_short_burst_count <= final_short_burst_count_fullLength(BURSTCOUNTWIDTH-1 downto 0);
+
 	-- this will add a one cycle stall between bursts, since fifo_used has a cycle of latency, this only affects the last burst
 	final_short_burst_ready <= '1' when (fifo_used > final_short_burst_count) or ((fifo_used = final_short_burst_count) and (burst_counter = 0)) else '0';
 	
@@ -351,6 +353,7 @@ begin
 	-- all ones, always performing word size accesses
 	master_byteenable <= (others=>'1');
 	control_done_reg <= '1' when (length_v = 0) else '0';
+
 	-- burst_counter = 0 means the transfer is done, or not enough data in the fifo for a new burst
 	master_write_reg <= '1' when (control_done_reg = '0') and (burst_counter /= 0) else '0';
 	
