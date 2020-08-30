@@ -68,13 +68,27 @@ architecture rtl of vnir_controller is
         end case;
     end function read_flip;
 
+    pure function to_l32(b : std_logic) return std_logic_vector is
+        variable re : std_logic_vector(31 downto 0);
+    begin
+        re := (0 => b, others => '0');
+        return re;
+    end function to_l32;
+
 begin
 
     process (clock, reset_n)
+        variable config_done_reg        : std_logic;
+        variable image_config_done_reg  : std_logic;
+        variable imaging_done_reg       : std_logic;
+        variable config_done_irq        : std_logic;
+        variable image_config_done_irq  : std_logic;
+        variable imaging_done_irq       : std_logic;
     begin
         if reset_n = '0' then
-            start_config <= '0';
-            start_image_config <= '0';
+            start_config        <= '0';
+            start_image_config  <= '0';
+            do_imaging          <= '0';
             config <= (
                 window_red => (lo => 0, hi => 0),
                 window_nir => (lo => 0, hi => 0),
@@ -87,11 +101,18 @@ begin
                 frame_clocks => 0,
                 exposure_clocks => 0
             );
+            config_done_reg         := '0';
+            image_config_done_reg   := '0';
+            imaging_done_reg        := '0';
+            config_done_irq         := '0';
+            image_config_done_irq   := '0';
+            imaging_done_irq        := '0';
         elsif rising_edge(clock) then
             
-            start_config <= '0';
-            start_image_config <= '0';
-            do_imaging <= '0';
+            start_config        <= '0';
+            start_image_config  <= '0';
+            do_imaging          <= '0';
+
             if avs_write = '1' then
                 case avs_address is
                 when x"00" => config.window_red.lo         <= read_integer(avs_writedata);
@@ -110,55 +131,39 @@ begin
                 when x"0C" => image_config.frame_clocks    <= read_integer(avs_writedata);
                 when x"0D" => image_config.exposure_clocks <= read_integer(avs_writedata);
                 
-                when x"0E" => start_config                 <= '1';
-                when x"0F" => start_image_config           <= '1';
-                when x"10" => do_imaging                   <= '1';
+                when x"0E" => start_config       <= '1'; config_done_reg       := '0';
+                when x"0F" => start_image_config <= '1'; image_config_done_reg := '0';
+                when x"10" => do_imaging         <= '1'; imaging_done_reg      := '0';
                 
                 when others =>
                 end case;
+            elsif avs_read = '1' then
+                case avs_address is
+                    when x"11" => avs_readdata <= to_l32(config_done_reg);       config_done_irq        := '0';
+                    when x"12" => avs_readdata <= to_l32(image_config_done_reg); image_config_done_irq  := '0';
+                    when x"13" => avs_readdata <= to_l32(imaging_done_reg);      imaging_done_irq       := '0';
+                    when others =>
+                end case;
             end if;
-        end if;
-    end process;
 
-    process (clock, reset_n)
-        variable config_done_flag : std_logic;
-        variable image_config_done_flag : std_logic;
-        variable imaging_done_flag : std_logic;
-    begin
-        if reset_n = '0' then
-            config_done_flag := '0';
-            image_config_done_flag := '0';
-            imaging_done_flag := '0';
-        elsif rising_edge(clock) then
-            
             if config_done = '1' then
-                config_done_flag := '1';
+                config_done_reg := '1';
+                config_done_irq := '1';
             end if;
             
             if image_config_done = '1' then
-                image_config_done_flag := '1';
+                image_config_done_reg := '1';
+                image_config_done_irq := '1';
             end if;
 
             if imaging_done = '1' then
-                imaging_done_flag := '1';
+                imaging_done_reg := '1';
+                imaging_done_irq := '1';
             end if;
-            
-            if avs_read = '1' then
-                if avs_address = x"11" then
-                    avs_readdata <= (0 => config_done_flag, others => '0');
-                    config_done_flag := '0';
-                elsif avs_address = x"12" then
-                    avs_readdata <= (0 => image_config_done_flag, others => '0');
-                    image_config_done_flag := '0';
-                elsif avs_address = x"13" then
-                    avs_readdata <= (0 => imaging_done_flag, others => '0');
-                    imaging_done_flag := '0';
-                end if;
-            end if;
-            
+
         end if;
 
-        avs_irq <= config_done_flag or image_config_done_flag;
+        avs_irq <= config_done_irq or image_config_done_irq or imaging_done_irq;
 
     end process;
 
