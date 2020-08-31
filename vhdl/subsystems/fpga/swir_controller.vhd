@@ -34,12 +34,28 @@ entity swir_controller is
         avs_irq             : out std_logic;
 
         config              : out swir_config_t;
-        start_config        : in  std_logic;
+        start_config        : out std_logic;
         config_done         : in  std_logic;
+
+        do_imaging          : out std_logic;
+        imaging_done        : in  std_logic
     );
 end entity swir_controller;
 
 architecture rtl of swir_controller is
+
+    pure function read_integer(bits : std_logic_vector) return integer is
+    begin
+        return to_integer(signed(bits));
+    end function read_integer;
+
+    pure function to_l32(b : std_logic) return std_logic_vector is
+        variable re : std_logic_vector(31 downto 0);
+    begin
+        re := (0 => b, others => '0');
+        return re;
+    end function to_l32;
+
 begin
 
     process (clock, reset_n)
@@ -50,7 +66,7 @@ begin
     begin
         if reset_n = '0' then
             start_config <= '0';
-            config <= (frame_clocks <= 0, exposure_clocks <= 0, length <= 0);
+            config <= (frame_clocks => 0, exposure_clocks => 0, length => 0);
             config_done_reg  := '0';
             config_done_irq  := '0';
             imaging_done_reg := '0';
@@ -58,12 +74,14 @@ begin
         elsif rising_edge(clock) then
 
             start_config <= '0';
+            do_imaging <= '0';
 
             if avs_write = '1' then
                 case avs_address is
                     when x"00" => config.length          <= read_integer(avs_writedata);
                     when x"01" => config.frame_clocks    <= read_integer(avs_writedata);
                     when x"02" => config.exposure_clocks <= read_integer(avs_writedata);
+                    when x"03" => do_imaging             <= '1';
                     when others =>
                 end case;
             elsif avs_read = '1' then
