@@ -20,6 +20,7 @@ use ieee.numeric_std.all;
 
 use work.avalonmm;
 use work.sdram;
+use work.img_buffer_pkg.all;
 use work.vnir;
 use work.swir_types.all;
 use work.fpga_types.all;
@@ -37,7 +38,7 @@ entity sdram_subsystem is
         vnir_row            : in vnir.row_t;
         
         --SWIR row signals
-        swir_row_available  : in std_logic;
+        swir_pxl_available  : in std_logic;
         swir_num_rows       : in integer;
         swir_pixel          : in swir_pixel_t;
         
@@ -91,20 +92,20 @@ architecture rtl of sdram_subsystem is
             --Control Signals
             clock           : in std_logic;
             reset_n         : in std_logic;
-
+    
             --Timestamp for image dating
             timestamp       : in timestamp_t;
-
+    
             --Header rows
             swir_img_header : out sdram.header_t;
             vnir_img_header : out sdram.header_t;
-
+    
             -- Number of rows being created by the imagers
             vnir_rows       : in integer;
             swir_rows       : in integer;
-
+    
             --Flag indicating the imager is working
-            sending_img     : in std_logic
+            img_config_done : in std_logic
         );
     end component header_creator;
 
@@ -112,22 +113,20 @@ architecture rtl of sdram_subsystem is
         port (
             --Control Signals
             clock               : in std_logic;
-            reset               : in std_logic;
-
+            reset_n             : in std_logic;
+    
             --Header data
             vnir_img_header     : in sdram.header_t;
             swir_img_header     : in sdram.header_t;
-
+    
             --Rows
-            row_data            : in vnir.row_t;
-
-            --Addy
+            row_data            : in row_fragment_t;
             address             : in sdram.address_t;
-
+            next_row_req        : out std_logic;
+    
             -- Flags for MPU interaction
-            sdram_busy          : in std_logic;
-            mpu_memory_change   : in sdram.address_block_t;
-
+            sdram_busy          : out std_logic;
+    
             --Avalon bridge for reading and writing to stuff
             sdram_avalon_out    : out avalonmm.from_master_t;
             sdram_avalon_in     : in avalonmm.to_master_t
@@ -145,8 +144,8 @@ architecture rtl of sdram_subsystem is
             swir_pixel          : in swir_pixel_t;
     
             --Rows out
-            vnir_fragment_out   : out row_fragment_t;
-            swir_fragment_out   : out row_fragment_t;
+            fragment_out        : out row_fragment_t;
+            fragment_type       : out sdram.row_type_t;
             row_request         : in std_logic;
     
             --Flag signals
@@ -159,45 +158,56 @@ architecture rtl of sdram_subsystem is
     signal vnir_header : sdram.header_t;
     signal swir_header : sdram.header_t;
 
-    --
+    --imaging_buffer <==> command_creator
+    signal row_frag     : row_fragment_t;
+    signal next_row_req : std_logic;
+
+    --imaging_buffer <==> memory_map
+    signal next_row_type : sdram.row_type_t;
+
+    --command_creator <==> memory_map
+    signal address : sdram.address_t;
+
+    --header_creator <==> memory_map
+    signal img_config_done_i : std_logic;
 begin
     imaging_buffer_component : imaging_buffer port map(
         clock               => clock,
         reset_n             => reset_n,
         vnir_row            => vnir_row,
         swir_pixel          => swir_pixel,
-        vnir_fragment_out   => ,
-        swir_fragment_out   => ,
-        row_request         => ,
-        swir_pixel_ready    => ,
+        fragment_out        => row_frag,
+        fragment_type       => next_row_type,
+        row_request         => next_row_req,
+        swir_pixel_ready    => swir_pxl_available,
         vnir_row_ready      => vnir_row_available
     );
 
     memory_map_component : memory_map port map(
         clock               => clock,
         reset_n             => reset_n,
-        config              => ,
+        config              => config_in,
         memory_state        => config_out,
         start_config        => start_config,
         config_done         => config_done,
-        img_config_done     => img_config_done,
+        img_config_done     => img_config_done_i,
         number_swir_rows    => swir_num_rows,
         number_vnir_rows    => vnir_num_rows,
-        next_row_type       => ,
-        next_row_req        => ,
-        output_address      => ,
-        sdram_error         => 
+        next_row_type       => next_row_type,
+        next_row_req        => next_row_req,
+        output_address      => address,
+        sdram_error         => sdram_error
     );
 
     command_creator_component : command_creator port map(
         clock               => clock,
-        reset               => reset_n,
+        reset_n             => reset_n,
         vnir_img_header     => vnir_header,
         swir_img_header     => swir_header,
-        row_data            => ,
-        address             => ,
-        sdram_busy          => ,
-        mpu_memory_change   => ,
+        row_data            => row_frag,
+        address             => address,
+        next_row_req        => next_row_req,
+        sdram_busy          => sdram_busy,
         sdram_avalon_out    => sdram_avalon_out,
         sdram_avalon_in     => sdram_avalon_in
     );
@@ -210,6 +220,8 @@ begin
         vnir_img_header => swir_header,
         vnir_rows       => vnir_num_rows,
         swir_rows       => swir_num_rows,
-        sending_img     => 
+        img_config_done => img_config_done_i
     );
+
+    img_config_done <= img_config_done_i;
 end architecture;

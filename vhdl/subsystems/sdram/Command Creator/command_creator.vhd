@@ -38,9 +38,9 @@ entity command_creator is
 
         --Rows
         row_data            : in row_fragment_t;
-
-        --Addy
         address             : in sdram.address_t;
+        next_row_req        : out std_logic;
+        row_done            : in std_logic;
 
         -- Flags for MPU interaction
         sdram_busy          : out std_logic;
@@ -107,12 +107,12 @@ begin
         FIFODEPTH				=> 256,
         FIFODEPTH_LOG2 			=> 8,
         FIFOUSEMEMORY 			=> "ON"
-    );
+    )
     port map (
         clk 					=> clock,
         reset 					=> reset_n,
         control_fixed_location 	=> '0',
-        control_write_base 		=> address,
+        control_write_base 		=> std_logic_vector(address),
         control_write_length 	=> write_length,
         control_go 				=> input_loaded,
         control_done			=> write_done,

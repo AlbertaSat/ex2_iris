@@ -309,16 +309,16 @@ begin
                 when imaging =>
                     if (inc_flag = '1') then
                         case prev_row_type is
-                            when nir_row => inc_nir_address <= '1';
-                            when red_row => inc_red_address <= '1';
-                            when blue_row => inc_blue_address <= '1';
-                            when swir_row => inc_swir_address <= '1';
-                            when no_row => null;
+                            when ROW_NIR => inc_nir_address <= '1';
+                            when ROW_RED => inc_red_address <= '1';
+                            when ROW_BLUE => inc_blue_address <= '1';
+                            when ROW_SWIR => inc_swir_address <= '1';
+                            when ROW_NONE => null;
                         end case;
                     end if;
             end case;
 
-            if (next_row_type /= no_row and next_row_req = '1') then
+            if (next_row_type /= ROW_NONE and next_row_req = '1') then
                 prev_row_type <= curr_row_type;
                 curr_row_type <= next_row_type;
             end if;
@@ -487,11 +487,11 @@ begin
     no_new_rows <= '1' when (next_blue_address = start_red_address and next_red_address = start_nir_address and next_nir_address = vnir_img_end and next_swir_address = swir_img_end) else '0';
 
     with curr_row_type select row_assign_address <=
-        next_swir_address when swir_row,
-        next_nir_address  when  nir_row,
-        next_red_address  when  red_row,
-        next_blue_address when blue_row,
-        UNDEFINED_ADDRESS when   no_row;
+        next_swir_address when ROW_SWIR,
+        next_nir_address  when  ROW_NIR,
+        next_red_address  when  ROW_RED,
+        next_blue_address when ROW_BLUE,
+        UNDEFINED_ADDRESS when ROW_NONE;
 
     img_config_address <= vnir_img_start when state = img_config_vnir else
                           swir_img_start when state = img_config_swir else
