@@ -23,7 +23,6 @@ component VNIR_ROW_FIFO
 		rdreq		: IN STD_LOGIC ;
 		wrreq		: IN STD_LOGIC ;
 		empty		: OUT STD_LOGIC ;
-		q		: OUT STD_LOGIC_VECTOR (127 DOWNTO 0);
-		usedw		: OUT STD_LOGIC_VECTOR (7 DOWNTO 0)
+		q		: OUT STD_LOGIC_VECTOR (127 DOWNTO 0)
 	);
 end component;

@@ -49,8 +49,7 @@ ENTITY VNIR_ROW_FIFO IS
 		rdreq		: IN STD_LOGIC ;
 		wrreq		: IN STD_LOGIC ;
 		empty		: OUT STD_LOGIC ;
-		q		: OUT STD_LOGIC_VECTOR (127 DOWNTO 0);
-		usedw		: OUT STD_LOGIC_VECTOR (7 DOWNTO 0)
+		q		: OUT STD_LOGIC_VECTOR (127 DOWNTO 0)
 	);
 END VNIR_ROW_FIFO;
 
@@ -59,7 +58,6 @@ ARCHITECTURE SYN OF vnir_row_fifo IS
 
 	SIGNAL sub_wire0	: STD_LOGIC ;
 	SIGNAL sub_wire1	: STD_LOGIC_VECTOR (127 DOWNTO 0);
-	SIGNAL sub_wire2	: STD_LOGIC_VECTOR (7 DOWNTO 0);
 
 
 
@@ -83,15 +81,13 @@ ARCHITECTURE SYN OF vnir_row_fifo IS
 			rdreq	: IN STD_LOGIC ;
 			wrreq	: IN STD_LOGIC ;
 			empty	: OUT STD_LOGIC ;
-			q	: OUT STD_LOGIC_VECTOR (127 DOWNTO 0);
-			usedw	: OUT STD_LOGIC_VECTOR (7 DOWNTO 0)
+			q	: OUT STD_LOGIC_VECTOR (127 DOWNTO 0)
 	);
 	END COMPONENT;
 
 BEGIN
 	empty    <= sub_wire0;
 	q    <= sub_wire1(127 DOWNTO 0);
-	usedw    <= sub_wire2(7 DOWNTO 0);
 
 	scfifo_component : scfifo
 	GENERIC MAP (
@@ -113,8 +109,7 @@ BEGIN
 		rdreq => rdreq,
 		wrreq => wrreq,
 		empty => sub_wire0,
-		q => sub_wire1,
-		usedw => sub_wire2
+		q => sub_wire1
 	);
 
 
@@ -140,9 +135,9 @@ END SYN;
 -- Retrieval info: PRIVATE: OVERFLOW_CHECKING NUMERIC "0"
 -- Retrieval info: PRIVATE: Optimize NUMERIC "0"
 -- Retrieval info: PRIVATE: RAM_BLOCK_TYPE NUMERIC "0"
--- Retrieval info: PRIVATE: SYNTH_WRAPPER_GEN_POSTFIX STRING "0"
+-- Retrieval info: PRIVATE: SYNTH_WRAPPER_GEN_POSTFIX STRING "1"
 -- Retrieval info: PRIVATE: UNDERFLOW_CHECKING NUMERIC "0"
--- Retrieval info: PRIVATE: UsedW NUMERIC "1"
+-- Retrieval info: PRIVATE: UsedW NUMERIC "0"
 -- Retrieval info: PRIVATE: Width NUMERIC "128"
 -- Retrieval info: PRIVATE: dc_aclr NUMERIC "0"
 -- Retrieval info: PRIVATE: diff_widths NUMERIC "0"
@@ -173,7 +168,6 @@ END SYN;
 -- Retrieval info: USED_PORT: empty 0 0 0 0 OUTPUT NODEFVAL "empty"
 -- Retrieval info: USED_PORT: q 0 0 128 0 OUTPUT NODEFVAL "q[127..0]"
 -- Retrieval info: USED_PORT: rdreq 0 0 0 0 INPUT NODEFVAL "rdreq"
--- Retrieval info: USED_PORT: usedw 0 0 8 0 OUTPUT NODEFVAL "usedw[7..0]"
 -- Retrieval info: USED_PORT: wrreq 0 0 0 0 INPUT NODEFVAL "wrreq"
 -- Retrieval info: CONNECT: @aclr 0 0 0 0 aclr 0 0 0 0
 -- Retrieval info: CONNECT: @clock 0 0 0 0 clock 0 0 0 0
@@ -182,10 +176,10 @@ END SYN;
 -- Retrieval info: CONNECT: @wrreq 0 0 0 0 wrreq 0 0 0 0
 -- Retrieval info: CONNECT: empty 0 0 0 0 @empty 0 0 0 0
 -- Retrieval info: CONNECT: q 0 0 128 0 @q 0 0 128 0
--- Retrieval info: CONNECT: usedw 0 0 8 0 @usedw 0 0 8 0
 -- Retrieval info: GEN_FILE: TYPE_NORMAL VNIR_ROW_FIFO.vhd TRUE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL VNIR_ROW_FIFO.inc FALSE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL VNIR_ROW_FIFO.cmp TRUE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL VNIR_ROW_FIFO.bsf TRUE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL VNIR_ROW_FIFO_inst.vhd TRUE
+-- Retrieval info: GEN_FILE: TYPE_NORMAL VNIR_ROW_FIFO_syn.v TRUE
 -- Retrieval info: LIB_FILE: altera_mf

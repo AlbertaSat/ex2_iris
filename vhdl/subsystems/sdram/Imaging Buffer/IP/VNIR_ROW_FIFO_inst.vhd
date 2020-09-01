@@ -5,6 +5,5 @@ VNIR_ROW_FIFO_inst : VNIR_ROW_FIFO PORT MAP (
 		rdreq	 => rdreq_sig,
 		wrreq	 => wrreq_sig,
 		empty	 => empty_sig,
-		q	 => q_sig,
-		usedw	 => usedw_sig
+		q	 => q_sig
 	);
