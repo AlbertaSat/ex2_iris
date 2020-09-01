@@ -70,8 +70,7 @@ architecture rtl of imaging_buffer is
         rdreq		: in std_logic;
         wrreq		: in std_logic;
         empty		: out std_logic;
-        q		    : out std_logic_vector (127 downto 0);
-        usedw       : out std_logic_vector(7 downto 0));
+        q		    : out std_logic_vector (127 downto 0));
     end component VNIR_ROW_FIFO;
 
     signal fifo_clear           : std_logic;
@@ -107,8 +106,6 @@ architecture rtl of imaging_buffer is
     signal vnir_link_rdreq      : std_logic_vector(0 to NUM_VNIR_ROW_FIFO-1);
     signal vnir_link_wrreq      : std_logic_vector(0 to NUM_VNIR_ROW_FIFO-1);
     signal vnir_fifo_empty      : std_logic_vector(0 to NUM_VNIR_ROW_FIFO-1);
-    signal vnir_fifo_usedw      : vnir_fifo_usedw_a;
-    signal vnir_fifo_full       : std_logic_vector(0 to NUM_VNIR_ROW_FIFO-1);
     signal vnir_link_in         : vnir_link_a;
     signal vnir_link_out        : vnir_link_a;
 
@@ -126,8 +123,7 @@ begin
             rdreq   => vnir_link_rdreq(i),
             wrreq   => vnir_link_wrreq(i),
             empty   => vnir_fifo_empty(i),
-            q       => vnir_link_out(i),
-            usedw   => vnir_fifo_usedw(i)
+            q       => vnir_link_out(i)
         );
     end generate VNIR_FIFO_GEN;
 
@@ -143,18 +139,6 @@ begin
             q       => swir_link_out(i)
         );
     end generate SWIR_FIFO_GEN;
-
-    --Process for hooking up usedw to full signals
-    vnir_full : process (vnir_fifo_usedw) is
-    begin
-        for i in 0 to NUM_VNIR_ROW_FIFO-1 loop
-            if (vnir_fifo_usedw(i) = std_logic_vector(to_unsigned(VNIR_FIFO_DEPTH, 8))) then
-                vnir_fifo_full(i) <= '1';
-            else
-                vnir_fifo_full(i) <= '0';
-            end if;
-        end loop;
-    end process;
 
     pipeline : process (reset_n, clock) is
         variable vnir_output_index  : integer := 0;
@@ -293,7 +277,7 @@ begin
                     vnir_link_rdreq(vnir_output_index) <= '0';
                     num_store_vnir_rows <= num_store_vnir_rows - 1;
                     transmitting_i <= '0';
-                    
+
                 elsif (swir_fifo_empty(swir_output_index) = '1') then
                     swir_link_rdreq(swir_output_index) <= '0';
                     num_store_swir_rows <= num_store_swir_rows - 1;

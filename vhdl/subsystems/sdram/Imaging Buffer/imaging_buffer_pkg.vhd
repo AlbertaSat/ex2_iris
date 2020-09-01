@@ -42,8 +42,6 @@ package img_buffer_pkg is
     type vnir_row_fragment_a is array (0 to VNIR_FIFO_DEPTH-1) of row_fragment_t;
     type swir_row_fragment_a is array (0 to SWIR_FIFO_DEPTH-1) of row_fragment_t;
 
-    type vnir_fifo_usedw_a is array (0 to NUM_VNIR_ROW_FIFO-1) of std_logic_vector(7 downto 0);
-
     type row_type_buffer_a is array (0 to NUM_VNIR_ROW_FIFO-1) of vnir.row_type_t;
 
     
