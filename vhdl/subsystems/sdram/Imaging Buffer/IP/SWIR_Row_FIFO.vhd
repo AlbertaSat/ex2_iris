@@ -140,7 +140,7 @@ END SYN;
 -- Retrieval info: PRIVATE: OVERFLOW_CHECKING NUMERIC "0"
 -- Retrieval info: PRIVATE: Optimize NUMERIC "0"
 -- Retrieval info: PRIVATE: RAM_BLOCK_TYPE NUMERIC "0"
--- Retrieval info: PRIVATE: SYNTH_WRAPPER_GEN_POSTFIX STRING "0"
+-- Retrieval info: PRIVATE: SYNTH_WRAPPER_GEN_POSTFIX STRING "1"
 -- Retrieval info: PRIVATE: UNDERFLOW_CHECKING NUMERIC "0"
 -- Retrieval info: PRIVATE: UsedW NUMERIC "0"
 -- Retrieval info: PRIVATE: Width NUMERIC "128"
@@ -188,4 +188,5 @@ END SYN;
 -- Retrieval info: GEN_FILE: TYPE_NORMAL SWIR_Row_FIFO.cmp TRUE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL SWIR_Row_FIFO.bsf TRUE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL SWIR_Row_FIFO_inst.vhd TRUE
+-- Retrieval info: GEN_FILE: TYPE_NORMAL SWIR_Row_FIFO_syn.v TRUE
 -- Retrieval info: LIB_FILE: altera_mf
