@@ -18,10 +18,12 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+use work.vnir;
+
 package sdram is
     --An SDRAM Address is a 29 bit signed, any negative addresses are invalid
     constant ADDRESS_LENGTH : integer := 29;
-    constant HEADER_LENGTH  : integer := 160;
+    constant HEADER_LENGTH  : integer := 128;
 
     --Creating the address type, a signed that shows a invalid address if negative
     subtype address_t is signed (ADDRESS_LENGTH-1 downto 0);
@@ -35,7 +37,7 @@ package sdram is
     
     --Enumerators for both the errors and row types
     type error_t is (no_error, full, mpu_check_failed);
-    type row_type_t is (no_row, blue_row, red_row, nir_row, swir_row);
+    type row_type_t is (ROW_NONE, ROW_BLUE, ROW_RED, ROW_NIR, ROW_SWIR);
 
     type config_to_sdram_t is record
         memory_base     : address_t;
@@ -55,4 +57,22 @@ package sdram is
         vnir_temp   : partition_t;
         swir_temp   : partition_t;
     end record memory_state_t;
+
+    function sdram_type (row_type : in vnir.row_type_t) return row_type_t;
 end package sdram;
+
+package body sdram is
+    function sdram_type (row_type : in vnir.row_type_t) return row_type_t is
+    begin
+        case row_type is
+            when vnir.ROW_RED =>
+                return ROW_RED;
+            when vnir.ROW_BLUE =>
+                return ROW_BLUE;
+            when vnir.ROW_NIR =>
+                return ROW_NIR;
+            when vnir.ROW_NONE =>
+                return ROW_NONE;
+        end case;
+    end function;
+end package body;
