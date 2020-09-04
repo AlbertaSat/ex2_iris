@@ -14,10 +14,13 @@
 -- limitations under the License.
 ----------------------------------------------------------------
 
+-- Contains various utility types used elsewhere
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+-- Avalon interface types
 package avalonmm_types is
 
     type avalonmm_write_from_master_t is record
@@ -76,7 +79,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-
+-- SPI interface types
 package spi_types is
 
     type spi_from_master_t is record
@@ -101,6 +104,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+-- Utility types for more easily dealing with `std_logic_vector`
 package logic_types is
 
     subtype logic1_t is std_logic_vector(1-1 downto 0);
@@ -126,6 +130,8 @@ package logic_types is
     pure function to_logic15(i : integer) return logic15_t;
     pure function to_logic16(i : integer) return logic16_t;
 
+    -- Returns true if `flags` has a bit set to '1' that matches the
+    -- '1' bit in `flag`
     pure function bitwise_contains(flags : std_logic_vector; flag : std_logic_vector) return boolean;
 
 end package logic_types;
@@ -203,6 +209,7 @@ use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
 
 
+-- Utility types and functions for more easily working with integers
 package integer_types is
 
     type integer_vector_t is array(integer range <>) of integer;
@@ -320,58 +327,3 @@ package body integer_types is
     end function is_power_of_2;
 
 end package body integer_types;
-
-
-
-library ieee;
-use ieee.numeric_std.all;
-use ieee.std_logic_1164.all;
-use ieee.math_real.all;
-
-package unsigned_types is
-
-    subtype u64 is unsigned(63 downto 0);
-
-    pure function to_u64(bits : std_logic_vector) return u64;
-    pure function to_u64(u : unsigned) return u64;
-    pure function to_u64(i : integer) return u64;
-    pure function to_u64(r : real) return u64;
-    pure function to_unsigned(u : u64; bits : integer) return unsigned;
-
-end package unsigned_types;
-
-
-library ieee;
-use ieee.numeric_std.all;
-use ieee.std_logic_1164.all;
-use ieee.math_real.all;
-
-
-package body unsigned_types is
-
-    pure function to_u64(bits : std_logic_vector) return u64 is
-    begin
-        return to_u64(unsigned(bits));
-    end function to_u64;
-
-    pure function to_u64(u : unsigned) return u64 is
-    begin
-        return u64(resize(u, 64));
-    end function to_u64;
-
-    pure function to_u64(i : integer) return u64 is
-    begin
-        return u64(to_unsigned(i, 64));
-    end function to_u64;
-
-    pure function to_u64(r : real) return u64 is
-    begin
-        return to_u64(to_unsigned(natural(r), 64));
-    end function to_u64;
-
-    pure function to_unsigned(u : u64; bits : integer) return unsigned is
-    begin
-        return resize(unsigned(u), bits);
-    end function to_unsigned;
-
-end package body unsigned_types;
