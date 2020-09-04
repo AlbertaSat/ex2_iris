@@ -81,13 +81,14 @@ begin
                     when x"00" => config.length          <= read_integer(avs_writedata);
                     when x"01" => config.frame_clocks    <= read_integer(avs_writedata);
                     when x"02" => config.exposure_clocks <= read_integer(avs_writedata);
-                    when x"03" => do_imaging             <= '1';
+                    when x"03" => start_config           <= '1';
+                    when x"04" => do_imaging             <= '1';
                     when others =>
                 end case;
             elsif avs_read = '1' then
                 case avs_address is
-                    when x"03" => avs_readdata <= to_l32(config_done_reg);  config_done_irq  := '0';
-                    when x"04" => avs_readdata <= to_l32(imaging_done_reg); imaging_done_irq := '0';
+                    when x"05" => avs_readdata <= to_l32(config_done_reg);  config_done_irq  := '0';
+                    when x"06" => avs_readdata <= to_l32(imaging_done_reg); imaging_done_irq := '0';
                     when others =>
                 end case;
             end if;
