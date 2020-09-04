@@ -34,45 +34,61 @@
 --		until the module is reset.
 --		Inspiration was taken from AMS tsc_mv1_rx.vhd
 --
+--		NOTE: There are 3 different clock domains used within this code:
+--			* The main system clock (~50 MHz) (system_clock):
+--				system_reset, cmd_start_align
+--			* The recovered parallel data clock (~48 MHz) (lvds_parallel_clock):
+--				word_alignment_error, pll_locked, alignment_done, 
+--				lvds_parallel_data
+--			* The serial LVDS clock (~240 MHz) (lvds_clock_in):
+--				lvds_data_in [DDR], lvds_ctrl_in [DDR]
+--
 --	@attention
 --		NOTE: Channel word alignment must be performed when the VNIR
 --		is idle so that known training patterns appear on the data
---		and control channels
+--		and control channels.
 --
 --	@param[in] NUM_CHANNELS
---		Number of data channels from VNIR to FPGA
+--		Number of data channels from VNIR to FPGA.
+--	@param[in] DATA_TRAINING_PATTERN
+--		Known pattern sent by the VNIR for conducting word alignment.
 --
 --	@param[in] system_clock
---		Main system clock
+--		Main system clock.
 --	@param[in] system_reset
---		Main system synchronous reset
+--		Main system synchronous reset.
 --
---	@param[in]] lvds_signal_in
---		Serial LVDS signals from the VNIR data and control channels
+--	@param[in] lvds_data_in
+--		Serial LVDS signals from the VNIR data channels.
+--	@param[in] lvds_ctrl_in
+--		Serial LVDS signal from the VNIR control channel.
 --	@param[in] lvds_clock_in
---		VNIR LVDS clock signal, synchronous to incoming data
+--		LVDS clock signal from VNIR, synchronous to incoming data.
 --
---`	@param[in] cmd_align_channel
+--`	@param[in] cmd_start_align
 --		Pulse HIGH to initiate word alignment on the data and control
---		channels
+--		channels.
 --	@param[out] alignment_done
 --		Pulsed HIGH to indicate that word alignment has been completed
+--		successfully.
 --
 --	@param[out] word_alignment_error
 --		Held HIGH to indicate that the correct word boundaries could
---		not be found on channel undergoing alignment
---		NOTE: This signal remains HIGH until the component is reset
+--		not be found on channel undergoing alignment.
+--		NOTE: This signal remains HIGH until the component is reset.
 --	@param[out] pll_locked
 --		Held HIGH when the PLL in the ALTLVDS_RX IP is locked to the
---		lvds_clock_in clock signal
+--		lvds_clock_in clock signal.
 --		NOTE: When LOW, the values presented at data_par_{00:15} and
 --		ctrl_par will not be valid until approximately 3 parallel 
---		clock cycles after pll_locked returns to HIGH
+--		clock cycles after pll_locked returns to HIGH.
 --
---	@param[out] data_par_{00:15}
---		Parallelized 10-bit output values from the VNIR data channels
---	@param[out] ctrl_par
---		Parallelized 10-bit value from the VNIR control channel
+--	@param[out] lvds_parallel_clock
+--		Recovered clock which is synchronous to the parallel output data
+--		at lvds_parallel_data.
+--	@param[out] lvds_parallel_data
+--		Array containing the parallelized 10-bit output values from the 
+--		VNIR data and control channels.
 --
 ----------------------------------------------------------------
 
@@ -90,27 +106,27 @@ entity lvds_reader_top is
 	);
 	port(
 		-- main system clock and reset
-		system_clock		: in std_logic;
-		system_reset		: in std_logic;
+		system_clock			: in std_logic;
+		system_reset			: in std_logic;
 		
-		-- Input from LVDS data and clock pins
-		lvds_data_in		: in std_logic_vector(NUM_CHANNELS-1 downto 0);
-		lvds_ctrl_in		: in std_logic;
-		lvds_clock_in		: in std_logic;
+		-- Input from LVDS data, control, and clock pins
+		lvds_data_in			: in std_logic_vector(NUM_CHANNELS-1 downto 0);
+		lvds_ctrl_in			: in std_logic;
+		lvds_clock_in			: in std_logic;
 		
 		-- Word alignment signals
-		alignment_done		: out std_logic;
-		cmd_start_align		: in  std_logic;
+		alignment_done			: out std_logic;
+		cmd_start_align			: in  std_logic;
 		
 		-- Status signals
 		word_alignment_error	: out std_logic;
 		pll_locked				: out std_logic;
 		
 		-- Output parallel LVDS clock
-		lvds_parallel_clock	: out std_logic;
+		lvds_parallel_clock		: out std_logic;
 		
 		-- parallelized output data
-		lvds_parallel_data	: out t_lvds_data_array(NUM_CHANNELS downto 0)(9 downto 0)
+		lvds_parallel_data		: out t_lvds_data_array(NUM_CHANNELS downto 0)(9 downto 0)
 	);
 end entity lvds_reader_top;
 
@@ -124,7 +140,7 @@ architecture rtl of lvds_reader_top is
 	signal i_lvds_parallel_clock	: std_logic_vector (NUM_CHANNELS downto 0);
 	
 	-- Signals align_channel_process to perform word alignment on selected channel
-	signal align_channel			: std_logic;
+	signal align_channel	: std_logic;
 	
 	-- Finite state machine states for main process
 	type t_main_process_FSM is (s_IDLE, s_START_ALIGN, s_ALIGN);
@@ -138,27 +154,55 @@ architecture rtl of lvds_reader_top is
 	signal current_data 	: std_logic_vector (9 downto 0);
 	signal alignment_word 	: std_logic_vector (9 downto 0);
 	
+	-- Signals to track if the PLL loses lock
+	signal pll_lost_lock_1	: std_logic;
+	signal pll_lost_lock_2	: std_logic;
+	
 	-- Indicates alignment for channel has completed
 	signal channel_done		: std_logic;
 	
 	-- FSM for individual channel alignment
 	type t_alignment_FSM is (s_IDLE, s_CHECKVALUE, s_WAIT);
-	signal alignment_FSM : t_alignment_FSM;
+	signal alignment_FSM 	: t_alignment_FSM;
 	
 	-- Counter to wait for bitslip to take effect
 	subtype t_counter is integer range 3 downto 0;
-	signal counter : t_counter;
+	signal counter 			: t_counter;
+	
+	-- Signals to track rollover of the bitslip counter
+	-- NOTE: Resetting ALTLVDS_RX does not reset the bitslip counter
+	-- 	which may result in a false word alignment error
+	signal bitslip_rollover		: std_logic;
+	signal lvds_cda_max_prev	: std_logic;
 	
 	-- Array to hold data from SERDES
-	--type t_lvds_data_array is array (NUM_CHANNELS downto 0) of
-							--std_logic_vector (9 downto 0);
-	signal lvds_data_array : t_lvds_data_array(NUM_CHANNELS downto 0)(9 downto 0);
+	signal lvds_data_array 	: t_lvds_data_array(NUM_CHANNELS downto 0)(9 downto 0);
 	
 	-- Basically a constant to check that all pll_locked signals are HIGH because Quartus 
 	-- can't handle unary AND operations :(
 	constant check_pll_locked : std_logic_vector (NUM_CHANNELS downto 0) := (others => '1');
-
-	-- Component instantiation for ALTLVDS_RX IP
+	
+	-----------------------------------------------------------------
+	-- 	Component instantiation for ALTLVDS_RX IP
+	--		https://www.intel.com/content/dam/www/programmable/us/en/pdfs/literature/ug/ug_altlvds.pdf
+	--
+	--	LVDS input buffer and deserializer IP.
+	--
+	--	pll_areset: asynchronous reset
+	--	rx_channel_data_align: pulse HIGH to shift the word boundary
+	--		by one bit.
+	--	rx_in: serial LVDS signal input
+	--	rx_inclock: LVDS input clock which is synchronous to the
+	--		data at rx_in.
+	--	rx_cda_max: indicates that the internal bitslip counter has
+	--		rolled-over back to 0.
+	--	rx_locked: Stays HIGH to indicate that the internal PLL has 
+	--		locked on to rx_inclock
+	--	rx_out: parallelized output of the serial LVDS signal.
+	--	rx_outclock: Recovered parallel output clock from the PLL.
+	--		Synchronous to the data at rx_out.
+	-- 
+	-----------------------------------------------------------------
 	component lvds_reader_ip is
 	port
 	(
@@ -231,16 +275,21 @@ begin
 			alignment_word		 <= (others => '0');
 			current_data		 <= (others => '0');
 			lvds_pll_reset		 <= '1';
+			pll_lost_lock_1		 <= '0';
 			
 		else
 			-- Outside rising_edge elsewise PLL never exits reset
 			lvds_pll_reset	<= '0';
 			
 			-- If PLL loses lock, stop alignment
-			-- Outside of rising_edge since lvds_clock_output might stop
-			-- if (pll_locked_extended /= check_pll_locked) then
-				-- main_process_FSM <= s_IDLE;
-			-- end if;
+			-- Outside of rising_edge since lvds_clock_output might stop			
+			if (main_process_FSM = s_IDLE) then
+				pll_lost_lock_1 <= '0';
+			else
+				if (pll_locked_extended /= check_pll_locked) then
+					pll_lost_lock_1 <= '1';
+				end if;
+			end if;
 		
 			if rising_edge(i_lvds_parallel_clock(0)) then
 			
@@ -280,12 +329,16 @@ begin
 				if (channel_select = NUM_CHANNELS) then
 					alignment_word		<= (9 => '1', others => '0');
 				else
-					--alignment_word		<= "0001010101";
-					alignment_word		<= DATA_TRAINING_PATTERN;
+					alignment_word		<= DATA_TRAINING_PATTERN;  -- Default is "0001010101"
 				end if;
 				
 				-- If error in finding word boundary
-				if (lvds_cda_max(channel_select) = '1') then
+				if ((lvds_cda_max(channel_select) = '1') and (bitslip_rollover = '1')) then
+					main_process_FSM <= s_IDLE;
+				end if;
+				
+				-- If the PLL loses lock, stop alignment
+				if (pll_lost_lock_1 = '1') then
 					main_process_FSM <= s_IDLE;
 				end if;
 					
@@ -301,18 +354,24 @@ begin
 		if (system_reset = '1') then
 			
 			-- Set signals to default values
-			lvds_bitslip 	<= (others => '0');
-			channel_done	<= '0';
-			alignment_FSM	<= s_IDLE;
-			counter			<= 3;
-			word_alignment_error <= '0';
+			lvds_bitslip 			<= (others => '0');
+			channel_done			<= '0';
+			alignment_FSM			<= s_IDLE;
+			counter					<= 3;
+			word_alignment_error 	<= '0';
+			pll_lost_lock_2			<= '0';
+			bitslip_rollover		<= '0';
 			
 		else
 			-- If PLL loses lock, stop alignment
 			-- Outside of rising_edge since lvds_clock_output might stop
-			-- if (pll_locked_extended /= check_pll_locked) then
-				-- alignment_FSM <= s_IDLE;
-			-- end if;
+			if (alignment_FSM = s_IDLE) then
+				pll_lost_lock_2 <= '0';
+			else
+				if (pll_locked_extended /= check_pll_locked) then
+					pll_lost_lock_2 <= '1';
+				end if;
+			end if;
 		
 		
 			if rising_edge(i_lvds_parallel_clock(0)) then
@@ -325,38 +384,55 @@ begin
 				case alignment_FSM is
 					when s_IDLE =>
 						if (align_channel = '1') then
-							alignment_FSM <= s_CHECKVALUE;						
+							alignment_FSM 		<= s_CHECKVALUE;	
+							bitslip_rollover	<= '0';
 						end if;
 						
 						
 					when s_CHECKVALUE =>
 						-- Compare the received value with the expected one
 						if (current_data = alignment_word) then
-							alignment_FSM <= s_IDLE;
-							channel_done <= '1';
+							alignment_FSM 	<= s_IDLE;
+							channel_done 	<= '1';
 						else
 							-- perform bitslip to match word boundary
 							lvds_bitslip(channel_select) <= '1';
-							alignment_FSM <= s_WAIT;
-							counter <= 3;
+							alignment_FSM 	<= s_WAIT;
+							counter 		<= 3;
 						end if;
 					
 					
 					when s_WAIT =>
-						-- If module fails to find correct word boundary
-						if (lvds_cda_max(channel_select) = '1') then
-							word_alignment_error <= '1';
-							alignment_FSM        <= s_IDLE;				
+					
+						-- Wait for change to take effect
+						if (counter = 0) then
+							alignment_FSM <= s_CHECKVALUE;
 						else
-							-- Wait for change to take effect
-							if (counter = 0) then
-								alignment_FSM <= s_CHECKVALUE;
-							else
-								counter <= counter - 1;
-							end if;	
+							counter <= counter - 1;
+						end if;
+					
+						-- If module fails to find correct word boundary
+						if ((lvds_cda_max(channel_select) = '1') and (bitslip_rollover = '1'))then
+							-- Allow the CDA counter to rollover twice before 
+							--flagging error since the counter can't be reset
+							word_alignment_error 	<= '1';
+							alignment_FSM        	<= s_IDLE;	
+							bitslip_rollover		<= '0';
+							
+						-- Detect falling edge of lvds_cda_max for first bitslip rollover
+						elsif ((lvds_cda_max(channel_select) = '0') and (lvds_cda_max_prev = '1')) then
+							bitslip_rollover	<= '1';						
 						end if;
 						
 				end case;
+				
+				if (pll_lost_lock_2 = '1') then
+					alignment_FSM 	<= s_IDLE;
+				end if;
+							
+				
+				lvds_cda_max_prev <= lvds_cda_max(channel_select);
+				
 					
 			end if;
 		end if;
@@ -364,17 +440,3 @@ begin
 
 
 end architecture rtl;
-
-
-
-
-
-
-
-
-
-
-
-
-
-

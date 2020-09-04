@@ -98,6 +98,9 @@ begin
 		lvds_data_in	<= (others => trainingPattern_data(trainingPatternIndex));
 		lvds_ctrl_in	<= trainingPattern_ctrl(trainingPatternIndex);
 		
+		-- Provide wrong data to pin to test word alignment error
+		lvds_data_in(3) <= '0';
+		
 		-- Select next digit in training pattern
 		if(trainingPatternIndex = 9) then
 			trainingPatternIndex := 0;
@@ -123,15 +126,31 @@ begin
 		wait for 42 ns;
 		cmd_start_align <= '0';
 		
-		-- -- Turn off clock so PLL loses lock
-		-- wait for 500 ns;
-		-- clock_enable <= '0';
-		-- wait until pll_locked = '0';
-		-- wait for 100 ns;
-		-- clock_enable <= '1';
-		-- wait until pll_locked = '1';
-		-- wait for 100 ns;
-		-- wait;
+		-- Turn off clock so PLL loses lock
+		wait for 1000 ns;
+		clock_enable <= '0';
+		wait until pll_locked = '0';
+		wait for 100 ns;
+		clock_enable <= '1';
+		wait until pll_locked = '1';
+		wait for 1000 ns;
+		
+		-- Restart alignment
+		cmd_start_align <= '1';
+		wait for 42 ns;
+		cmd_start_align <= '0';
+		
+		-- Reset after receiving word alignment error
+		wait until word_alignment_error = '1';
+		wait for 200 ns;
+		system_reset <= '1';
+		wait for 84 ns;
+		system_reset <= '0';
+		-- Wait until PLL regains lock and restart alignment
+		wait until (pll_locked = '1');
+		cmd_start_align <= '1';
+		wait for 42 ns;
+		cmd_start_align <= '0';
 		
 		wait until (alignment_done = '1');
 		wait;
