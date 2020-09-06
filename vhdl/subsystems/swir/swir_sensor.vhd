@@ -15,8 +15,11 @@
 ----------------------------------------------------------------
 
 -- TODO: Voltage signal
--- Bound integers
+-- Upper bound for counter vector and integration time input
 -- Ensure integration time > 5 clock cycles
+-- Reset signal
+
+-- PROBLEM: Before subsystem reset signal is stable, swir reset may be high (must be kept low)
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -28,7 +31,7 @@ entity swir_sensor is
         clock_swir      	: in std_logic;
         reset_n         	: in std_logic;
         
-        integration_time    : in integer;	-- Integration time of SWIR sensor, in clock cycles of swir clock
+        integration_time    : in unsigned(6 downto 0);	-- Integration time of SWIR sensor, in clock cycles of swir clock
 		
 		ce					: in std_logic; -- Conversion efficiency: 0 (low) or 1 (high)
 		do_imaging      	: in std_logic;
@@ -41,7 +44,7 @@ entity swir_sensor is
         sensor_reset_even   : out std_logic;
 		sensor_reset_odd    : out std_logic;
 		Cf_select1			: out std_logic;
-		Cf_select1			: out std_logic;
+		Cf_select2			: out std_logic;
 		AD_sp_even			: in std_logic;
 		AD_sp_odd			: in std_logic;
 		AD_trig_even		: in std_logic;
@@ -51,14 +54,14 @@ end entity swir_sensor;
 
 architecture main of swir_sensor is
 
-	signal reset_counter						: integer;
+	signal reset_counter						: unsigned(6 downto 0);
 	signal reset_n_local						: std_logic;
 	signal reset_n_metastable					: std_logic;
 	
 	signal do_imaging_metastable				: std_logic;
 	signal do_imaging_local						: std_logic;
 	
-	
+	signal sensor_reset							: std_logic;  -- Necessary because cannot read output
 
 begin
 	
@@ -82,31 +85,33 @@ begin
 	process(clock_swir) is
 	begin
 	
-		if (reset_n_local = '0' or do_imaging_local = '1') then
+		if (do_imaging_local = '1') then
 			reset_counter <= integration_time;
+			sensor_reset <= '0';
 			
 		elsif (rising_edge(clock_swir)) then
-			if (swir_reset /= 0) then
+			if (reset_counter /= 0) then
 				reset_counter <= reset_counter - 1;
-				sensor_reset_even <= '1';
+				sensor_reset <= '1';
 			else
-				sensor_reset_even <= '0';
-				reset_counter <= integration_time;
+				sensor_reset <= '0';
+				reset_counter <= (others=>'0');
 			end if;
 		end if;
 		
 	end process;
 	
 
-	sensor_clock_even <= clock_swir;
-	sensor_clock_odd <= not clock_swir;
+	sensor_clock_even 	<=	clock_swir;
+	sensor_clock_odd 	<=	not clock_swir;
 	
-	sensor_reset_odd <= not sensor_reset_even;
+	sensor_reset_even 	<=	sensor_reset;
+	sensor_reset_odd 	<=	not sensor_reset;
 	
-	adc_start <= '1' when AD_sp_even = '1' and AD_sp_odd = '0' else '0';
-	adc_trigger <= '1' when AD_trig_even = '1' and AD_trig_odd = '0' else '0';
+	adc_start 			<=	'1' when AD_sp_even = '1' and AD_sp_odd = '0' else '0';
+	adc_trigger 		<=	'1' when AD_trig_even = '1' and AD_trig_odd = '0' else '0';
 	
-	Cf_select1 <= '1';
-	Cf_select1 <= '1' when ce = 0 and reset_n_local = '1' else '0';
+	Cf_select1 			<=	'1';
+	Cf_select2 			<=	'1' when ce = '0' and reset_n_local = '1' else '0';
 
 end architecture main;

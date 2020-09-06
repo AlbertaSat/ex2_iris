@@ -18,25 +18,26 @@ end entity;
 
 architecture sim of tb_fpga is
 
-	constant ClockFrequency : integer := 50e6; -- 50 MHz
-	constant ClockPeriod : time := 1000 ms / ClockFrequency; -- 20 ns
+	constant ClockFrequency 		:	integer := 50e6; -- 50 MHz
+	constant ClockPeriod 			:	time := 1000 ms / ClockFrequency; -- 20 ns
+	
+	signal fpga_clock_internal		:	std_logic;
 	
 begin
 	
 	--process for generating the clock
-	fpga_clock <= not fpga_clock after ClockPeriod/2;
+	fpga_clock_internal <=	not fpga_clock_internal after ClockPeriod/2;
+	fpga_clock			<=	fpga_clock_internal;
 	
 	-- Testbench sequence
 	
 	process is
 	begin
-		
-		
 		-- After 40 ns, image for 2000 ns
 		wait for 40 ns;
-		do_imaging <= '1'
+		do_imaging <= '1';
 		wait for 2000 ns;
-		do_imaging <= '0'
+		do_imaging <= '0';
 
 		wait;
 	end process;
@@ -47,9 +48,9 @@ begin
 		-- Take the DUT out of reset
 		reset_n <= '1';
 		
-		wait for 1007 ns
+		wait for 1007 ns;
 		reset_n <= '0';
-		wait for 77 ns
+		wait for 77 ns;
 		reset_n <= '1';
 		
 		wait;

@@ -20,9 +20,11 @@ use ieee.numeric_std.all;
 
 package swir_types is
     type swir_config_t is record
-        start_config     : std_logic;
-        imaging_duration : integer;
-        fps              : integer;
+        start_config    : std_logic;
+        frame_clocks	: integer;
+        exposure_clocks : integer;
+		length			: integer;
+		config_done		: std_logic;
     end record swir_config_t;
 
     type swir_control_t is record
@@ -31,6 +33,6 @@ package swir_types is
 
     constant swir_pixel_bits : integer := 16;
     constant swir_row_width : integer := 512;
-    subtype swir_pixel_t is unsigned(0 to swir_pixel_bits-1);
-    type swir_row_t is array(0 to swir_row_width-1) of swir_pixel_t;
+    type swir_pixel_t is unsigned(0 to swir_pixel_bits-1);
+    -- type swir_row_t is array(0 to swir_row_width-1) of swir_pixel_t;
 end package swir_types;

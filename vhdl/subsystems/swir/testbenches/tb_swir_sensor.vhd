@@ -117,7 +117,7 @@ begin
 				
 			-- Set sensor to transmit data state for 256 cycles (1 cycle per pixel)
 			when transmitting =>
-				if data_count = (256 - 1) then
+				if data_count = (512 - 1) then
 					state_next			<=	idle;
 				else
 					data_count			<=	data_count + 1;

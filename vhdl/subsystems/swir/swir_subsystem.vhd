@@ -16,6 +16,9 @@
 
 -- TODO: Generate clocks
 
+-- Check stability time of sensor after powerup
+-- Link voltage and reset - dont want circuit going while no power
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -49,7 +52,7 @@ entity swir_subsystem is
         sensor_reset_even   : out std_logic;
 		sensor_reset_odd    : out std_logic;
 		Cf_select1			: out std_logic;
-		Cf_select1			: out std_logic;
+		Cf_select2			: out std_logic;
 		AD_sp_even			: in std_logic;
 		AD_sp_odd			: in std_logic;
 		AD_trig_even		: in std_logic;
@@ -160,7 +163,11 @@ begin
 
 	-- Stretch reset and do_imaging signal to pass into lower frequency SWIR domain
 	
-	-- 
+	-- Trigger signalling using config signals
+	
+	-- Set voltage
+	
+	-- Set reset of sensor
 	
 	
 end architecture rtl;
