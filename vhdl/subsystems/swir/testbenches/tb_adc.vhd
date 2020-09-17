@@ -7,12 +7,14 @@ use ieee.numeric_std.all;
 --					t(acq) >= 290 ns
 --					500 <= t(conv) <= 800 ns
 
+-- Note: get ModelSim error: Argument value -2147483648 is not in bounds of subtype NATURAL.
+
 entity tb_adc is
 	 port (
 		sdi				: in std_logic;
 		sck				: in std_logic;
 		cnv				: in std_logic;
-		sdo				: out std_logic		:= '0';
+		sdo				: out std_logic		:= '1';  -- default high impedance
 		
 		video_in		: in integer
     );
@@ -31,22 +33,20 @@ architecture sim of tb_adc is
 	type timing_array is array(0 to 99) of integer;
 	signal t_conv 				:	timing_array;
 	
-	type adc_state is (conversion, acquisition_interrupt, acquisition, idle, errors);
+	type adc_state is (conversion, acquisition, idle, errors);
 	signal state_reg, state_next:	adc_state	:= idle;
 	
-	constant ClockPeriod 		:	time := 1 ns;
+	constant ClockPeriod 		:	time := 2 ns;  -- ModelSim problems if a 1 ns clock is used
 	signal ns_clk 				:	std_logic := '1';
 	
 begin
 
 	ns_clk <= not ns_clk after ClockPeriod/2;	-- Clock to keep track of conversion and acquisition times
 	
-	
 	-- Process to assign state of main adc FSM
 	-- sck is used as FSM clock
 	process(sck, cnv) is
 	begin
-	
 		
 		if rising_edge(cnv) and sdi = '1' then
 			state_reg	<=	conversion;
@@ -55,6 +55,7 @@ begin
 			end if;
 		elsif rising_edge(cnv) and sdi = '0' then
 			state_reg	<= errors;
+			
 		elsif rising_edge(sck) then
 			state_reg	<= state_next;
 		end if;
@@ -62,10 +63,10 @@ begin
 	end process;
 	
 	
-	-- Main ADC Mealy FSM
+	-- Main ADC FSM
 	process(state_reg, cnv, sdi, sck, conversion_trigger) is
 	begin
-		state_next <= state_reg;
+		--state_next <= state_reg;
 		
 		case state_reg is 
 			when conversion =>
@@ -81,76 +82,80 @@ begin
 						conversion_counter <= conversion_counter + 1;
 					end if;
 					
-					state_next <= acquisition_interrupt;
+					sdo <= '0';  -- Output a low for one cycle (interrupt)
+					
+					state_next <= acquisition;
 					
 				-- cnv must remain high throughout conversion time, and sdi must be low at end of conversion time 
 				elsif cnv = '0' or (conversion_trigger = '1' and sdi = '1') then
+					data_counter <=	0;
+					sdo <= 'X';
+					report "sdi or cnv Error!" severity error;
+				
 					state_next <= errors;
 					
-				end if;
-			
-			-- Drive sdo low for one clk cycle (interrupt), and then move to outputting data state
-			when acquisition_interrupt =>
-				sdo <= '0';
-				
-				-- Ensure cnv is high throughout
-				if cnv = '1' then
-					state_next <= acquisition;
 				else
-					state_next <= errors;
+					state_next <= conversion;
+					
 				end if;
-				
-
+	
 			-- Data output state - output 16 bits
 			when acquisition =>
-				if data_counter = 16 then
+				if data_counter = 16 and rising_edge(sck) then					
 					state_next <= idle;
 					sdo <= '1';
+					
 				-- Although in reality data is valid on both rising and falling edges of sck,
 				--  circuit under test will be designed to only capture on falling edge for greater speed and simplicity
 				elsif cnv = '1' and rising_edge(sck) then
-					sdo <= data_out(data_counter);
+					sdo <= data_out(15 - data_counter);  -- output data in reverse order (MSB first)
 					data_counter <= data_counter + 1;
-				elsif cnv = '0' then
-					state_next <= errors;
+				
 				end if;
 			
 			-- Wait for another conversion initiation
 			when idle =>
 				data_counter <=	0;
-				sdo <= '1';
+
 			
 			-- A state to indicate incorrect value for sdi or cnv if 4 wire CS mode w/ busy indicator is desired
 			when errors =>  
-				data_counter <=	0;
-				sdo <= 'X';
-				report "sdi or cnv Error!" severity error;
+				null;
 				
 		end case;
 	end process;
 	
 	
-	-- Process to ensure acquisition time is not too short
+	-- Process to ensure count acquisition time in ns
 	process(ns_clk) is
 	begin
-		if rising_edge(ns_clk) then
-			if state_reg = acquisition then
+		if rising_edge(ns_clk) or falling_edge(ns_clk) then  -- Since clk period is 2 ns, scan on both rising and falling edges
+			if state_next = acquisition then
 				acq_timer <= acq_timer + 1;
 			end if;
 			
-			if data_counter = 16 then
-				assert acq_timer > 290 report "Hold Acquisition state for longer" severity error;
+			if state_reg /= acquisition  then
 				acq_timer <= 0;
 			end if;
 		end if;
 		
 	end process;
 	
+	-- Process to ensure acquisition time is not too short
+	process(sck) is
+	begin
+		if falling_edge(sck) then  -- data_counter = 16 and state = acquisition will be valid on one falling edge of sck (while state is transitioning)
+			if data_counter = 16 and state_reg = acquisition then
+				assert acq_timer > 290 report "Hold Acquisition state for longer" severity error;  -- 290 ns taken from ADC datasheet (min acquisition time)
+			end if;
+		end if;
+	end process;
+	
 	
 	-- Process to count conversion time
 	process(ns_clk) is
 	begin
-		if rising_edge(ns_clk) then
+		if rising_edge(ns_clk) or falling_edge(ns_clk) then
 			if state_reg = conversion then
 				conversion_timer <= conversion_timer + 1;
 			else
@@ -159,7 +164,7 @@ begin
 			
 			if conversion_timer = t_conv(conversion_counter) then
 				conversion_trigger <= '1';
-			else
+			elsif state_reg = acquisition then
 				conversion_trigger <= '0';
 			end if;
 		end if;

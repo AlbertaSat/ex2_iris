@@ -19,10 +19,13 @@
 -- Need to get ADC to sample on falling edge of clk
 -- Add clock domain crossing -> domain crossing from SWIR too!
 -- Ensure pull up resitor brings pins to high for cyclone v pins
--- Make sure output_done is high for enough
+-- Error: changing sdi after 1 clk cycle is too slow, unless adc_clock is at least 2 MHz
+-- Note: data received MSB first (reverse order)
 
 
 -- Circuit to control ADAQ7980 ADC, in 4-wire CS mode with busy indicator, with VIO above 1.7V
+
+-- Note: Should maintain one clock cycle of sck between conversion to allow for sdi to go high
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -83,7 +86,7 @@ architecture main of swir_adc is
 	end component;
 
 	-- State Machine signals
-	type adc_control_state is (idle, conversionStart, conversion, acquisitionStart, acquisition);
+	type adc_control_state is (idle, conversion, acquisition);
 	signal state_reg, state_next:	adc_control_state;
 	
 	-- FIFO Signals
@@ -105,7 +108,7 @@ begin
 
 	-- FIFO Information: 
 	-- 		1 bit wide input, 16 bit wide output
-	-- 		16384 words deep
+	-- 		128 words deep
 	-- 		Dual Clock
 	--		2 clock sync stages, good metastability protection, medium size, good fmax
 	--		empty (for read) and full (for write) signals
@@ -115,17 +118,17 @@ begin
 	adc_data_buffer : dcfifo_mixed_widths
 	generic map (
 		intended_device_family 		=> "cyclone v",
-		lpm_numwords 				=> 16384,
-		lpm_showahead				=> "off",
+		lpm_numwords 				=> 128,
+		lpm_showahead 				=> "off",
 		lpm_type 					=> "dcfifo_mixed_widths",
 		lpm_width 					=> 1,
-		lpm_widthu					=> 14,
-		lpm_widthu_r 				=> 10,
+		lpm_widthu 					=> 7,
+		lpm_widthu_r 				=> 3,
 		lpm_width_r 				=> 16,
 		overflow_checking 			=> "on",
 		rdsync_delaypipe 			=> 4,
 		underflow_checking 			=> "on",
-		use_eab						=> "on",
+		use_eab 					=> "on",
 		wrsync_delaypipe 			=> 4
 	)
 	port map (
@@ -164,7 +167,7 @@ begin
 	end process; 
 	
 	-- State machine next state logic
-	process(state_reg, sdo, adc_start_local, one_clock_cycle_passed, one_pixel_cycle_passed) 
+	process(state_reg, sdo, adc_start_local, one_pixel_cycle_passed) 
 	begin 
 		state_next <= state_reg; -- default state_next
 		-- default outputs
@@ -178,24 +181,11 @@ begin
 				readout <= '0';
 				if adc_start_local = '1' then -- Trigger to indicate beginning of data transmission
 					cnv <= '1';  -- Start a conversion with rising edge on cnv while sdi is high
-					state_next <= conversionStart; 
+					state_next <= conversion; 
 					
 				else -- Else stay idle
 					cnv <= '0';
 					state_next <= idle; 
-					
-				end if;
-				
-			when conversionStart => -- One clock cycle state to hold sdi for high before returning it low
-				cnv <= '1';
-				readout <= '0';
-				if one_clock_cycle_passed = '1' then
-					sdi <= '0';
-					state_next <= conversion; 
-					
-				else
-					sdi <= '1';
-					state_next <= conversionStart; 
 					
 				end if;
 				
@@ -204,38 +194,22 @@ begin
 				sdi <= '0';
 				readout <= '0';
 				if sdo = '0' then
-					state_next <= acquisitionStart; 
+					state_next <= acquisition; 
 					
 				else
 					state_next <= conversion; 
 					
 				end if;
 				
-			when acquisitionStart => -- Start of acquisition; one clock cycle state where interrupt is held before data is outputted
-				cnv <= '1';
+			when acquisition =>  -- Main acquisition state for data being outputted; Held for 17 clock cycles (one pixel length + inital interrupt cycle)
 				sdi <= '0';
-				if one_clock_cycle_passed = '1' then
-					readout <= '1';
-					state_next <= acquisition; 
-					
-				else
-					state_next <= acquisitionStart; 
-					
-				end if;
-			
-			when acquisition =>  -- Main acquisition state for data being outputted; Held for 16 clock cycles (one pixel length)
+				readout <= '1';
 				if one_pixel_cycle_passed = '1' then
 					cnv <= '0';
-					sdi <= '1';
-					readout <= '0';
-
 					state_next <= idle;
 					
 				else
 					cnv <= '1';
-					sdi <= '0';
-					readout <= '1';
-					
 					state_next <= acquisition; 
 					
 				end if;
@@ -271,11 +245,10 @@ begin
 	end process;
 	
 	-- To control how long certain states are held for
-	one_clock_cycle_passed <= '1' when timer = 1 else '0';
 	one_pixel_cycle_passed <= '1' when timer = 16 else '0';
 	
 	-- Indicate that ADC has outputted all data
-	output_done <= '1' when one_clock_cycle_passed = '1' and readout = '1' else '0';
+	output_done <= '1' when one_pixel_cycle_passed = '1' and readout = '1' else '0';
 	
 	-- FIFO write request signal; Ensure that FIFO is not full first
 	fifo_wrreq <= '1' when readout = '1' and fifo_wrfull = '0' else '0';  

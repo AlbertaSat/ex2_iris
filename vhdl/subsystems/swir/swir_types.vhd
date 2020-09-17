@@ -33,6 +33,5 @@ package swir_types is
 
     constant swir_pixel_bits : integer := 16;
     constant swir_row_width : integer := 512;
-    type swir_pixel_t is unsigned(0 to swir_pixel_bits-1);
-    -- type swir_row_t is array(0 to swir_row_width-1) of swir_pixel_t;
+    type swir_pixel_t is array(0 to swir_pixel_bits-1) of std_logic;
 end package swir_types;
