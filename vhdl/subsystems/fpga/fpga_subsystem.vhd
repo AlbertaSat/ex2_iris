@@ -20,7 +20,7 @@ use ieee.numeric_std.all;
 
 use work.vnir;  -- Gives outputs to the VNIR subsystem
 use work.swir_types.all;  -- Gives outputs from SWIR subsystem
-use work.sdram_types.all;  -- Gives outptu to sdram subsystem
+use work.sdram;  -- Gives output to sdram subsystem
 use work.fpga_types.all;  -- For timestamp_t
 use work.spi_types.all;
 
@@ -39,6 +39,10 @@ entity fpga_subsystem is
         vnir_frame_request      : out std_logic;
         vnir_exposure_start     : out std_logic;
         vnir_lvds               : in vnir.lvds_t;
+
+        -- SDRAM external ports
+        sdram_avalon_out        : out avalonmm.from_master_t;
+        sdram_avalon_in         : in avalonmm.to_master_t;
 
         -- HPS to DDR3
         HPS_DDR3_ADDR           : out std_logic_vector(14 downto 0);
@@ -90,6 +94,28 @@ architecture rtl of fpga_subsystem is
         lvds                : in vnir.lvds_t
     );
     end component vnir_subsystem_avalonmm;
+
+    component sdram_subsystem_avalonmm is
+    port (
+        clock               : in std_logic;
+        reset_n             : in std_logic;
+
+        avs_address         : in  std_logic_vector(7 downto 0);
+        avs_read            : in  std_logic := '0';
+        avs_readdata        : out std_logic_vector(31 downto 0);
+        avs_write           : in  std_logic := '0';
+        avs_writedata       : in  std_logic_vector(31 downto 0);
+        avs_irq             : out std_logic;
+
+        sdram_avalon_out    : out avalonmm.from_master_t;
+        sdram_avalon_in     : in avalonmm.to_master_t;
+
+        vnir_row_available  : in vnir.row_type_t;
+        vnir_row            : in vnir.row_t;
+        swir_pxl_available  : in std_logic;
+        swir_pixel          : in swir_pixel_t
+    );
+    end component sdram_subsystem_avalonmm;
 
     component interconnect is
     port (

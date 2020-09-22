@@ -18,7 +18,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.sdram_types.all;
+use work.sdram;
 use work.fpga_types.all;
 
 entity sdram_controller is
@@ -37,30 +37,42 @@ entity sdram_controller is
         vnir_num_rows       : out integer;
 
         timestamp           : out timestamp_t;
-        mpu_memory_change   : out sdram_address_list_t;
-        config_to_sdram     : out sdram_config_to_sdram_t;
-        config_from_sdram   : in  sdram_config_from_sdram_t;
+        mpu_memory_change   : out sdram.address_block_t;
+        config_to_sdram     : out sdram.config_to_sdram_t;
         start_config        : out std_logic;
+        config_from_sdram   : in  sdram.memory_state_t;
         config_done         : in  std_logic;
         img_config_done     : in  std_logic;
 
         sdram_busy          : in std_logic;
-        sdram_error         : in sdram_error_t
+        sdram_error         : in sdram.error_t
     );
 end entity sdram_controller;
 
 architecture rtl of sdram_controller is
     
+    -- TODO: test if resize() works properly with signed values (particularly in <0 case)
+
+    pure function read_address(bits : std_logic_vector) return sdram.address_t is
+    begin
+        return sdram.address_t(resize(signed(bits), sdram.ADDRESS_LENGTH));
+    end function read_address;
+
     pure function read_integer(bits : std_logic_vector) return integer is
     begin
         return to_integer(signed(bits));
     end function read_integer;
 
-    pure function read_timestamp(bits : std_logic_vector) return timestamp_t is
+    pure function read_unsigned(bits : std_logic_vector, size : integer) return unsigned is
     begin
-        return timestamp_t(unsigned(bits));
-    end function read_timestamp;
-    
+        return resize(unsigned(bits), size);
+    end function read_unsigned;
+
+    pure function to_l32(addr : sdram.address_t) return std_logic_vector is
+    begin
+        return std_logic_vector(resize(signed(addr), 32));
+    end function to_l32;
+
     pure function to_l32(b : std_logic) return std_logic_vector is
         variable re : std_logic_vector(31 downto 0);
     begin
@@ -73,12 +85,12 @@ architecture rtl of sdram_controller is
         return std_logic_vector(to_signed(i, 32));
     end function to_l32;
 
-    pure function to_l32(e : sdram_error_t) return std_logic_vector is
+    pure function to_l32(e : sdram.error_t) return std_logic_vector is
     begin
         case e is
-            when SDRAM_NO_ERROR         => return x"00000000";
-            when SDRAM_FULL             => return x"00000001";
-            when SDRAM_MPU_CHECK_FAILED => return x"00000002";
+            when sdram.no_error         => return x"00000000";
+            when sdram.full             => return x"00000001";
+            when sdram.mpu_check_failed => return x"00000002";
         end case;
     end function to_l32;
 
@@ -87,6 +99,12 @@ begin
     process (clock, reset_n)
         variable config_done_reg : std_logic;
         variable config_done_irq : std_logic;
+
+        variable image_config_done_reg : std_logic;
+        variable image_config_done_irq : std_logic;
+
+        variable vnir_num_rows_reg : integer;
+        variable swir_num_rows_reg : integer;
     begin
         if reset_n = '0' then
             config_to_sdram <= (memory_base => 0, memory_bounds => 0);
@@ -94,46 +112,60 @@ begin
             vnir_num_rows   <= 0;
             config_done_reg := '0';
             config_done_irq := '0';
+            image_config_done_reg := '0';
+            image_config_done_irq := '0';
+            
+            vnir_num_rows_reg := 0;
+            swir_num_rows_reg := 0;
+            vnir_num_rows <= 0;
+            swir_num_rows <= 0;
         elsif rising_edge(clock) then
 
             start_config <= '0';
+            vnir_num_rows <= 0;
+            swir_num_rows <= 0;
 
             if avs_write = '1' then
                 case avs_address is
-                when x"00" => config_to_sdram.memory_base   <= read_integer(avs_writedata);
-                when x"01" => config_to_sdram.memory_bounds <= read_integer(avs_writedata);
-                when x"02" => swir_num_rows                 <= read_integer(avs_writedata);
-                when x"03" => vnir_num_rows                 <= read_integer(avs_writedata);
-                when x"04" => timestamp                     <= read_timestamp(avs_writedata);
-                when x"05" => mpu_memory_change(0)          <= read_integer(avs_writedata);
-                when x"06" => mpu_memory_change(1)          <= read_integer(avs_writedata);
-                when x"07" => mpu_memory_change(2)          <= read_integer(avs_writedata);
-                when x"08" => mpu_memory_change(3)          <= read_integer(avs_writedata);
-                when x"09" => mpu_memory_change(4)          <= read_integer(avs_writedata);
-                when x"0a" => mpu_memory_change(5)          <= read_integer(avs_writedata);
-                when x"0b" => mpu_memory_change(6)          <= read_integer(avs_writedata);
-                when x"0c" => mpu_memory_change(7)          <= read_integer(avs_writedata);
-                when x"0d" => mpu_memory_change(8)          <= read_integer(avs_writedata);
-                when x"0e" => mpu_memory_change(9)          <= read_integer(avs_writedata);
-                when x"0f" => mpu_memory_change(10)         <= read_integer(avs_writedata);
+                when x"00" => config_to_sdram.memory_base   <= read_address(avs_writedata);
+                when x"01" => config_to_sdram.memory_bounds <= read_address(avs_writedata);
+                when x"02" => swir_num_rows_reg             := read_integer(avs_writedata);
+                when x"03" => vnir_num_rows_reg             := read_integer(avs_writedata);
+                when x"04" => timestamp(31 downto 0)        <= read_unsigned(avs_writedata, 32);
+                when x"05" => timestamp(63 downto 32)       <= read_unsigned(avs_writedata, 32);
+                when x"06" => mpu_memory_change(0)          <= read_address(avs_writedata);
+                when x"07" => mpu_memory_change(1)          <= read_address(avs_writedata);
                 
-                when x"10" => start_config <= '1'; config_done_reg := '0';
+                when x"08" => start_config <= '1';
+                              config_done_reg := '0';
+                when x"09" => swir_num_rows <= swir_num_rows_reg;
+                              vnir_num_rows <= vnir_num_rows_reg;
+                              image_config_done_reg := '0';
                 when others =>
                 end case;
             elsif avs_read = '1' then
                 case avs_address is
-                when x"11" => avs_readdata <= to_l32(config_done_reg); config_done_irq := '0';
+                when x"0A" => avs_readdata <= to_l32(config_done_reg); config_done_irq := '0';
+                when x"0B" => avs_readdata <= to_l32(image_config_done_reg); image_config_done_irq := '0';
 
-                when x"12" => avs_readdata <= to_l32(config_from_sdram.swir_base);
-                when x"13" => avs_readdata <= to_l32(config_from_sdram.swir_bounds);
-                when x"14" => avs_readdata <= to_l32(config_from_sdram.swir_temp_base);
-                when x"15" => avs_readdata <= to_l32(config_from_sdram.swir_temp_bounds);
-                when x"16" => avs_readdata <= to_l32(config_from_sdram.vnir_base);
-                when x"17" => avs_readdata <= to_l32(config_from_sdram.vnir_bounds);
-                when x"18" => avs_readdata <= to_l32(config_from_sdram.vnir_temp_base);
-                when x"19" => avs_readdata <= to_l32(config_from_sdram.vnir_temp_bounds);
-                when x"1a" => avs_readdata <= to_l32(sdram_busy);
-                when x"1b" => avs_readdata <= to_l32(sdram_error);
+                when x"0C" => avs_readdata <= to_l32(config_from_sdram.vnir.base);
+                when x"0D" => avs_readdata <= to_l32(config_from_sdram.vwir.bounds);
+                when x"0E" => avs_readdata <= to_l32(config_from_sdram.vnir.fill_bounds);
+                when x"0F" => avs_readdata <= to_l32(config_from_sdram.vwir.fill_base);
+                when x"10" => avs_readdata <= to_l32(config_from_sdram.swir.base);
+                when x"11" => avs_readdata <= to_l32(config_from_sdram.swir.bounds);
+                when x"12" => avs_readdata <= to_l32(config_from_sdram.swir.fill_bounds);
+                when x"13" => avs_readdata <= to_l32(config_from_sdram.swir.fill_base);
+                when x"14" => avs_readdata <= to_l32(config_from_sdram.vnir_temp.base);
+                when x"15" => avs_readdata <= to_l32(config_from_sdram.vnir_temp.bounds);
+                when x"16" => avs_readdata <= to_l32(config_from_sdram.vnir_temp.fill_bounds);
+                when x"17" => avs_readdata <= to_l32(config_from_sdram.vnir_temp.fill_base);
+                when x"18" => avs_readdata <= to_l32(config_from_sdram.swir_temp.base);
+                when x"19" => avs_readdata <= to_l32(config_from_sdram.swir_temp.bounds);
+                when x"1A" => avs_readdata <= to_l32(config_from_sdram.swir_temp.fill_bounds);
+                when x"1B" => avs_readdata <= to_l32(config_from_sdram.swir_temp.fill_base);
+                when x"1C" => avs_readdata <= to_l32(sdram_busy);
+                when x"1D" => avs_readdata <= to_l32(sdram_error);
                 when others =>
                 end case;
             end if;
@@ -143,9 +175,14 @@ begin
                 config_done_irq := '1';
             end if;
 
+            if img_config_done = '1' then
+                image_config_done_reg := '1';
+                image_config_done_irq := '1';
+            end if;
+
         end if;
 
-        avs_irq <= config_done_irq;
+        avs_irq <= config_done_irq or image_config_done_irq;
     
     end process;
     
