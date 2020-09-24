@@ -41,6 +41,23 @@ entity fpga_subsystem is
         vnir_exposure_start     : out std_logic;
         vnir_lvds               : in vnir.lvds_t;
 
+        -- SWIR external ports
+        swir_control            : out swir_control_t;
+        swir_sdi                : out std_logic;
+        swir_sdo                : in std_logic;
+        swir_sck                : out std_logic;
+        swir_cnv                : out std_logic;
+        swir_sensor_clock_even  : out std_logic;
+        swir_sensor_clock_odd   : out std_logic;
+        swir_sensor_reset_even  : out std_logic;
+        swir_sensor_reset_odd   : out std_logic;
+        swir_Cf_select1         : out std_logic;
+        swir_Cf_select2         : out std_logic;
+        swir_AD_sp_even         : in std_logic;
+        swir_AD_sp_odd          : in std_logic;
+        swir_AD_trig_even       : in std_logic;
+        swir_AD_trig_odd        : in std_logic;
+
         -- SDRAM external ports
         sdram_avalon_out        : out avalonmm.from_master_t;
         sdram_avalon_in         : in avalonmm.to_master_t;
@@ -95,6 +112,41 @@ architecture rtl of fpga_subsystem is
         lvds                : in vnir.lvds_t
     );
     end component vnir_subsystem_avalonmm;
+
+    component swir_subsystem_avalonmm is
+    port (
+        clock               : in std_logic;
+        reset_n             : in std_logic;
+
+        avs_address         : in  std_logic_vector(7 downto 0);
+        avs_read            : in  std_logic := '0';
+        avs_readdata        : out std_logic_vector(31 downto 0);
+        avs_write           : in  std_logic := '0';
+        avs_writedata       : in  std_logic_vector(31 downto 0);
+        avs_irq             : out std_logic;
+
+        control             : out swir_control_t;
+        
+        pixel               : out swir_pixel_t;
+        pxl_available       : out std_logic;
+        
+        sdi                 : out std_logic;
+        sdo                 : in std_logic;
+        sck                 : out std_logic;
+        cnv                 : out std_logic;
+
+        sensor_clock_even   : out std_logic;
+        sensor_clock_odd    : out std_logic;
+        sensor_reset_even   : out std_logic;
+        sensor_reset_odd    : out std_logic;
+        Cf_select1          : out std_logic;
+        Cf_select2          : out std_logic;
+        AD_sp_even          : in std_logic;
+        AD_sp_odd           : in std_logic;
+        AD_trig_even        : in std_logic;
+        AD_trig_odd         : in std_logic
+    );
+    end component swir_subsystem_avalonmm;
 
     component sdram_subsystem_avalonmm is
     port (
@@ -214,16 +266,11 @@ architecture rtl of fpga_subsystem is
     signal vnir_sensor_clock_ungated : std_logic;
     signal vnir_sensor_clock_enable  : std_logic;
 
-    -- Temporary, remove when SDRAM subsystem is added
-    attribute keep of vnir_row              : signal is true;
-    attribute keep of vnir_row_available    : signal is true;
-    attribute keep of sdram_av_address      : signal is true;
-    attribute keep of sdram_av_read         : signal is true;
-    attribute keep of sdram_av_readdata     : signal is true;
-    attribute keep of sdram_av_write        : signal is true;
-    attribute keep of sdram_av_writedata    : signal is true;
-    attribute keep of sdram_av_irq          : signal is true;
+    -- SWIR subsystem => SDRAM subsystem
+    signal swir_pixel           : swir_pixel_t;
+    signal swir_pxl_available   : std_logic;
 
+    attribute keep: boolean;
     attribute keep of subsystem_reset_n     : signal is true;
 
 begin
@@ -270,6 +317,34 @@ begin
     );
 
     vnir_sensor_clock <= vnir_sensor_clock_ungated and vnir_sensor_clock_enable;
+
+    swir_cmp : swir_subsystem_avalonmm port map (
+        clock               => clock,
+        reset_n             => reset_n,
+        avs_address         => swir_av_address,
+        avs_read            => swir_av_read,
+        avs_readdata        => swir_av_readdata,
+        avs_write           => swir_av_write,
+        avs_writedata       => swir_av_writedata,
+        avs_irq             => swir_av_irq,
+        control             => swir_control,
+        pixel               => swir_pixel,
+        pxl_available       => swir_pxl_available,
+        sdi                 => swir_sdi,
+        sdo                 => swir_sdo,
+        sck                 => swir_sck,
+        cnv                 => swir_cnv,
+        sensor_clock_even   => swir_sensor_clock_even,
+        sensor_clock_odd    => swir_sensor_clock_odd,
+        sensor_reset_even   => swir_sensor_reset_even,
+        sensor_reset_odd    => swir_sensor_reset_odd,
+        Cf_select1          => swir_Cf_select1,
+        Cf_select2          => swir_Cf_select2,
+        AD_sp_even          => swir_AD_sp_even,
+        AD_sp_odd           => swir_AD_sp_odd,
+        AD_trig_even        => swir_AD_trig_even,
+        AD_trig_odd         => swir_AD_trig_odd
+    );
 
     interconnect_cmp : interconnect port map (
         clock_clk                       => clock,
