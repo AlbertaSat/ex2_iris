@@ -14,7 +14,7 @@
 -- limitations under the License.
 ----------------------------------------------------------------
 
--- Interface to the VNIR Subsystem using an AvalonMM slave instead of
+-- Interface to the SDRAM Subsystem using an AvalonMM slave instead of
 -- dedicated configuration and command ports
 
 
@@ -24,7 +24,10 @@ use ieee.numeric_std.all;
 
 use work.spi_types.all;
 use work.vnir;
-use work.sensor_configurer_defaults;
+use work.swir_types.all;
+use work.sdram;
+use work.fpga.timestamp_t;
+use work.avalonmm;
 
 entity sdram_subsystem_avalonmm is
 port (
@@ -49,7 +52,7 @@ port (
 end entity sdram_subsystem_avalonmm;
 
 
-architecture rtl of vnir_subsystem_avalonmm is
+architecture rtl of sdram_subsystem_avalonmm is
 
     component sdram_controller is
     port (

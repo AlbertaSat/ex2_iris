@@ -19,7 +19,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.sdram;
-use work.fpga_types.all;
+use work.fpga.timestamp_t;
 
 entity sdram_controller is
     port (
@@ -63,7 +63,7 @@ architecture rtl of sdram_controller is
         return to_integer(signed(bits));
     end function read_integer;
 
-    pure function read_unsigned(bits : std_logic_vector, size : integer) return unsigned is
+    pure function read_unsigned(bits : std_logic_vector; size : integer) return unsigned is
     begin
         return resize(unsigned(bits), size);
     end function read_unsigned;
@@ -107,7 +107,7 @@ begin
         variable swir_num_rows_reg : integer;
     begin
         if reset_n = '0' then
-            config_to_sdram <= (memory_base => 0, memory_bounds => 0);
+            config_to_sdram <= (memory_base => sdram.UNDEFINED_ADDRESS, memory_bounds => sdram.UNDEFINED_ADDRESS);
             swir_num_rows   <= 0;
             vnir_num_rows   <= 0;
             config_done_reg := '0';
@@ -149,9 +149,9 @@ begin
                 when x"0B" => avs_readdata <= to_l32(image_config_done_reg); image_config_done_irq := '0';
 
                 when x"0C" => avs_readdata <= to_l32(config_from_sdram.vnir.base);
-                when x"0D" => avs_readdata <= to_l32(config_from_sdram.vwir.bounds);
+                when x"0D" => avs_readdata <= to_l32(config_from_sdram.vnir.bounds);
                 when x"0E" => avs_readdata <= to_l32(config_from_sdram.vnir.fill_bounds);
-                when x"0F" => avs_readdata <= to_l32(config_from_sdram.vwir.fill_base);
+                when x"0F" => avs_readdata <= to_l32(config_from_sdram.vnir.fill_base);
                 when x"10" => avs_readdata <= to_l32(config_from_sdram.swir.base);
                 when x"11" => avs_readdata <= to_l32(config_from_sdram.swir.bounds);
                 when x"12" => avs_readdata <= to_l32(config_from_sdram.swir.fill_bounds);

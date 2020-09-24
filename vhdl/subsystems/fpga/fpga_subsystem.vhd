@@ -21,7 +21,8 @@ use ieee.numeric_std.all;
 use work.vnir;  -- Gives outputs to the VNIR subsystem
 use work.swir_types.all;  -- Gives outputs from SWIR subsystem
 use work.sdram;  -- Gives output to sdram subsystem
-use work.fpga_types.all;  -- For timestamp_t
+use work.fpga.timestamp_t;
+use work.avalonmm;
 use work.spi_types.all;
 
 entity fpga_subsystem is
@@ -213,7 +214,6 @@ architecture rtl of fpga_subsystem is
     signal vnir_sensor_clock_ungated : std_logic;
     signal vnir_sensor_clock_enable  : std_logic;
 
-    attribute keep: boolean;
     -- Temporary, remove when SDRAM subsystem is added
     attribute keep of vnir_row              : signal is true;
     attribute keep of vnir_row_available    : signal is true;
@@ -223,13 +223,6 @@ architecture rtl of fpga_subsystem is
     attribute keep of sdram_av_write        : signal is true;
     attribute keep of sdram_av_writedata    : signal is true;
     attribute keep of sdram_av_irq          : signal is true;
-    -- Temporary, remove when SWIR subsystem is added
-    attribute keep of swir_av_address       : signal is true;
-    attribute keep of swir_av_read          : signal is true;
-    attribute keep of swir_av_readdata      : signal is true;
-    attribute keep of swir_av_write         : signal is true;
-    attribute keep of swir_av_writedata     : signal is true;
-    attribute keep of swir_av_irq           : signal is true;
 
     attribute keep of subsystem_reset_n     : signal is true;
 

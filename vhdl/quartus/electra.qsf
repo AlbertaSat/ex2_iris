@@ -529,6 +529,7 @@ set_global_assignment -name TCL_SCRIPT_FILE pins/memory.tcl
 set_global_assignment -name QIP_FILE ../subsystems/fpga/interconnect/synthesis/interconnect.qip
 set_global_assignment -name VHDL_FILE ../electra.vhd
 set_global_assignment -name VHDL_FILE ../subsystems/fpga/vnir_subsystem_avalonmm.vhd
+set_global_assignment -name VHDL_FILE ../subsystems/fpga/sdram_subsystem_avalonmm.vhd
 set_global_assignment -name VHDL_FILE ../subsystems/fpga/vnir_controller.vhd
 set_global_assignment -name VHDL_FILE ../subsystems/fpga/swir_controller.vhd
 set_global_assignment -name VHDL_FILE ../subsystems/fpga/sdram_controller.vhd

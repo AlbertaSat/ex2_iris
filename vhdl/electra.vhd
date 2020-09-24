@@ -19,11 +19,10 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 use work.spi_types.all;
-use work.avalonmm_types.all;
+use work.avalonmm;
 use work.vnir;
 use work.swir_types.all;
-use work.sdram_types.all;
-use work.fpga_types.all;
+use work.sdram;
 
 entity electra is
 port (
@@ -39,6 +38,27 @@ port (
     vnir_frame_request      : out std_logic;
     vnir_exposure_start     : out std_logic;
     vnir_lvds               : in vnir.lvds_t;
+
+    -- SWIR external ports
+    swir_control            : out swir_control_t;
+    swir_sdi                : out std_logic;
+    swir_sdo                : in std_logic;
+    swir_sck                : out std_logic;
+    swir_cnv                : out std_logic;
+    swir_sensor_clock_even  : out std_logic;
+    swir_sensor_clock_odd   : out std_logic;
+    swir_sensor_reset_even  : out std_logic;
+    swir_sensor_reset_odd   : out std_logic;
+    swir_Cf_select1         : out std_logic;
+    swir_Cf_select2         : out std_logic;
+    swir_AD_sp_even         : in std_logic;
+    swir_AD_sp_odd          : in std_logic;
+    swir_AD_trig_even       : in std_logic;
+    swir_AD_trig_odd        : in std_logic;
+
+    -- SDRAM external ports
+    sdram_avalon_out        : out avalonmm.from_master_t;
+    sdram_avalon_in         : in avalonmm.to_master_t;
 
     -- HPS to DDR3
     HPS_DDR3_ADDR           : out std_logic_vector(14 downto 0);
@@ -69,7 +89,6 @@ architecture rtl of electra is
         pll_ref_clock           : in std_logic;
         reset_n                 : in std_logic;
 
-        -- VNIR external ports
         vnir_sensor_power       : out std_logic;
         vnir_sensor_clock       : out std_logic;
         vnir_sensor_reset_n     : out std_logic;
@@ -79,7 +98,25 @@ architecture rtl of electra is
         vnir_exposure_start     : out std_logic;
         vnir_lvds               : in vnir.lvds_t;
 
-        -- HPS to DDR3
+        swir_control            : out swir_control_t;
+        swir_sdi                : out std_logic;
+        swir_sdo                : in std_logic;
+        swir_sck                : out std_logic;
+        swir_cnv                : out std_logic;
+        swir_sensor_clock_even  : out std_logic;
+        swir_sensor_clock_odd   : out std_logic;
+        swir_sensor_reset_even  : out std_logic;
+        swir_sensor_reset_odd   : out std_logic;
+        swir_Cf_select1         : out std_logic;
+        swir_Cf_select2         : out std_logic;
+        swir_AD_sp_even         : in std_logic;
+        swir_AD_sp_odd          : in std_logic;
+        swir_AD_trig_even       : in std_logic;
+        swir_AD_trig_odd        : in std_logic;
+
+        sdram_avalon_out        : out avalonmm.from_master_t;
+        sdram_avalon_in         : in avalonmm.to_master_t;
+
         HPS_DDR3_ADDR           : out std_logic_vector(14 downto 0);
         HPS_DDR3_BA             : out std_logic_vector(2 downto 0);
         HPS_DDR3_CK_P           : out std_logic;
@@ -120,33 +157,50 @@ begin
     end process;
 
     fpga_cmp : fpga_subsystem port map (
-        clock               => clock,
-        pll_ref_clock       => pll_ref_clock,
-        reset_n             => reset_n,
-        vnir_sensor_power   => vnir_sensor_power,
-        vnir_sensor_clock   => vnir_sensor_clock,
-        vnir_sensor_reset_n => vnir_sensor_reset_n,
-        vnir_spi_out        => vnir_spi_out,
-        vnir_spi_in         => vnir_spi_in,
-        vnir_frame_request  => vnir_frame_request,
-        vnir_exposure_start => vnir_exposure_start,
-        vnir_lvds           => vnir_lvds,
-        HPS_DDR3_ADDR       => HPS_DDR3_ADDR,
-        HPS_DDR3_BA         => HPS_DDR3_BA,
-        HPS_DDR3_CK_P       => HPS_DDR3_CK_P,
-        HPS_DDR3_CK_N       => HPS_DDR3_CK_N,
-        HPS_DDR3_CKE        => HPS_DDR3_CKE,
-        HPS_DDR3_CS_N       => HPS_DDR3_CS_N,
-        HPS_DDR3_RAS_N      => HPS_DDR3_RAS_N,
-        HPS_DDR3_CAS_N      => HPS_DDR3_CAS_N,
-        HPS_DDR3_WE_N       => HPS_DDR3_WE_N,
-        HPS_DDR3_RESET_N    => HPS_DDR3_RESET_N,
-        HPS_DDR3_DQ         => HPS_DDR3_DQ,
-        HPS_DDR3_DQS_P      => HPS_DDR3_DQS_P,
-        HPS_DDR3_DQS_N      => HPS_DDR3_DQS_N,
-        HPS_DDR3_ODT        => HPS_DDR3_ODT,
-        HPS_DDR3_DM         => HPS_DDR3_DM,
-        HPS_DDR3_RZQ        => HPS_DDR3_RZQ
+        clock                   => clock,
+        pll_ref_clock           => pll_ref_clock,
+        reset_n                 => reset_n,
+        vnir_sensor_power       => vnir_sensor_power,
+        vnir_sensor_clock       => vnir_sensor_clock,
+        vnir_sensor_reset_n     => vnir_sensor_reset_n,
+        vnir_spi_out            => vnir_spi_out,
+        vnir_spi_in             => vnir_spi_in,
+        vnir_frame_request      => vnir_frame_request,
+        vnir_exposure_start     => vnir_exposure_start,
+        vnir_lvds               => vnir_lvds,
+        swir_control            => swir_control,
+        swir_sdi                => swir_sdi,
+        swir_sdo                => swir_sdo,
+        swir_sck                => swir_sck,
+        swir_cnv                => swir_cnv,
+        swir_sensor_clock_even  => swir_sensor_clock_even,
+        swir_sensor_clock_odd   => swir_sensor_clock_odd,
+        swir_sensor_reset_even  => swir_sensor_reset_even,
+        swir_sensor_reset_odd   => swir_sensor_reset_odd,
+        swir_Cf_select1         => swir_Cf_select1,
+        swir_Cf_select2         => swir_Cf_select2,
+        swir_AD_sp_even         => swir_AD_sp_even,
+        swir_AD_sp_odd          => swir_AD_sp_odd,
+        swir_AD_trig_even       => swir_AD_trig_even,
+        swir_AD_trig_odd        => swir_AD_trig_odd,
+        sdram_avalon_out        => sdram_avalon_out,
+        sdram_avalon_in         => sdram_avalon_in,
+        HPS_DDR3_ADDR           => HPS_DDR3_ADDR,
+        HPS_DDR3_BA             => HPS_DDR3_BA,
+        HPS_DDR3_CK_P           => HPS_DDR3_CK_P,
+        HPS_DDR3_CK_N           => HPS_DDR3_CK_N,
+        HPS_DDR3_CKE            => HPS_DDR3_CKE,
+        HPS_DDR3_CS_N           => HPS_DDR3_CS_N,
+        HPS_DDR3_RAS_N          => HPS_DDR3_RAS_N,
+        HPS_DDR3_CAS_N          => HPS_DDR3_CAS_N,
+        HPS_DDR3_WE_N           => HPS_DDR3_WE_N,
+        HPS_DDR3_RESET_N        => HPS_DDR3_RESET_N,
+        HPS_DDR3_DQ             => HPS_DDR3_DQ,
+        HPS_DDR3_DQS_P          => HPS_DDR3_DQS_P,
+        HPS_DDR3_DQS_N          => HPS_DDR3_DQS_N,
+        HPS_DDR3_ODT            => HPS_DDR3_ODT,
+        HPS_DDR3_DM             => HPS_DDR3_DM,
+        HPS_DDR3_RZQ            => HPS_DDR3_RZQ
     );
 
 end architecture rtl;
