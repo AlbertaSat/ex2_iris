@@ -16,11 +16,10 @@
 
 -- Should i get reset from swir?
 -- How to use adc_trigger -> as a safety check? (count both?) - Can't, its too fast - Add to synchronizing ff
--- Need to get ADC to sample on falling edge of clk
 -- Add clock domain crossing -> domain crossing from SWIR too!
 -- Ensure pull up resitor brings pins to high for cyclone v pins
 -- Error: changing sdi after 1 clk cycle is too slow, unless adc_clock is at least 2 MHz
--- Note: data received MSB first (reverse order)
+-- ADD: Ad_trig signal handelling
 
 
 -- Circuit to control ADAQ7980 ADC, in 4-wire CS mode with busy indicator, with VIO above 1.7V
@@ -90,7 +89,7 @@ architecture main of swir_adc is
 	signal state_reg, state_next:	adc_control_state;
 	
 	-- FIFO Signals
-	signal fifo_data_write	: std_logic_vector (0 downto 0);
+	signal fifo_data_write	: std_logic_vector(0 downto 0);
 	signal fifo_wrreq		: std_logic;
 	signal fifo_wrfull		: std_logic;
 	
@@ -102,7 +101,9 @@ architecture main of swir_adc is
 	signal reset_n_local			: std_logic;
 	signal reset_n_metastable		: std_logic;
 	signal adc_start_local			: std_logic;
-	signal adc_start_metastable		: std_logic;
+	signal adc_start1				: std_logic;
+	signal adc_start2				: std_logic;
+	signal adc_start3				: std_logic;
 
 begin
 
@@ -150,8 +151,17 @@ begin
 			reset_n_metastable <= reset_n;
 			reset_n_local <= reset_n_metastable;
 			
-			adc_start_metastable <= adc_start;
-			adc_start_local <= adc_start_metastable;
+			adc_start1 <= adc_start;
+			adc_start2 <= adc_start1;
+			adc_start3 <= adc_start2;
+			
+			-- Register rising edge of adc_start signal
+			if (adc_start3 = '0' and adc_start2 = '1') then
+				adc_start_local = '1';
+			else
+				adc_start_local = '0';
+			end if;
+			 
 		end if;
 		
 	end process;
@@ -243,6 +253,7 @@ begin
             end if; 
         end if; 
 	end process;
+			
 	
 	-- To control how long certain states are held for
 	one_pixel_cycle_passed <= '1' when timer = 16 else '0';
