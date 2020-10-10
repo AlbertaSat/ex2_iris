@@ -157,9 +157,9 @@ begin
 			
 			-- Register rising edge of adc_start signal
 			if (adc_start3 = '0' and adc_start2 = '1') then
-				adc_start_local = '1';
+				adc_start_local <= '1';
 			else
-				adc_start_local = '0';
+				adc_start_local <= '0';
 			end if;
 			 
 		end if;

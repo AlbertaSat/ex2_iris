@@ -96,8 +96,6 @@ architecture rtl of swir_subsystem is
 		sensor_done			: out std_logic;
 		
 		-- Signals to SWIR sensor
-        sensor_clock_even   : out std_logic;
-		sensor_clock_odd    : out std_logic;
         sensor_reset_even   : out std_logic;
 		sensor_reset_odd    : out std_logic;
 		Cf_select1			: out std_logic;
@@ -134,23 +132,12 @@ architecture rtl of swir_subsystem is
 	end component swir_adc;
 	
 	signal sensor_clock			: std_logic;
-	signal sensor_reset			: std_logic;
 	signal sensor_integration	: unsigned(6 downto 0);
 	signal sensor_ce			: std_logic;
 	signal sensor_begin			: std_logic;
 	signal sensor_done			: std_logic;
 	signal sensor_adc_trigger	: std_logic;
 	signal sensor_adc_start		: std_logic;
-	signal sensor_clk_even		: std_logic;
-	signal sensor_clk_odd		: std_logic;
-	signal sensor_rst_even		: std_logic;
-	signal sensor_rst_odd		: std_logic;
-	signal sensor_cf1			: std_logic;
-	signal sensor_cf2			: std_logic;
-	signal sensor_adc_sp1		: std_logic;
-	signal sensor_adc_sp2		: std_logic;
-	signal sensor_adc_trig1		: std_logic;
-	signal sensor_adc_trig2		: std_logic;
 	
 	signal adc_done				: std_logic;
 	signal adc_fifo_rd			: std_logic;
@@ -163,8 +150,18 @@ architecture rtl of swir_subsystem is
 	signal clocks_per_exposure	: integer;
 	signal number_of_rows_temp	: integer;
 	signal number_of_rows		: integer;
-
 	
+	signal counter_sensor_begin : integer range 0 to 1001;
+	signal sensor_begin_local	: std_logic;
+	
+	signal sensor_done1			: std_logic;
+	signal sensor_done2			: std_logic;
+	signal sensor_done3			: std_logic;
+	signal sensor_done_local	: std_logic;
+	signal output_done1			: std_logic;
+	signal output_done2			: std_logic;
+	signal output_done3			: std_logic;
+	signal output_done_local	: std_logic;
 begin	
 	
 	sensor_control_circuit : component swir_sensor
@@ -181,8 +178,6 @@ begin
 		sensor_done			=>	sensor_done,
 	
 		-- Signals to SWIR sensor
-        sensor_clock_even   =>	sensor_clock_even,
-		sensor_clock_odd    =>	sensor_clock_odd,
         sensor_reset_even   =>	sensor_reset_even,
 		sensor_reset_odd    =>	sensor_reset_odd,
 		Cf_select1			=>	Cf_select1,
@@ -213,11 +208,60 @@ begin
 		fifo_data_read		=>	pixel
 	);
 	
-end architecture rtl;
 
 	-- Synchronize reset
 
 	-- 2 FF for incoming signals
+	
+	-- Get stable signals from signals which cross clock domains
+	process(clock) is
+	begin
+		if rising_edge(clock) then
+			
+			sensor_done1		<= sensor_done;
+			sensor_done2		<= sensor_done1;
+			sensor_done3		<= sensor_done2;
+			
+			-- Register rising edge of signals
+			if (sensor_done3 = '0' and sensor_done2 = '1') then
+				sensor_done_local <= '1';
+			else
+				sensor_done_local <= '0';
+			end if;
+		end if;
+	end process;
+	
+	process(clock) is
+	begin
+		if rising_edge(clock) then
+			output_done1		<= output_done;
+			output_done2		<= output_done1;
+			output_done3		<= output_done2;
+			
+			-- Register rising edge of signals
+			if (output_done3 = '0' and output_done2 = '1') then
+				output_done_local <= '1';
+			else
+				output_done_local <= '0';
+			end if;
+		end if;
+	end process;
+	
+	
+	-- Process to stretch sensor_begin signal to send to swir clock domain
+	-- Assuming worst case lowest swir domain clock speed of 100 kHz
+	process(clock, reset_n)
+	begin
+		if reset_n = '0' then
+			counter_sensor_begin <= 0;
+		elsif rising_edge(clock) then
+			if sensor_begin_local = '1' then
+				counter_sensor_begin <= 1001;
+			elsif counter_sensor_begin > 0 then
+				counter_sensor_begin <= counter_sensor_begin - 1;
+			end if;
+		end if;
+	end process;
 
 	-- Register configuration signals
 	process(clock, reset_n)
@@ -251,34 +295,38 @@ end architecture rtl;
 	begin
 		if reset_n = '0' then
 			row_counter <= (others=>'0');
-			sensor_begin <= '0';
+			sensor_begin_local <= '0';
 		elsif rising_edge(clock) then
-			if sensor_done = '1' and row_counter < number_of_rows then
+			if (do_imaging = '1' and row_counter = '0') or (sensor_done_local = '1' and row_counter < number_of_rows) then
 				row_counter <= row_counter + 1;
-				sensor_begin <= '1';
+				sensor_begin_local <= '1';
 			elsif row_counter = number_of_rows then
 				row_counter <= (others=>'0');
-				sensor_begin <= '0';
+				sensor_begin_local <= '0';
 			else
-				sensor_begin <= '0';
+				sensor_begin_local <= '0';
 			end if;
 		end if;
 	end process;
 	
 	-- Reading of data from FIFO
-	fifo_rdreq <= '1' when output_done = '1' and fifo_rdempty = '0' else '0';
+	fifo_rdreq <= '1' when output_done_local = '1' and fifo_rdempty = '0' else '0';
 	pixel_available <= ''1' when fifo_rdreq = '1' else '0';
 	
 	-- Sensor conversion efficiency - 0 (low) or 1 (high)
 	sensor_ce <= '1';
 
+	-- Stretched version of sensor_begin_local for swir domain
+	sensor_begin <= '1' when counter_sensor_begin > 0 else '0';
 	-- Create clock signals
+	
+	sensor_clock_even <= sensor_clock;
+	sensor_clock_even <= not sensor_clock;
 
-	-- Stretch reset and do_imaging signal to pass into lower frequency SWIR domain
+	-- Stretch reset signal to pass into lower frequency SWIR domain
 	
-	-- Compress sensor_done
 	
-	-- Trigger signalling at correct times	
+	-- stretch integration_time?
 	
 	
 	-- Set voltage -> put it in ff for hold time?
@@ -287,4 +335,4 @@ end architecture rtl;
 	
 	
 	-- Set reset of sensor
-	
+end architecture rtl;

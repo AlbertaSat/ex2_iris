@@ -43,11 +43,9 @@ entity swir_sensor is
 		adc_trigger			: out std_logic;
 		adc_start			: out std_logic;
 		sensor_begin      	: in std_logic; -- Begin imaging of 1 row
-		sensor_done			: out std_logic;
+		sensor_done			: out std_logic; -- Will trigger one half cycle (of swir clk) after sensor is done outputting 512 pixels
 		
 		-- Signals to SWIR sensor
-        sensor_clock_even   : out std_logic;
-		sensor_clock_odd    : out std_logic;
         sensor_reset_even   : out std_logic;
 		sensor_reset_odd    : out std_logic;
 		Cf_select1			: out std_logic;
@@ -65,13 +63,15 @@ architecture main of swir_sensor is
 	signal reset_n_local						: std_logic;
 	signal reset_n_metastable					: std_logic;
 	
-	signal sensor_begin_metastable				: std_logic;
+	signal sensor_begin1						: std_logic;
+	signal sensor_begin2						: std_logic;
+	signal sensor_begin3						: std_logic;
 	signal sensor_begin_local					: std_logic;
 	
 	signal sensor_reset							: std_logic;  -- Necessary because cannot read output
 	signal counter								: unsigned(9 downto 0);
-	signal adc_start_local						: std_logic;
-	signal adc_pulse							: std_logic;
+	signal adc_sp								: std_logic;
+
 
 begin
 	
@@ -81,11 +81,19 @@ begin
 	begin
 		
 		if (rising_edge(clock_swir)) then
-			reset_n_metastable <= reset_n;
-			reset_n_local <= reset_n_metastable;
+			reset_n_metastable	<= reset_n;
+			reset_n_local 		<= reset_n_metastable;
 			
-			sensor_begin_metastable <= sensor_begin;
-			sensor_begin_local <= sensor_begin_metastable;
+			sensor_begin1		<= sensor_begin;
+			sensor_begin2		<= sensor_begin1;
+			sensor_begin3		<= sensor_begin2;
+			
+			-- Register rising edge of sensor_begin signal
+			if (sensor_begin3 = '0' and sensor_begin2 = '1') then
+				sensor_begin_local <= '1';
+			else
+				sensor_begin_local <= '0';
+			end if;
 		end if;
 		
 	end process;
@@ -122,7 +130,7 @@ begin
 			counter <= (others=>'0');
 			
 		elsif (rising_edge(clock_swir)) then
-			if adc_start_local = '1' then
+			if adc_sp = '1' then
 				counter <= "1000000001";
 			elsif counter > 1 then
 				counter <= counter - 1;
@@ -132,15 +140,12 @@ begin
 		end if;
 		
 	end process;
-
-	sensor_clock_even 	<=	clock_swir;
-	sensor_clock_odd 	<=	not clock_swir;
 	
-	sensor_reset_even 	<=	sensor_reset;
+	
+	sensor_reset_even 	<=	sensor_reset when reset_n_local = '1' else '0';  -- add reset condition to ensure it is 0 in startup state
 	sensor_reset_odd 	<=	not sensor_reset;
 	
-	adc_start_local 	<=	'1' when AD_sp_even = '1' and AD_sp_odd = '0' else '0';
-	adc_start			<=	adc_start_local;		-- So that we may read the output adc_start, assign it to local signal
+	adc_sp			 	<=	'1' when AD_sp_even = '1' and AD_sp_odd = '0' else '0';
 	adc_trigger 		<=	'1' when AD_trig_even = '1' and AD_trig_odd = '0' else '0';
 	
 	Cf_select1 			<=	'1';
@@ -148,6 +153,6 @@ begin
 	
 	sensor_done			<=	'1' when counter = 1 else '0';
 	
-	adc_pulse			<=	not clock_swir when (counter > 1 or adc_start_local = '1') else '0';
+	adc_start			<=	not clock_swir when (counter > 2 or adc_sp = '1') else '0';
 
 end architecture main;

@@ -102,7 +102,7 @@ begin
 					state_next 			<=	collecting;
 					integration_count 	<=	integration_counter - 1;
 				else 
-					integration_counter <= integration_counter + 1;
+					integration_counter <=	integration_counter + 1;
 				end if;
 			
 			-- Set sensor in collecting mode (integration) for amount of cycles specified by reset signal
