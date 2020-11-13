@@ -1,9 +1,0 @@
-Src/main.o: ../Src/main.c
-Src/main.o: ../Src/can.h
-Src/main.o: ../Src/interrupt.c
-Src/main.o: ../Src/../Altera_Code/HardwareLibrary/include/alt_interrupt.h
-Src/main.o: ../Src/../Altera_Code/HardwareLibrary/include/alt_interrupt_common.h
-Src/main.o: ../Src/../Altera_Code/HardwareLibrary/include/hwlib.h
-Src/main.o: ../Src/../Altera_Code/HardwareLibrary/include/alt_hwlibs_ver.h
-Src/main.o: ../Src/init_seq.c
-Src/main.o: ../Src/../Altera_Code/HardwareLibrary/include/socal/socal.h
