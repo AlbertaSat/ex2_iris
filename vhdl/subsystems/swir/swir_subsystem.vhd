@@ -27,6 +27,8 @@
 -- bound integers
 -- set conversion efficiency
 -- reset asynchronous - ff only once?
+-- remove clocks per frame
+-- Note: integration time multiple of 64
 
 -- Startup sequence: reset, obtain config
 -- voltage startup time?
@@ -81,6 +83,17 @@ end entity swir_subsystem;
 
 
 architecture rtl of swir_subsystem is
+
+	component pll_0002 is
+		port (
+			refclk   : in  std_logic; 		-- clk
+			rst      : in  std_logic; 		-- reset
+			outclk_1 : out std_logic;		-- clk
+			outclk_2 : out std_logic;		-- clk
+			locked   : out std_logic;		-- export
+			outclk_0 : out std_logic 		-- clk
+		);
+	end component pll_0002;
 
 	component swir_sensor is
     port (
@@ -144,8 +157,8 @@ architecture rtl of swir_subsystem is
 	signal adc_fifo_empty		: std_logic;
 	
 	signal row_counter			: unsigned(9 downto 0);
-	signal cycles_per_frame_temp: integer;
-	signal cycles_per_frame		: integer;
+	signal clocks_per_frame_temp: integer;
+	signal clocks_per_frame		: integer;
 	signal clocks_per_exposure_temp	: integer;
 	signal clocks_per_exposure	: integer;
 	signal number_of_rows_temp	: integer;
@@ -162,7 +175,30 @@ architecture rtl of swir_subsystem is
 	signal output_done2			: std_logic;
 	signal output_done3			: std_logic;
 	signal output_done_local	: std_logic;
+	signal reset_n1				: std_logic;
+	signal reset_n2				: std_logic;
+	signal reset_n3				: std_logic;
+	signal reset_n_synchronous	: std_logic;
+	signal reset_counter		: unsigned(10 downto 0);
+	
+	signal reset				: std_logic;
+	signal pll_locked			: std_logic;
+	
 begin	
+	
+	-- PLL details: 50 MHz reference clock frequency, Integer-N PLL in direct mode
+	-- M = 14, D = 1
+	-- Counter 0 (cascade counter into counter 2): C = 32; Counter 1: C = 28; Counter 2: C = 16
+	-- No phase shifts, 50% duty cycles
+	pll_inst : component pll_0002
+	port map (
+		refclk   => clock,   		-- 50 MHz input frequency
+		rst      => reset,			-- asynchronous reset
+		outclk_1 => sensor_clock,	-- 0.78125 MHz SWIR sensor clock
+		outclk_2 => sck,			-- 43.75 MHz ADC clock
+		locked   => pll_locked,		-- Signal goes high if locked
+		outclk_0 => open			-- Terminated (used as cascade counter)
+	);
 	
 	sensor_control_circuit : component swir_sensor
     port map (
@@ -207,11 +243,31 @@ begin
 		fifo_rdempty		=>	adc_fifo_empty,
 		fifo_data_read		=>	pixel
 	);
-	
 
 	-- Synchronize reset
-
-	-- 2 FF for incoming signals
+	process(clock) is
+	begin
+		if rising_edge(clock) then
+			reset_n1			<=	reset_n;
+			reset_n2			<=	reset_n1;
+			reset_n3 			<=	reset_n2;
+		end if;
+	end process;
+	
+	-- Hold reset for 600 clock cycles to be registered by other clock domains
+	process(clock) is
+		if rising_edge(clock) then
+			if reset_counter = 600 then
+				reset_counter <= (others => '0');
+			elsif reset_n2 = '0' and reset_n3 = '1' then
+				reset_counter <= (others => '0');
+			elsif reset_n3 = '0' or reset_counter > 0 then
+				reset_counter <= reset_counter + 1;
+			end if;
+		end if;
+	end process;
+	
+	reset_n_synchronous <= '0' if reset_counter < 600 else '1';
 	
 	-- Get stable signals from signals which cross clock domains
 	process(clock) is
@@ -268,7 +324,7 @@ begin
 	begin
 		if rising_edge(clock) then
 			if config.start_config = '1' then
-				cycles_per_frame_temp <= config.frame_clocks;
+				clcoks_per_frame_temp <= config.frame_clocks;
 				clocks_per_exposure_temp <= config.exposure_clocks;
 				number_of_rows_temp <= config.length;
 			end if;
@@ -283,7 +339,7 @@ begin
 			number_of_rows <= 0;
 		if rising_edge(clock) then
 			if row_counter = 0 then
-				cycles_per_frame <= cycles_per_frame_temp;
+				clocks_per_frame <= clocks_per_frame_temp;
 				clocks_per_exposure <= clocks_per_exposure_temp;
 				number_of_rows <= number_of_rows_temp;
 			end if;
@@ -318,13 +374,12 @@ begin
 
 	-- Stretched version of sensor_begin_local for swir domain
 	sensor_begin <= '1' when counter_sensor_begin > 0 else '0';
-	-- Create clock signals
 	
+	-- Create clocks going to swir sensor
 	sensor_clock_even <= sensor_clock;
 	sensor_clock_even <= not sensor_clock;
-
-	-- Stretch reset signal to pass into lower frequency SWIR domain
 	
+	sensor_integration <= clocks_per_exposure / 64;
 	
 	-- stretch integration_time?
 	
@@ -333,6 +388,9 @@ begin
 	SWIR_4V0 <= '1' when reset_n = '1' else '0';
 	SWIR_1V2 <= '1' when reset_n = '1' else '0';
 	
+	reset <= not reset_n;
 	
 	-- Set reset of sensor
+	
+	
 end architecture rtl;

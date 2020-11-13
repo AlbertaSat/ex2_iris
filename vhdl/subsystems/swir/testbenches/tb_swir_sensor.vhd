@@ -16,6 +16,8 @@
 
 -- Testbench to simulate behaviour of g11508 short-wave infrared sensor
 
+-- ERROR: Reset signal is asserted after 5 clk cycles of pin
+
 -- TODO: AD_trig signal
 -- 		Assert statement for clock not working
 
