@@ -14,21 +14,16 @@
 -- limitations under the License.
 ----------------------------------------------------------------
 
--- TODO: Generate clocks
-
 -- Check stability time of sensor after powerup
 -- Link voltage and reset - dont want circuit going while no power
--- Make reset synchronous
--- Check that state machine has no downtime between rows
--- Check 0.1< frame_clocks < max frame_clocks = 850 kHz
---   HOWEVER, there may be further delays from fact that maximum conversion time is 800 ns
---   So, need to make sure SWIR does not go too fast for ADC to do conversion
 -- Delete config done signal?
 -- bound integers
 -- set conversion efficiency
--- reset asynchronous - ff only once?
 -- remove clocks per frame
+-- put voltage in ff for hold time?
 -- Note: integration time multiple of 64
+-- Actually, want to subtract integration time from total time and round to closest multiple of 64
+-- pll correct?
 
 -- Startup sequence: reset, obtain config
 -- voltage startup time?
@@ -54,7 +49,7 @@ entity swir_subsystem is
 			
         do_imaging      	: in std_logic;
 	
-        pixel           	: out swir_row_t;
+        pixel           	: out swir_pixel_t;
         pixel_available 	: out std_logic;
 		
 		-- Signals to ADC
@@ -152,12 +147,13 @@ architecture rtl of swir_subsystem is
 	signal sensor_adc_trigger	: std_logic;
 	signal sensor_adc_start		: std_logic;
 	
+	signal adc_clock			: std_logic;
 	signal adc_done				: std_logic;
 	signal adc_fifo_rd			: std_logic;
 	signal adc_fifo_empty		: std_logic;
 	
 	signal row_counter			: unsigned(9 downto 0);
-	signal clocks_per_frame_temp: integer;
+	signal clocks_per_frame_temp : integer;
 	signal clocks_per_frame		: integer;
 	signal clocks_per_exposure_temp	: integer;
 	signal clocks_per_exposure	: integer;
@@ -184,6 +180,8 @@ architecture rtl of swir_subsystem is
 	signal reset				: std_logic;
 	signal pll_locked			: std_logic;
 	
+	signal pixel_vector			: std_logic_vector(15 downto 0);
+	
 begin	
 	
 	-- PLL details: 50 MHz reference clock frequency, Integer-N PLL in direct mode
@@ -195,7 +193,7 @@ begin
 		refclk   => clock,   		-- 50 MHz input frequency
 		rst      => reset,			-- asynchronous reset
 		outclk_1 => sensor_clock,	-- 0.78125 MHz SWIR sensor clock
-		outclk_2 => sck,			-- 43.75 MHz ADC clock
+		outclk_2 => adc_clock,		-- 43.75 MHz ADC clock
 		locked   => pll_locked,		-- Signal goes high if locked
 		outclk_0 => open			-- Terminated (used as cascade counter)
 	);
@@ -217,7 +215,7 @@ begin
         sensor_reset_even   =>	sensor_reset_even,
 		sensor_reset_odd    =>	sensor_reset_odd,
 		Cf_select1			=>	Cf_select1,
-		Cf_select1			=>	Cf_select2,
+		Cf_select2			=>	Cf_select2,
 		AD_sp_even			=>	AD_sp_even,
 		AD_sp_odd			=>	AD_sp_odd,
 		AD_trig_even		=>	AD_trig_even,
@@ -226,7 +224,7 @@ begin
 
 	adc_control_circuit : component swir_adc
 	port map (
-        clock_adc			=>	sck,
+        clock_adc			=>	adc_clock,
 		clock_main			=>	clock,
 		reset_n     		=>	reset_n,
         
@@ -241,7 +239,7 @@ begin
 		
 		fifo_rdreq			=>	adc_fifo_rd,
 		fifo_rdempty		=>	adc_fifo_empty,
-		fifo_data_read		=>	pixel
+		fifo_data_read		=>	pixel_vector
 	);
 
 	-- Synchronize reset
@@ -256,6 +254,7 @@ begin
 	
 	-- Hold reset for 600 clock cycles to be registered by other clock domains
 	process(clock) is
+	begin
 		if rising_edge(clock) then
 			if reset_counter = 600 then
 				reset_counter <= (others => '0');
@@ -267,7 +266,7 @@ begin
 		end if;
 	end process;
 	
-	reset_n_synchronous <= '0' if reset_counter < 600 else '1';
+	reset_n_synchronous <= '0' when reset_counter < 600 else '1';
 	
 	-- Get stable signals from signals which cross clock domains
 	process(clock) is
@@ -290,7 +289,7 @@ begin
 	process(clock) is
 	begin
 		if rising_edge(clock) then
-			output_done1		<= output_done;
+			output_done1		<= adc_done;
 			output_done2		<= output_done1;
 			output_done3		<= output_done2;
 			
@@ -324,7 +323,7 @@ begin
 	begin
 		if rising_edge(clock) then
 			if config.start_config = '1' then
-				clcoks_per_frame_temp <= config.frame_clocks;
+				clocks_per_frame_temp <= config.frame_clocks;
 				clocks_per_exposure_temp <= config.exposure_clocks;
 				number_of_rows_temp <= config.length;
 			end if;
@@ -337,7 +336,7 @@ begin
 	begin
 		if reset_n = '0' then
 			number_of_rows <= 0;
-		if rising_edge(clock) then
+		elsif rising_edge(clock) then
 			if row_counter = 0 then
 				clocks_per_frame <= clocks_per_frame_temp;
 				clocks_per_exposure <= clocks_per_exposure_temp;
@@ -353,7 +352,7 @@ begin
 			row_counter <= (others=>'0');
 			sensor_begin_local <= '0';
 		elsif rising_edge(clock) then
-			if (do_imaging = '1' and row_counter = '0') or (sensor_done_local = '1' and row_counter < number_of_rows) then
+			if (do_imaging = '1' and row_counter = 0) or (sensor_done_local = '1' and row_counter < number_of_rows) then
 				row_counter <= row_counter + 1;
 				sensor_begin_local <= '1';
 			elsif row_counter = number_of_rows then
@@ -366,8 +365,8 @@ begin
 	end process;
 	
 	-- Reading of data from FIFO
-	fifo_rdreq <= '1' when output_done_local = '1' and fifo_rdempty = '0' else '0';
-	pixel_available <= ''1' when fifo_rdreq = '1' else '0';
+	adc_fifo_rd <= '1' when output_done_local = '1' and adc_fifo_empty = '0' else '0';
+	pixel_available <= '1' when adc_fifo_rd = '1' else '0';
 	
 	-- Sensor conversion efficiency - 0 (low) or 1 (high)
 	sensor_ce <= '1';
@@ -379,18 +378,34 @@ begin
 	sensor_clock_even <= sensor_clock;
 	sensor_clock_even <= not sensor_clock;
 	
-	sensor_integration <= clocks_per_exposure / 64;
+	sensor_integration <= to_unsigned(clocks_per_exposure / 64, sensor_integration'length);
 	
 	-- stretch integration_time?
+	-- Set reset of sensor
 	
-	
-	-- Set voltage -> put it in ff for hold time?
+	-- Set voltage
 	SWIR_4V0 <= '1' when reset_n = '1' else '0';
 	SWIR_1V2 <= '1' when reset_n = '1' else '0';
 	
 	reset <= not reset_n;
 	
-	-- Set reset of sensor
+	-- Convert array values to std_logic_vector values
+	pixel(0) <= pixel_vector(0);
+	pixel(1) <= pixel_vector(1);
+	pixel(2) <= pixel_vector(2);
+	pixel(3) <= pixel_vector(3);
+	pixel(4) <= pixel_vector(4);
+	pixel(5) <= pixel_vector(5);
+	pixel(6) <= pixel_vector(6);
+	pixel(7) <= pixel_vector(7);
+	pixel(8) <= pixel_vector(8);
+	pixel(9) <= pixel_vector(9);
+	pixel(10) <= pixel_vector(10);
+	pixel(11) <= pixel_vector(11);
+	pixel(12) <= pixel_vector(12);
+	pixel(13) <= pixel_vector(13);
+	pixel(14) <= pixel_vector(14);
+	pixel(15) <= pixel_vector(15);
 	
 	
 end architecture rtl;

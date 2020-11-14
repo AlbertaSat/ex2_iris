@@ -16,7 +16,6 @@
 
 -- Testbench to simulate behaviour of g11508 short-wave infrared sensor
 
--- ERROR: Reset signal is asserted after 5 clk cycles of pin
 
 -- TODO: AD_trig signal
 -- 		Assert statement for clock not working
@@ -62,13 +61,13 @@ architecture sim of tb_swir_sensor is
 begin
 	
 	-- Check that even and odd signals are aligned
-	assert (sensor_clock_even = not sensor_clock_odd) 
-			and not (state_reg = idle) 
-			report "sensor clock error" severity error;
-		
-	assert (sensor_reset_even = not sensor_reset_odd) 
-		and not (state_reg = idle)
-		report "sensor reset error" severity error;
+	--assert (sensor_clock_even = not sensor_clock_odd) 
+	--		and not (state_reg = idle) 
+	--		report "sensor clock error" severity error;
+	--	
+	--assert (sensor_reset_even = not sensor_reset_odd) 
+	--	and not (state_reg = idle)
+	--	report "sensor reset error" severity error;
 	
 	-- Check that cf signal are of acceptable values
 	assert ((Cf_select1 = '1' and Cf_select2 = '1') or (Cf_select1 = '1' and Cf_select2 = '0')) 
@@ -88,23 +87,24 @@ begin
 		
 	end process;
 	
-	-- Main sensor Mealy FSM
+	-- Main sensor FSM
 	process(state_reg, reset_trigger, collecting_trigger, transmitting_trigger) is
 	begin
 		state_next <= state_reg;
 		
 		case state_reg is 
-			-- Set sensor in reset if input reset is high, and keep track of how many clock cycles it is high for
+			-- Set sensor in reset if input reset is high
 			when reset =>
 				data_count <= 0;
 				
 				if sensor_reset_even = '0' then
-					assert integration_count >= 6 report "hold reset longer" severity error;
+					assert integration_counter >= 6 report "hold reset longer" severity error;
 					
 					state_next 			<=	collecting;
-					integration_count 	<=	integration_counter - 1;
-				else 
-					integration_counter <=	integration_counter + 1;
+					integration_count 	<=	7; -- sensor kept in reset for 5+3 cycles after end of reset_even signal
+				else
+					--integration_counter <=	8; 
+					integration_counter <= integration_counter + 1;
 				end if;
 			
 			-- Set sensor in collecting mode (integration) for amount of cycles specified by reset signal
@@ -120,15 +120,15 @@ begin
 			-- Set sensor to transmit data state for 256 cycles (1 cycle per pixel)
 			when transmitting =>
 				if data_count = (512 - 1) then
-					state_next			<=	idle;
+					state_next	<=	idle;
 				else
-					data_count			<=	data_count + 1;
+					data_count	<=	data_count + 1;
 				end if;
 			
 			-- idle state after transmitting is done and no new reset signal
 			when idle =>
-				data_count			<=	0;
-				
+				data_count	<=	0;
+			
 		end case;
 	end process;
 	
