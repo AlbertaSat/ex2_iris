@@ -10,23 +10,23 @@ end entity;
 architecture sim of tb_top is 
 	component swir_subsystem is
 	port (
-		clock           : in std_logic;
-        reset_n         : in std_logic;
-        
-        config          : in swir_config_t;
-        control         : out swir_control_t;
-        config_done     : out std_logic;
-        
-        do_imaging      : in std_logic;
-
-        row             : out swir_row_t;
-        row_available   : out std_logic;
+		clock           	: in std_logic;
+        reset_n         	: in std_logic;
+			
+        config          	: in swir_config_t;
+        control         	: in swir_control_t;
+			
+        do_imaging      	: in std_logic;
+	
+		-- Signals to SDRAM subsystem
+        pixel           	: out swir_pixel_t;
+        pixel_available 	: out std_logic;
 		
 		-- Signals to ADC
-		sdi				: out std_logic;
-		sdo				: in std_logic;
-		sck				: out std_logic;
-		cnv				: out std_logic;
+		sdi					: out std_logic;
+		sdo					: in std_logic;
+		sck					: out std_logic;
+		cnv					: out std_logic;
 		
 		-- Signals to SWIR sensor
         sensor_clock_even   : out std_logic;
@@ -34,11 +34,15 @@ architecture sim of tb_top is
         sensor_reset_even   : out std_logic;
 		sensor_reset_odd    : out std_logic;
 		Cf_select1			: out std_logic;
-		Cf_select1			: out std_logic;
+		Cf_select2			: out std_logic;
 		AD_sp_even			: in std_logic;
 		AD_sp_odd			: in std_logic;
 		AD_trig_even		: in std_logic;
-		AD_trig_odd			: in std_logic
+		AD_trig_odd			: in std_logic;
+		
+		-- SWIR Voltage control
+		SWIR_4V0			: out std_logic;	
+		SWIR_1V2			: out std_logic
 	);
 	end component swir_subsystem;
 	
@@ -77,18 +81,23 @@ architecture sim of tb_top is
 		fpga_clock			: out std_logic;
 		reset_n         	: out std_logic;
 		
+		config          	: out swir_config_t;
+        control         	: out swir_control_t;
+		
 		do_imaging			: out std_logic;
 		
-		row             	: in swir_row_t;
-        row_available   	: in std_logic
+		pixel           	: in swir_pixel_t;
+        pixel_available 	: in std_logic
 	);
 	end component tb_fpga;
 	
-	signal fpga_clock				:	std_logic;
+	signal fpga_clk					:	std_logic;
 	signal fpga_reset_n				:	std_logic;
 	signal fpga_do_imaging			:	std_logic;
-	signal fpga_row					:	swir_row_t;
-	signal fpga_row_available		:	std_logic;
+	signal fpga_pixel				:	swir_pixel_t;
+	signal fpga_pixel_available		:	std_logic;
+	signal fpga_config				:	swir_config_t;
+	signal fpga_control				:   swir_control_t;
 	
 	signal adc_sdi					:	std_logic;
 	signal adc_sck					:	std_logic;
@@ -107,28 +116,29 @@ architecture sim of tb_top is
 	signal swir_AD_trig_odd			:	std_logic;
 	signal swir_video_even			:	integer;
 	signal swir_video_odd			:	integer;
+	signal swir_voltage_4V0			:	std_logic;
+	signal swir_voltage_1V2			:	std_logic;
 	
 begin
 	
 	main_circuit : component swir_subsystem  -- Code to be tested
 	port map (
-		clock           	=>	fpga_clock,
+		clock           	=>	fpga_clk,
         reset_n         	=>  fpga_reset_n,
         
-        config          	=>	-- REVIEW
-        control         	=>	
-        config_done     	=>	
+        config          	=>	fpga_config,
+        control         	=>	fpga_control,
         
         do_imaging      	=>	fpga_do_imaging,
 
-        row             	=>	fpga_row,
-        row_available   	=>	fpga_row_available,
+        pixel             	=>	fpga_pixel,
+        pixel_available   	=>	fpga_pixel_available,
 		
 		-- Signals to ADC
 		sdi					=>	adc_sdi,
-		sdo					=>	adc_sck,
-		sck					=>	adc_cnv,
-		cnv					=>	adc_sdo,
+		sdo					=>	adc_sdo,
+		sck					=>	adc_sck,
+		cnv					=>	adc_cnv,
 		
 		-- Signals to SWIR sensor
         sensor_clock_even   =>	swir_sensor_clock_even,
@@ -140,7 +150,10 @@ begin
 		AD_sp_even			=>	swir_AD_sp_even,
 		AD_sp_odd			=>	swir_AD_sp_odd,
 		AD_trig_even		=>	swir_AD_trig_even,
-		AD_trig_odd			=>	swir_AD_trig_odd
+		AD_trig_odd			=>	swir_AD_trig_odd,
+		
+		SWIR_4V0			=>	swir_voltage_4V0,
+		SWIR_1V2			=>	swir_voltage_1V2
 	);
 	
 	g11508 : component tb_swir_sensor  -- Testbench
@@ -171,14 +184,18 @@ begin
 	    video_in			=>	swir_video_even
 	);
 	
-	fpga_to_swir_subsystem : component tb_fpga is  -- Testbench
+	fpga_to_swir_subsystem : component tb_fpga  -- Testbench
 	port map(
-		fpga_clock			=>	fpga_clock,
+		fpga_clock			=>	fpga_clk,
 		reset_n         	=>  fpga_reset_n,	
+		
+		config          	=>	fpga_config,
+        control         	=>	fpga_control,
 		
 		do_imaging			=>  fpga_do_imaging,
 		
-		row             	=>	fpga_row,
-        row_available   	=>  fpga_row_available
+		pixel             	=>	fpga_pixel,
+        pixel_available   	=>  fpga_pixel_available
 	);
 
+end architecture;

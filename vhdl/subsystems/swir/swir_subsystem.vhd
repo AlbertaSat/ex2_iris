@@ -24,6 +24,9 @@
 -- Note: integration time multiple of 64
 -- Actually, want to subtract integration time from total time and round to closest multiple of 64
 -- pll correct?
+-- include pll_locked signal
+-- exchange integration time for exposure clocks
+-- set conversion efficiency
 
 -- Startup sequence: reset, obtain config
 -- voltage startup time?
@@ -45,10 +48,11 @@ entity swir_subsystem is
         reset_n         	: in std_logic;
 			
         config          	: in swir_config_t;
-        control         	: out swir_control_t;
+        control         	: in swir_control_t;
 			
         do_imaging      	: in std_logic;
 	
+		-- Signals to SDRAM subsystem
         pixel           	: out swir_pixel_t;
         pixel_available 	: out std_logic;
 		
@@ -181,11 +185,13 @@ architecture rtl of swir_subsystem is
 	signal pll_locked			: std_logic;
 	
 	signal pixel_vector			: std_logic_vector(15 downto 0);
+		
+	constant hold_reset			: integer := 65;
 	
 begin	
 	
 	-- PLL details: 50 MHz reference clock frequency, Integer-N PLL in direct mode
-	-- M = 14, D = 1
+	-- M = 14, N = 1
 	-- Counter 0 (cascade counter into counter 2): C = 32; Counter 1: C = 28; Counter 2: C = 16
 	-- No phase shifts, 50% duty cycles
 	pll_inst : component pll_0002
@@ -197,6 +203,8 @@ begin
 		locked   => pll_locked,		-- Signal goes high if locked
 		outclk_0 => open			-- Terminated (used as cascade counter)
 	);
+	
+	sck <= adc_clock;
 	
 	sensor_control_circuit : component swir_sensor
     port map (
@@ -252,11 +260,12 @@ begin
 		end if;
 	end process;
 	
-	-- Hold reset for 600 clock cycles to be registered by other clock domains
+	-- Hold reset for 'hold_reset' clock cycles to be registered by other clock domains
+	-- hold_reset is 65 (50 MHz FPGA clock speed / 0.78125 MHz SWIR clock speed [slowest clock] + 1)
 	process(clock) is
 	begin
 		if rising_edge(clock) then
-			if reset_counter = 600 then
+			if reset_counter = (hold_reset + 1) then
 				reset_counter <= (others => '0');
 			elsif reset_n2 = '0' and reset_n3 = '1' then
 				reset_counter <= (others => '0');
@@ -266,9 +275,11 @@ begin
 		end if;
 	end process;
 	
-	reset_n_synchronous <= '0' when reset_counter < 600 else '1';
+	reset_n_synchronous <= '0' when reset_counter < (hold_reset+1) and reset_counter > 0 else '1';
+	-- not used??
 	
 	-- Get stable signals from signals which cross clock domains
+	-- Sensor_done indicates SWIR sensor has imaged one row
 	process(clock) is
 	begin
 		if rising_edge(clock) then
@@ -286,6 +297,7 @@ begin
 		end if;
 	end process;
 	
+	-- output_done indicates ADC has output serial data for one pixel
 	process(clock) is
 	begin
 		if rising_edge(clock) then
@@ -331,7 +343,7 @@ begin
 	end process;
 	
 	-- Only update configuration signals if sensor is not in the middle of imaging
-	-- Configuration signals ideally set only with accomanpying reset
+	-- Configuration signals ideally set only with accompanying reset
 	process(clock, reset_n)
 	begin
 		if reset_n = '0' then
@@ -376,7 +388,7 @@ begin
 	
 	-- Create clocks going to swir sensor
 	sensor_clock_even <= sensor_clock;
-	sensor_clock_even <= not sensor_clock;
+	sensor_clock_odd <= not sensor_clock;
 	
 	sensor_integration <= to_unsigned(clocks_per_exposure / 64, sensor_integration'length);
 	
@@ -384,8 +396,8 @@ begin
 	-- Set reset of sensor
 	
 	-- Set voltage
-	SWIR_4V0 <= '1' when reset_n = '1' else '0';
-	SWIR_1V2 <= '1' when reset_n = '1' else '0';
+	SWIR_4V0 <= '1' when reset_n = '1' or control.volt_conv = '1' else '0';
+	SWIR_1V2 <= '1' when reset_n = '1' or control.volt_conv = '1' else '0';
 	
 	reset <= not reset_n;
 	
