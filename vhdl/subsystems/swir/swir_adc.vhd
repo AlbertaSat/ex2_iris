@@ -56,22 +56,23 @@ end entity swir_adc;
 
 architecture main of swir_adc is
 
-	component dcfifo_mixed_widths
-	generic (
-		intended_device_family		: string;
-		lpm_numwords				: natural;
-		lpm_showahead				: string;
-		lpm_type					: string;
-		lpm_width					: natural;
-		lpm_widthu					: natural;
-		lpm_widthu_r				: natural;
-		lpm_width_r					: natural;
-		overflow_checking			: string;
-		rdsync_delaypipe			: natural;
-		underflow_checking			: string;
-		use_eab						: string;
-		wrsync_delaypipe			: natural
-	);
+	--component dcfifo_mixed_widths
+	component fifo
+	--generic (
+	--	intended_device_family		: string;
+	--	lpm_numwords				: natural;
+	--	lpm_showahead				: string;
+	--	lpm_type					: string;
+	--	lpm_width					: natural;
+	--	lpm_widthu					: natural;
+	--	lpm_widthu_r				: natural;
+	--	lpm_width_r					: natural;
+	--	overflow_checking			: string;
+	--	rdsync_delaypipe			: natural;
+	--	underflow_checking			: string;
+	--	use_eab						: string;
+	--	wrsync_delaypipe			: natural
+	--);
 	port (
 		data						: in std_logic_vector (0 downto 0);
 		rdclk						: in std_logic;
@@ -116,22 +117,22 @@ begin
 	--		Normal synchronous FIFO mode
 	--		Automatic memory block type
 	--		Resource Usage: 4 LUT's, 1 M10K memory block, 46 reg's
-	adc_data_buffer : dcfifo_mixed_widths
-	generic map (
-		intended_device_family 		=> "cyclone v",
-		lpm_numwords 				=> 128,
-		lpm_showahead 				=> "off",
-		lpm_type 					=> "dcfifo_mixed_widths",
-		lpm_width 					=> 1,
-		lpm_widthu 					=> 7,
-		lpm_widthu_r 				=> 3,
-		lpm_width_r 				=> 16,
-		overflow_checking 			=> "on",
-		rdsync_delaypipe 			=> 4,
-		underflow_checking 			=> "on",
-		use_eab 					=> "on",
-		wrsync_delaypipe 			=> 4
-	)
+	adc_data_buffer : fifo
+	--generic map (
+	--	intended_device_family 		=> "cyclone v",
+	--	lpm_numwords 				=> 128,
+	--	lpm_showahead 				=> "off",
+	--	lpm_type 					=> "dcfifo_mixed_widths",
+	--	lpm_width 					=> 1,
+	--	lpm_widthu 					=> 7,
+	--	lpm_widthu_r 				=> 3,
+	--	lpm_width_r 				=> 16,
+	--	overflow_checking 			=> "on",
+	--	rdsync_delaypipe 			=> 4,
+	--	underflow_checking 			=> "on",
+	--	use_eab 					=> "on",
+	--	wrsync_delaypipe 			=> 4
+	--)
 	port map (
 		data 						=> fifo_data_write,
 		rdclk 						=> clock_main,

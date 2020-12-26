@@ -27,6 +27,7 @@
 -- include pll_locked signal
 -- exchange integration time for exposure clocks
 -- set conversion efficiency
+-- why is hold_time +1?
 
 -- Startup sequence: reset, obtain config
 -- voltage startup time?
@@ -186,7 +187,7 @@ architecture rtl of swir_subsystem is
 	
 	signal pixel_vector			: std_logic_vector(15 downto 0);
 		
-	constant hold_reset			: integer := 65;
+	constant hold_time			: integer := 70;
 	
 begin	
 	
@@ -209,7 +210,7 @@ begin
 	sensor_control_circuit : component swir_sensor
     port map (
         clock_swir      	=>	sensor_clock,
-        reset_n         	=>  reset_n,
+        reset_n         	=>  reset_n_synchronous,
         
         integration_time    =>	sensor_integration,
 		
@@ -234,7 +235,7 @@ begin
 	port map (
         clock_adc			=>	adc_clock,
 		clock_main			=>	clock,
-		reset_n     		=>	reset_n,
+		reset_n     		=>	reset_n_synchronous,
         
 		output_done			=>	adc_done,
         
@@ -260,12 +261,12 @@ begin
 		end if;
 	end process;
 	
-	-- Hold reset for 'hold_reset' clock cycles to be registered by other clock domains
-	-- hold_reset is 65 (50 MHz FPGA clock speed / 0.78125 MHz SWIR clock speed [slowest clock] + 1)
+	-- Hold reset for 'hold_time' clock cycles to be registered by other clock domains
+	-- hold_time is at least 65 (50 MHz FPGA clock speed / 0.78125 MHz SWIR clock speed [slowest clock] + 1)
 	process(clock) is
 	begin
 		if rising_edge(clock) then
-			if reset_counter = (hold_reset + 1) then
+			if reset_counter = hold_time then
 				reset_counter <= (others => '0');
 			elsif reset_n2 = '0' and reset_n3 = '1' then
 				reset_counter <= (others => '0');
@@ -275,8 +276,7 @@ begin
 		end if;
 	end process;
 	
-	reset_n_synchronous <= '0' when reset_counter < (hold_reset+1) and reset_counter > 0 else '1';
-	-- not used??
+	reset_n_synchronous <= '0' when reset_counter < hold_time and reset_counter > 0 else '1';
 	
 	-- Get stable signals from signals which cross clock domains
 	-- Sensor_done indicates SWIR sensor has imaged one row
@@ -314,16 +314,14 @@ begin
 		end if;
 	end process;
 	
-	
-	-- Process to stretch sensor_begin signal to send to swir clock domain
-	-- Assuming worst case lowest swir domain clock speed of 100 kHz
+	-- Process to stretch sensor_begin signal to send to swir clock domain of 0.78125 MHz
 	process(clock, reset_n)
 	begin
 		if reset_n = '0' then
 			counter_sensor_begin <= 0;
 		elsif rising_edge(clock) then
 			if sensor_begin_local = '1' then
-				counter_sensor_begin <= 1001;
+				counter_sensor_begin <= hold_time;
 			elsif counter_sensor_begin > 0 then
 				counter_sensor_begin <= counter_sensor_begin - 1;
 			end if;
