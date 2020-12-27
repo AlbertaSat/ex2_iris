@@ -9,6 +9,8 @@ entity tb_fpga is
 		fpga_clock			: out std_logic		:= '1';
 		reset_n         	: out std_logic		:= '0';
 		
+		start_config		: out std_logic		:= '0';
+		config_done			: in std_logic;
 		config          	: out swir_config_t;
         control         	: out swir_control_t;
 		
@@ -50,6 +52,7 @@ begin
 	-- Testbench sequence
 	process is
 	begin
+		do_imaging <= '0';
 		arbitrary_wait : for k in 0 to 100 loop
 			wait until rising_edge(fpga_clock_internal);
 		end loop arbitrary_wait;
@@ -72,10 +75,10 @@ begin
 		config.exposure_clocks <= 64;
 		config.length <= 5;
 		wait until rising_edge(fpga_clock_internal);
-		config.start_config <= '1';
+		start_config <= '1';
 		
 		wait until rising_edge(fpga_clock_internal);
-		config.start_config <= '0';
+		start_config <= '0';
 		wait;
 	end process;
 	

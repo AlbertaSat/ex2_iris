@@ -97,6 +97,8 @@ architecture main of swir_adc is
 	signal one_clock_cycle_passed	: std_logic;
 	signal one_pixel_cycle_passed	: std_logic;
 	signal readout					: std_logic;
+	signal readout_shifted			: std_logic;
+	signal readout_no_interrupt		: std_logic;
 	signal timer					: natural;
 	
 	signal reset_n_local			: std_logic;
@@ -221,7 +223,7 @@ begin
 					
 				else
 					cnv <= '1';
-					state_next <= acquisition; 
+					state_next <= acquisition;
 					
 				end if;
 		end case;
@@ -254,7 +256,22 @@ begin
             end if; 
         end if; 
 	end process;
-			
+	
+	-- Create signal, readout_no_interrupt, that indicates readout without including interrupt bit (1st bit of ADC serial data)
+	process(clock_adc, reset_n_local)
+	begin
+		if reset_n_local = '0' then
+			readout_shifted <= '0';
+		elsif rising_edge(clock_adc) then
+            if readout = '1' then
+				readout_shifted <= '1';
+			else
+				readout_shifted <= '0';
+			end if; 
+        end if; 
+	end process;
+	
+	readout_no_interrupt <= '1' when readout_shifted = '1' and readout = '1' else '0';
 	
 	-- To control how long certain states are held for
 	one_pixel_cycle_passed <= '1' when timer = 16 else '0';
@@ -263,7 +280,7 @@ begin
 	output_done <= '1' when one_pixel_cycle_passed = '1' and readout = '1' else '0';
 	
 	-- FIFO write request signal; Ensure that FIFO is not full first
-	fifo_wrreq <= '1' when readout = '1' and fifo_wrfull = '0' else '0';  
+	fifo_wrreq <= '1' when readout_no_interrupt = '1' and fifo_wrfull = '0' else '0';  
 	
 
 end architecture main;

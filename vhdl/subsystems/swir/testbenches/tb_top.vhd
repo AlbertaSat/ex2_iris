@@ -12,7 +12,9 @@ architecture sim of tb_top is
 	port (
 		clock           	: in std_logic;
         reset_n         	: in std_logic;
-			
+		
+		start_config		: in std_logic;
+		config_done			: out std_logic;
         config          	: in swir_config_t;
         control         	: in swir_control_t;
 			
@@ -81,6 +83,8 @@ architecture sim of tb_top is
 		fpga_clock			: out std_logic;
 		reset_n         	: out std_logic;
 		
+		start_config		: out std_logic;
+		config_done			: in std_logic;
 		config          	: out swir_config_t;
         control         	: out swir_control_t;
 		
@@ -98,6 +102,8 @@ architecture sim of tb_top is
 	signal fpga_pixel_available		:	std_logic;
 	signal fpga_config				:	swir_config_t;
 	signal fpga_control				:   swir_control_t;
+	signal fpga_start_config		:	std_logic;
+	signal fpga_config_done			:   std_logic;
 	
 	signal adc_sdi					:	std_logic;
 	signal adc_sck					:	std_logic;
@@ -126,6 +132,8 @@ begin
 		clock           	=>	fpga_clk,
         reset_n         	=>  fpga_reset_n,
         
+		start_config		=>	fpga_start_config,
+		config_done			=>	fpga_config_done,
         config          	=>	fpga_config,
         control         	=>	fpga_control,
         
@@ -189,6 +197,8 @@ begin
 		fpga_clock			=>	fpga_clk,
 		reset_n         	=>  fpga_reset_n,	
 		
+		start_config		=>	fpga_start_config,
+		config_done			=>	fpga_config_done,
 		config          	=>	fpga_config,
         control         	=>	fpga_control,
 		

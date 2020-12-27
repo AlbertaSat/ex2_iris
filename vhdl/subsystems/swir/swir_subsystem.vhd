@@ -16,18 +16,16 @@
 
 -- Check stability time of sensor after powerup
 -- Link voltage and reset - dont want circuit going while no power
--- Delete config done signal?
 -- bound integers
 -- set conversion efficiency
 -- remove clocks per frame
 -- put voltage in ff for hold time?
 -- Note: integration time multiple of 64
 -- Actually, want to subtract integration time from total time and round to closest multiple of 64
--- pll correct?
 -- include pll_locked signal
 -- exchange integration time for exposure clocks
 -- set conversion efficiency
--- why is hold_time +1?
+-- add wave clock reset_n sck sensor_clock_even do_imaging sensor_reset_even AD_sp_even sensor_begin sensor_adc_start sdi sdo sensor_done
 
 -- Startup sequence: reset, obtain config
 -- voltage startup time?
@@ -47,10 +45,12 @@ entity swir_subsystem is
     port (
         clock           	: in std_logic;
         reset_n         	: in std_logic;
-			
+		
+		start_config		: in std_logic;
+		config_done			: out std_logic;
         config          	: in swir_config_t;
         control         	: in swir_control_t;
-			
+		
         do_imaging      	: in std_logic;
 	
 		-- Signals to SDRAM subsystem
@@ -156,6 +156,7 @@ architecture rtl of swir_subsystem is
 	signal adc_done				: std_logic;
 	signal adc_fifo_rd			: std_logic;
 	signal adc_fifo_empty		: std_logic;
+	signal read_counter			: unsigned(7 downto 0);
 	
 	signal row_counter			: unsigned(9 downto 0);
 	signal clocks_per_frame_temp : integer;
@@ -164,6 +165,7 @@ architecture rtl of swir_subsystem is
 	signal clocks_per_exposure	: integer;
 	signal number_of_rows_temp	: integer;
 	signal number_of_rows		: integer;
+	signal config_wait			: std_logic;
 	
 	signal counter_sensor_begin : integer range 0 to 1001;
 	signal sensor_begin_local	: std_logic;
@@ -332,10 +334,10 @@ begin
 	process(clock, reset_n)
 	begin
 		if rising_edge(clock) then
-			if config.start_config = '1' then
+			if start_config = '1' then
 				clocks_per_frame_temp <= config.frame_clocks;
 				clocks_per_exposure_temp <= config.exposure_clocks;
-				number_of_rows_temp <= config.length;
+				number_of_rows_temp <= config.length;	
 			end if;
 		end if;
 	end process;
@@ -351,6 +353,31 @@ begin
 				clocks_per_frame <= clocks_per_frame_temp;
 				clocks_per_exposure <= clocks_per_exposure_temp;
 				number_of_rows <= number_of_rows_temp;
+			end if;
+		end if;
+	end process;
+	
+	-- Process to set config_done signal
+	-- Which is a 1 clock cycle pulse set when a new configuration has been registered
+	process(clock, reset_n)
+	begin
+		if reset_n = '0' then
+			config_done <= '0';
+			config_wait <= '0';
+		elsif rising_edge(clock) then
+			if start_config = '1' and row_counter = 0 then
+				config_done <= '1';
+				config_wait <= '0';
+			elsif start_config = '1' then  -- If configuration is during imaging
+				config_done <= '0';
+				config_wait <= '1';
+				-- config_wait indicates a new configuration has been sent but the imager is
+				--   in the middle of imaging and did not register the new settings
+			elsif config_wait = '1' and row_counter = 0 then  -- If configuration is being registered after imaging is done
+				config_done <= '1';
+				config_wait <= '0';
+			else
+				config_done <= '0';
 			end if;
 		end if;
 	end process;
@@ -374,9 +401,45 @@ begin
 		end if;
 	end process;
 	
+	-- Count number of data writes to FIFO to be read out
+	process(clock, reset_n)
+	begin
+		if reset_n = '0' then
+			read_counter <= (others => '0');
+		elsif rising_edge(clock) then
+			if read_counter > 0 and adc_fifo_empty = '0' then
+				read_counter <= read_counter - 1;
+			end if;
+			
+			if output_done_local = '1' then
+				read_counter <= read_counter + 1;
+			elsif read_counter >= 128 then  -- FIFO width is 128
+				read_counter <= (others => '0');
+			end if;
+		end if;
+	end process;
+	
+	-- Read data out of FIFO
+	process(clock, reset_n)
+	begin
+		if reset_n = '0' then
+			adc_fifo_rd <= '0';
+			pixel_available <= '0';
+		elsif rising_edge(clock) then
+			if read_counter > 0 and adc_fifo_empty = '0' then
+				adc_fifo_rd <= '1';
+				pixel_available <= '1';
+			else
+				adc_fifo_rd <= '0';
+				pixel_available <= '0';
+			end if;
+		end if;
+	end process;
+	
+	
 	-- Reading of data from FIFO
-	adc_fifo_rd <= '1' when output_done_local = '1' and adc_fifo_empty = '0' else '0';
-	pixel_available <= '1' when adc_fifo_rd = '1' else '0';
+	--adc_fifo_rd <= '1' when output_done_local = '1' and adc_fifo_empty = '0' else '0';
+	--pixel_available <= '1' when adc_fifo_rd = '1' else '0';
 	
 	-- Sensor conversion efficiency - 0 (low) or 1 (high)
 	sensor_ce <= '1';
