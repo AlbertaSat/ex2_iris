@@ -15,24 +15,76 @@
 ----------------------------------------------------------------
 
 -- Check stability time of sensor after powerup
--- Link voltage and reset - dont want circuit going while no power
 -- bound integers
 -- set conversion efficiency
--- remove clocks per frame
--- put voltage in ff for hold time?
--- Note: integration time multiple of 64
 -- Actually, want to subtract integration time from total time and round to closest multiple of 64
--- include pll_locked signal
--- exchange integration time for exposure clocks
--- set conversion efficiency
+-- set clocks per frame initial value
 -- add wave clock reset_n sck sensor_clock_even do_imaging sensor_reset_even AD_sp_even sensor_begin sensor_adc_start sdi sdo sensor_done
+-- stretch integration_time?
+-- max frame clocks?
+-- from SWIR_adc.vhd: Note: Should maintain one clock cycle of sck between conversion to allow for sdi to go high
 
 -- Startup sequence: reset, obtain config
--- voltage startup time?
 
--- TPS73601DCQR (1V2) and TPS62821DLCR (4V0) are used as voltage regulators
+-- This circuit controls a short-wave infrared (SWIR) sensor and its analog-to-digital converter (ADC)
+-- When triggered by the top-level "FPGA subsystem", this circuit (the "SWIR subsystem") will image n rows of SWIR data given 
+--		certain configuration specifications, and send the data to the "SDRAM subsystem" to be written to SDRAM
+-- The SWIR sensor is the 1x512 pixel G11508 Hamamatsu sensor
+-- Data from the SWIR sensor is sent to an ADAQ7980 ADC, in 4-wire CS mode with busy indicator, with VIO over 1.7 V
+-- Voltage to the SWIR sensor is controlled by two voltage regulators: TPS73601DCQR (1V2) and TPS62821DLCR (4V0)
 
--- ~1024 max rows
+-- swir_subsystem.vhd is the top level code of SWIR subsystem, and does the following
+--		Manages signals from FPGA and SDRAM subsystems into SWIR subsystem, and prepares signal for crossing clock domains
+--		Reads configuration signals from FPGA subsystem, and passes on integration time to SWIR sensor control circuit
+--		Triggers SWIR sensor control circuit to image rows
+--		Instantiates PLL IP to create SWIR and ADC clocks
+--		Read data out of FIFO buffer to SDRAM subsystem
+--		Control enable signals to voltage regulators
+--		Instantiates swir_sensor.vhd, which controls signals directly to SWIR sensor, and may image 1 row if triggered
+--		Instantiates swir_adc.vhd, which controls signals to ADC and writes data from ADC to FIFO buffer
+
+-- Signals:
+--		clock: 			50 MHz FPGA clock
+--		reset_n: 		input asynchronous reset from FPGA subsystem
+--
+--		start_config: 	[Pulse] Configuration signals are registered on this pulse
+--		config_done: 	[Pulse] Indicates current configuration signals are being used. If configuration signals are set
+--								while sensor is imaging, they will not be used until imaging is done (n rows are finished)
+--		config: 		Configuration signals. Consists of:
+--			config.frame_clocks: 	Integer, sets number of 50 MHz clock cycles per frame (one frame indicates length between subsequent sensor integrations)
+--			config.exposure_clocks: Integer, sets number of clock cycles for sensor to integrate over (multiple of 64)
+--			config.length: 			Integer, number of rows to image (512 pixels per row, one frame per row)
+--		control:		Control signals. Consists of:
+--			control.volt_conv: 		Sets enable signal (active high) for voltage regulators
+--
+--		do_imaging: 	[Pulse] Starts imaging process given current configuration settings (triggers imaging of n rows)
+--		pixel_available:[Pulse] Indicates one pixel of data is valid to be read by SDRAM subsystem
+--		pixel: 			16 bit logic array containing data for one pixel
+--		
+--		sdi:			Serial Data Input. Control signal for ADC (refer to ADAQ7980 datasheet)
+--		sdo:			Serial Data Output. Digital data outputted on sdo (refer to ADAQ7980 datasheet)
+--		sck:			Serial Data Clock Input. Serial Data is clocked out according to speed of sck
+--		cnv:			Convert Input. Control signal for ADC (refer to ADAQ7980 datasheet)
+--
+--		sensor_clock_even:	Clock sent to SWIR sensor, and controls speed of analog data outputted
+--		sensor_clock_odd:	Clock sent to SWIR sensor, and controls speed of analog data outputted
+--		sensor_reset_even:	Control signal sent to SWIR sensor, controls integration time
+--		sensor_reset_odd:	Control signal sent to SWIR sensor, controls integration time
+--		Cf_select1:			Control signal sent to SWIR sensor, controls conversion efficiency of sensor (high or low)
+--		Cf_select2:			Control signal sent to SWIR sensor, controls conversion efficiency of sensor (high or low)
+--		AD_sp_even:			Pulse sent from SWIR sensor, indicates data is about to be read out
+--		AD_sp_odd:			Pulse sent from SWIR sensor, indicates data is about to be read out
+--		AD_trig_even:		Signal sent from SWIR sensor, not used
+--		AD_trig_odd:		Signal sent from SWIR sensor, not used
+--
+--		SWIR_4V0:			Enable signal for TPS62821DLCR voltage regulator
+--		SWIR_1V2:			Enable signal for TPS73601DCQR voltage regulator
+
+-- Constraints:
+--		config.frame_clocks: 
+--		config.exposure_clocks: 64 - 17856 inclusive. Must be a multiple of 64
+--		config.length: 1 - 1023 inclusive
+
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -100,7 +152,7 @@ architecture rtl of swir_subsystem is
 		clock_swir      	: in std_logic;
         reset_n         	: in std_logic;
         
-        integration_time    : in unsigned(6 downto 0);
+        integration_time    : in unsigned(9 downto 0);
 		
 		ce					: in std_logic; 
 		adc_trigger			: out std_logic;
@@ -145,7 +197,7 @@ architecture rtl of swir_subsystem is
 	end component swir_adc;
 	
 	signal sensor_clock			: std_logic;
-	signal sensor_integration	: unsigned(6 downto 0);
+	signal sensor_integration	: unsigned(9 downto 0);
 	signal sensor_ce			: std_logic;
 	signal sensor_begin			: std_logic;
 	signal sensor_done			: std_logic;
@@ -170,6 +222,9 @@ architecture rtl of swir_subsystem is
 	signal counter_sensor_begin : integer range 0 to 1001;
 	signal sensor_begin_local	: std_logic;
 	
+	signal frame_counter		: unsigned(16 downto 0);
+	signal in_frame				: std_logic;
+	
 	signal sensor_done1			: std_logic;
 	signal sensor_done2			: std_logic;
 	signal sensor_done3			: std_logic;
@@ -183,6 +238,7 @@ architecture rtl of swir_subsystem is
 	signal reset_n3				: std_logic;
 	signal reset_n_synchronous	: std_logic;
 	signal reset_counter		: unsigned(10 downto 0);
+	signal circuit_on			: std_logic;
 	
 	signal reset				: std_logic;
 	signal pll_locked			: std_logic;
@@ -278,7 +334,8 @@ begin
 		end if;
 	end process;
 	
-	reset_n_synchronous <= '0' when reset_counter < hold_time and reset_counter > 0 else '1';
+	-- Keep reset if fpga sends reset signal, or if pll is not yet locked
+	reset_n_synchronous <= '0' when (reset_counter < hold_time and reset_counter > 0) or (pll_locked /= '1') else '1';
 	
 	-- Get stable signals from signals which cross clock domains
 	-- Sensor_done indicates SWIR sensor has imaged one row
@@ -317,9 +374,9 @@ begin
 	end process;
 	
 	-- Process to stretch sensor_begin signal to send to swir clock domain of 0.78125 MHz
-	process(clock, reset_n)
+	process(clock, reset_n, circuit_on)
 	begin
-		if reset_n = '0' then
+		if reset_n = '0' or circuit_on /= '1' then
 			counter_sensor_begin <= 0;
 		elsif rising_edge(clock) then
 			if sensor_begin_local = '1' then
@@ -331,9 +388,13 @@ begin
 	end process;
 
 	-- Register configuration signals
-	process(clock, reset_n)
+	process(clock, reset_n, circuit_on)
 	begin
-		if rising_edge(clock) then
+		if reset_n = '0' or circuit_on /= '1' then
+			number_of_rows_temp <= 1;
+			clocks_per_frame_temp <= 0;
+			clocks_per_exposure_temp <= 320;  -- 64 * 5(min integration cycles)
+		elsif rising_edge(clock) then
 			if start_config = '1' then
 				clocks_per_frame_temp <= config.frame_clocks;
 				clocks_per_exposure_temp <= config.exposure_clocks;
@@ -344,10 +405,12 @@ begin
 	
 	-- Only update configuration signals if sensor is not in the middle of imaging
 	-- Configuration signals ideally set only with accompanying reset
-	process(clock, reset_n)
+	process(clock, reset_n, circuit_on)
 	begin
-		if reset_n = '0' then
-			number_of_rows <= 0;
+		if reset_n = '0' or circuit_on /= '1' then
+			number_of_rows <= 1;
+			clocks_per_frame <= 0;
+			clocks_per_exposure <= 320;  -- 64 * 5(min integration cycles)
 		elsif rising_edge(clock) then
 			if row_counter = 0 then
 				clocks_per_frame <= clocks_per_frame_temp;
@@ -359,9 +422,9 @@ begin
 	
 	-- Process to set config_done signal
 	-- Which is a 1 clock cycle pulse set when a new configuration has been registered
-	process(clock, reset_n)
+	process(clock, reset_n, circuit_on)
 	begin
-		if reset_n = '0' then
+		if reset_n = '0' or circuit_on /= '1' then
 			config_done <= '0';
 			config_wait <= '0';
 		elsif rising_edge(clock) then
@@ -383,13 +446,13 @@ begin
 	end process;
 	
 	-- Count number of rows that have been imaged, and trigger imaging of row
-	process(clock, reset_n)
+	process(clock, reset_n, circuit_on)
 	begin
-		if reset_n = '0' then
+		if reset_n = '0' or circuit_on /= '1' then
 			row_counter <= (others=>'0');
 			sensor_begin_local <= '0';
 		elsif rising_edge(clock) then
-			if (do_imaging = '1' and row_counter = 0) or (sensor_done_local = '1' and row_counter < number_of_rows) then
+			if (do_imaging = '1' and row_counter = 0) or (in_frame = '0' and row_counter < number_of_rows and row_counter > 1) then
 				row_counter <= row_counter + 1;
 				sensor_begin_local <= '1';
 			elsif row_counter = number_of_rows then
@@ -401,10 +464,34 @@ begin
 		end if;
 	end process;
 	
-	-- Count number of data writes to FIFO to be read out
-	process(clock, reset_n)
+	-- Count number of clock cycles per frame to conform to clocks_per_frame configuration setting
+	-- Image sensor reset signal begins 5 clock cycles of sensor clk after sensor_begin signal
+	process(clock, reset_n, circuit_on)
 	begin
-		if reset_n = '0' then
+		if reset_n = '0' or circuit_on /= '1' then
+			frame_counter <= (others=>'0');
+			in_frame <= '0';
+		elsif rising_edge(clock) then
+			if (sensor_begin = '1' and in_frame = '0') then
+				frame_counter <= (others=>'0');
+				frame_counter <= frame_counter + 1;
+				in_frame <= '1';
+			elsif ((sensor_done = '1' and sensor_begin = '0' and frame_counter > clocks_per_frame) or frame_counter = clocks_per_frame) then
+				frame_counter <= (others=>'0');
+				in_frame <= '0';
+			elsif (in_frame = '1') then
+				frame_counter <= frame_counter + 1;
+			else
+				frame_counter <= (others=>'0');
+				in_frame <= '0';
+			end if;
+		end if;
+	end process;
+	
+	-- Count number of data writes to FIFO to be read out
+	process(clock, reset_n, circuit_on)
+	begin
+		if reset_n = '0' or circuit_on /= '1' then
 			read_counter <= (others => '0');
 		elsif rising_edge(clock) then
 			if read_counter > 0 and adc_fifo_empty = '0' then
@@ -420,9 +507,9 @@ begin
 	end process;
 	
 	-- Read data out of FIFO
-	process(clock, reset_n)
+	process(clock, reset_n, circuit_on)
 	begin
-		if reset_n = '0' then
+		if reset_n = '0' or circuit_on /= '1' then
 			adc_fifo_rd <= '0';
 			pixel_available <= '0';
 		elsif rising_edge(clock) then
@@ -436,11 +523,6 @@ begin
 		end if;
 	end process;
 	
-	
-	-- Reading of data from FIFO
-	--adc_fifo_rd <= '1' when output_done_local = '1' and adc_fifo_empty = '0' else '0';
-	--pixel_available <= '1' when adc_fifo_rd = '1' else '0';
-	
 	-- Sensor conversion efficiency - 0 (low) or 1 (high)
 	sensor_ce <= '1';
 
@@ -451,15 +533,18 @@ begin
 	sensor_clock_even <= sensor_clock;
 	sensor_clock_odd <= not sensor_clock;
 	
-	sensor_integration <= to_unsigned(clocks_per_exposure / 64, sensor_integration'length);
-	
-	-- stretch integration_time?
-	-- Set reset of sensor
+	-- Convert integration time in 50 Mhz clock cycles to 0.78125 MHz clock cycles
+	--  and add 5 clock cycles for actual integration time setting (as shown in sensor datasheet)
+	sensor_integration <= to_unsigned(clocks_per_exposure / 64, sensor_integration'length) + 5;
 	
 	-- Set voltage
 	SWIR_4V0 <= '1' when reset_n = '1' or control.volt_conv = '1' else '0';
 	SWIR_1V2 <= '1' when reset_n = '1' or control.volt_conv = '1' else '0';
 	
+	-- Circuit_on indicates if voltage regulators and PLL are ready. If not, want to keep circuit in "reset" state
+	circuit_on <= '1' when control.volt_conv = '1' and pll_locked =  '1' else '0';
+	
+	-- reset (active high) for PLL IP
 	reset <= not reset_n;
 	
 	-- Convert array values to std_logic_vector values

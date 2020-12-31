@@ -14,17 +14,10 @@
 -- limitations under the License.
 ----------------------------------------------------------------
 
--- Should i get reset from swir?
--- How to use adc_trigger -> as a safety check? (count both?) - Can't, its too fast - Add to synchronizing ff
--- Add clock domain crossing -> domain crossing from SWIR too!
--- Ensure pull up resitor brings pins to high for cyclone v pins
--- Error: changing sdi after 1 clk cycle is too slow, unless adc_clock is at least 2 MHz
--- ADD: Ad_trig signal handelling
-
-
 -- Circuit to control ADAQ7980 ADC, in 4-wire CS mode with busy indicator, with VIO above 1.7V
-
--- Note: Should maintain one clock cycle of sck between conversion to allow for sdi to go high
+-- ADC begins conversion after adc_start pulse
+-- When conversion has finished, output_done is pulsed
+-- As data is being outputted, it is written to FIFO buffer
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -38,7 +31,7 @@ entity swir_adc is
 		
         output_done		   	: out std_logic;  -- Indicate that one pixel has been received
 		
-		-- Signals from sensor
+		-- Signals from sensor circuit
 		adc_trigger			: in std_logic;
 		adc_start			: in std_logic;
 		

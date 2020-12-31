@@ -14,18 +14,11 @@
 -- limitations under the License.
 ----------------------------------------------------------------
 
--- TODO: Voltage signal
--- Upper bound for counter vector and integration time input
--- Ensure integration time > 5 clock cycles
--- Reset signal
--- Test counter signal and done signal
----RETEST!
--- fix adc_start
--- Add AD_trig to testbench
-
--- PROBLEM: Before subsystem reset signal is stable, swir reset may be high (must be kept low)
-
+-- swir_sensor.vhd controls signals sent to the SWIR sensor
 -- When prompted by sensor_begin, will trigger imaging of one row, and will pulse sensor_done when row is finished
+-- While analog data is outputed by sensor, adc_start will be sent to ADC control circuit to make it beging conversion
+--	based on the fact that analog data is valid on the falling edge of the SWIR sensor clock
+
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -37,7 +30,7 @@ entity swir_sensor is
         clock_swir      	: in std_logic;
         reset_n         	: in std_logic;
         
-        integration_time    : in unsigned(6 downto 0);	-- Integration time of SWIR sensor, in clock cycles of swir clock
+        integration_time    : in unsigned(9 downto 0);	-- Integration time of SWIR sensor, in clock cycles of swir clock
 		
 		ce					: in std_logic; -- Conversion efficiency: 0 (low) or 1 (high)
 		adc_trigger			: out std_logic;
@@ -59,7 +52,7 @@ end entity swir_sensor;
 
 architecture main of swir_sensor is
 
-	signal reset_counter						: unsigned(6 downto 0);
+	signal reset_counter						: unsigned(9 downto 0);
 	signal reset_n_local						: std_logic;
 	signal reset_n_metastable					: std_logic;
 	

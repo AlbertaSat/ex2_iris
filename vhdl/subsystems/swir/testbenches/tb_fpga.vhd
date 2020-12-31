@@ -53,7 +53,7 @@ begin
 	process is
 	begin
 		do_imaging <= '0';
-		arbitrary_wait : for k in 0 to 100 loop
+		arbitrary_wait : for k in 0 to 150 loop
 			wait until rising_edge(fpga_clock_internal);
 		end loop arbitrary_wait;
 		
@@ -67,12 +67,12 @@ begin
 	-- Set configuration signals
 	process is
 	begin
-		arbitrary_wait : for k in 0 to 50 loop
+		arbitrary_wait : for k in 0 to 100 loop
 			wait until rising_edge(fpga_clock_internal);
 		end loop arbitrary_wait;
 		
-		config.frame_clocks <= 0;
-		config.exposure_clocks <= 64;
+		config.frame_clocks <= 50000;
+		config.exposure_clocks <= 64*6;
 		config.length <= 5;
 		wait until rising_edge(fpga_clock_internal);
 		start_config <= '1';
