@@ -208,4 +208,5 @@ begin
         pixel_available   	=>  fpga_pixel_available
 	);
 
+
 end architecture;

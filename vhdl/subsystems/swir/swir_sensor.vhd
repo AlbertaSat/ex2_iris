@@ -115,7 +115,7 @@ begin
 		
 	end process;
 	
-	-- Process to keep track of number of pixels outputed
+	-- Process to keep track of number of pixels outputted
 	process(clock_swir) is
 	begin
 	

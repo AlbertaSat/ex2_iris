@@ -19,9 +19,10 @@
 -- set conversion efficiency
 -- Actually, want to subtract integration time from total time and round to closest multiple of 64
 -- set clocks per frame initial value
--- add wave clock reset_n sck sensor_clock_even do_imaging sensor_reset_even AD_sp_even sensor_begin sensor_adc_start sdi sdo sensor_done
+-- fix frame clocks
 -- stretch integration_time?
 -- max frame clocks?
+-- frame clocks standard value
 -- from SWIR_adc.vhd: Note: Should maintain one clock cycle of sck between conversion to allow for sdi to go high
 
 -- Startup sequence: reset, obtain config
@@ -211,12 +212,12 @@ architecture rtl of swir_subsystem is
 	signal read_counter			: unsigned(7 downto 0);
 	
 	signal row_counter			: unsigned(9 downto 0);
-	signal clocks_per_frame_temp : integer;
-	signal clocks_per_frame		: integer;
-	signal clocks_per_exposure_temp	: integer;
-	signal clocks_per_exposure	: integer;
-	signal number_of_rows_temp	: integer;
-	signal number_of_rows		: integer;
+	signal clocks_per_frame_temp : integer range -1 to 100000;
+	signal clocks_per_frame		: integer range -1 to 100000;
+	signal clocks_per_exposure_temp	: integer range 0 to 17920;
+	signal clocks_per_exposure	: integer range 0 to 17920;
+	signal number_of_rows_temp	: integer range 0 to 5000;
+	signal number_of_rows		: integer range 0 to 5000;
 	signal config_wait			: std_logic;
 	
 	signal counter_sensor_begin : integer range 0 to 1001;
@@ -224,6 +225,7 @@ architecture rtl of swir_subsystem is
 	
 	signal frame_counter		: unsigned(16 downto 0);
 	signal in_frame				: std_logic;
+	signal min_one_frame_len	: integer range 0 to 100000; -- Minimum number of 50 MHz clock cycles in one frame (based on readout time and min integration time)
 	
 	signal sensor_done1			: std_logic;
 	signal sensor_done2			: std_logic;
@@ -244,7 +246,7 @@ architecture rtl of swir_subsystem is
 	signal pll_locked			: std_logic;
 	
 	signal pixel_vector			: std_logic_vector(15 downto 0);
-		
+	
 	constant hold_time			: integer := 70;
 	
 begin	
@@ -335,7 +337,7 @@ begin
 	end process;
 	
 	-- Keep reset if fpga sends reset signal, or if pll is not yet locked
-	reset_n_synchronous <= '0' when (reset_counter < hold_time and reset_counter > 0) or (pll_locked /= '1') else '1';
+	reset_n_synchronous <= '0' when (reset_counter < hold_time and reset_counter > 0) or (circuit_on /= '1') else '1';
 	
 	-- Get stable signals from signals which cross clock domains
 	-- Sensor_done indicates SWIR sensor has imaged one row
@@ -391,9 +393,9 @@ begin
 	process(clock, reset_n, circuit_on)
 	begin
 		if reset_n = '0' or circuit_on /= '1' then
-			number_of_rows_temp <= 1;
-			clocks_per_frame_temp <= 0;
-			clocks_per_exposure_temp <= 320;  -- 64 * 5(min integration cycles)
+			number_of_rows_temp <= 0;
+			clocks_per_frame_temp <= -1;
+			clocks_per_exposure_temp <= 64;
 		elsif rising_edge(clock) then
 			if start_config = '1' then
 				clocks_per_frame_temp <= config.frame_clocks;
@@ -408,9 +410,9 @@ begin
 	process(clock, reset_n, circuit_on)
 	begin
 		if reset_n = '0' or circuit_on /= '1' then
-			number_of_rows <= 1;
-			clocks_per_frame <= 0;
-			clocks_per_exposure <= 320;  -- 64 * 5(min integration cycles)
+			number_of_rows <= 0;
+			clocks_per_frame <= -1;
+			clocks_per_exposure <= 64;
 		elsif rising_edge(clock) then
 			if row_counter = 0 then
 				clocks_per_frame <= clocks_per_frame_temp;
@@ -449,41 +451,73 @@ begin
 	process(clock, reset_n, circuit_on)
 	begin
 		if reset_n = '0' or circuit_on /= '1' then
-			row_counter <= (others=>'0');
 			sensor_begin_local <= '0';
 		elsif rising_edge(clock) then
-			if (do_imaging = '1' and row_counter = 0) or (in_frame = '0' and row_counter < number_of_rows and row_counter > 1) then
-				row_counter <= row_counter + 1;
+			-- If do_imaging is triggered to image the first row, or if nth row is about to be imaged
+			--  Add row_counter = 0 condition to ensure do_imaging isn't triggered while imaging is in progress
+			if (do_imaging = '1' and row_counter = 0) or (in_frame = '0' and row_counter < number_of_rows and row_counter > 0) then
 				sensor_begin_local <= '1';
-			elsif row_counter = number_of_rows then
-				row_counter <= (others=>'0');
-				sensor_begin_local <= '0';
 			else
 				sensor_begin_local <= '0';
 			end if;
 		end if;
 	end process;
 	
-	-- Count number of clock cycles per frame to conform to clocks_per_frame configuration setting
-	-- Image sensor reset signal begins 5 clock cycles of sensor clk after sensor_begin signal
+	-- in_frame tracks whether the sensor is in the process of integrating or readout
+	process(clock, reset_n, circuit_on)
+	begin
+		if reset_n = '0' or circuit_on /= '1' then
+			in_frame <= '0';
+		elsif rising_edge(clock) then
+			if sensor_begin_local = '1' then
+				in_frame <= '1';
+			elsif frame_counter = 0 then
+				in_frame <= '0';
+			else
+				in_frame <= in_frame;
+			end if;
+		end if;
+	end process;
+	
+	-- frame_counter counts the number of FPGA clock cycles in each frame
+	--   to ensure that it is within configuration settings
 	process(clock, reset_n, circuit_on)
 	begin
 		if reset_n = '0' or circuit_on /= '1' then
 			frame_counter <= (others=>'0');
-			in_frame <= '0';
 		elsif rising_edge(clock) then
-			if (sensor_begin = '1' and in_frame = '0') then
+			if sensor_begin_local = '1' then  -- start counter
 				frame_counter <= (others=>'0');
 				frame_counter <= frame_counter + 1;
-				in_frame <= '1';
-			elsif ((sensor_done = '1' and sensor_begin = '0' and frame_counter > clocks_per_frame) or frame_counter = clocks_per_frame) then
+			-- Reset counter if sensor_done signal is triggered while frame_counter is at least equal to configuration setting
+			--  or, if frame_counter is at least equal to configuration setting while still being greater than the minimum frame length
+			elsif ((sensor_done_local = '1' and frame_counter >= clocks_per_frame) 
+				or (frame_counter >= clocks_per_frame and frame_counter >= min_one_frame_len)) then
 				frame_counter <= (others=>'0');
-				in_frame <= '0';
-			elsif (in_frame = '1') then
+			elsif frame_counter > 0 then
 				frame_counter <= frame_counter + 1;
 			else
 				frame_counter <= (others=>'0');
-				in_frame <= '0';
+			end if;
+		end if;
+	end process;
+	
+	-- row_counter keeps track of amount of rows imaged to conform to configuration setting
+	process(clock, reset_n, circuit_on)
+	begin
+		if reset_n = '0' or circuit_on /= '1' then
+			row_counter <= (others=>'0');
+		elsif rising_edge(clock) then
+			--if do_imaging = '1' and row_counter = 0 then -- reset row_counter 
+			--	row_counter <= (others=>'0');
+			if frame_counter = 1 then -- frame_counter = 1 near the start of each row - use it to increment row_counter
+				row_counter <= row_counter + 1;
+			-- If row_counter equals configuration setting for number of rows to image, and the frame is done, reset the counter
+			elsif row_counter = number_of_rows and ((sensor_done_local = '1' and frame_counter >= clocks_per_frame) 
+				or (frame_counter >= clocks_per_frame and frame_counter >= min_one_frame_len)) then
+				row_counter <= (others=>'0');
+			else
+				row_counter <= row_counter;
 			end if;
 		end if;
 	end process;
@@ -537,9 +571,13 @@ begin
 	--  and add 5 clock cycles for actual integration time setting (as shown in sensor datasheet)
 	sensor_integration <= to_unsigned(clocks_per_exposure / 64, sensor_integration'length) + 5;
 	
+	-- Minimum length of one frame given a certain exposure period
+	-- Refer to TX2-PL-124 for derivation of 35200 hard coded value
+	min_one_frame_len <= 35200 + clocks_per_exposure;
+	
 	-- Set voltage
-	SWIR_4V0 <= '1' when reset_n = '1' or control.volt_conv = '1' else '0';
-	SWIR_1V2 <= '1' when reset_n = '1' or control.volt_conv = '1' else '0';
+	SWIR_4V0 <= '1' when reset_n = '1' and control.volt_conv = '1' else '0';
+	SWIR_1V2 <= '1' when reset_n = '1' and control.volt_conv = '1' else '0';
 	
 	-- Circuit_on indicates if voltage regulators and PLL are ready. If not, want to keep circuit in "reset" state
 	circuit_on <= '1' when control.volt_conv = '1' and pll_locked =  '1' else '0';
