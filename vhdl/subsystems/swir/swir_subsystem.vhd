@@ -14,19 +14,6 @@
 -- limitations under the License.
 ----------------------------------------------------------------
 
--- Check stability time of sensor after powerup
--- bound integers
--- set conversion efficiency
--- Actually, want to subtract integration time from total time and round to closest multiple of 64
--- set clocks per frame initial value
--- fix frame clocks
--- stretch integration_time?
--- max frame clocks?
--- frame clocks standard value
--- from SWIR_adc.vhd: Note: Should maintain one clock cycle of sck between conversion to allow for sdi to go high
-
--- Startup sequence: reset, obtain config
-
 -- This circuit controls a short-wave infrared (SWIR) sensor and its analog-to-digital converter (ADC)
 -- When triggered by the top-level "FPGA subsystem", this circuit (the "SWIR subsystem") will image n rows of SWIR data given 
 --		certain configuration specifications, and send the data to the "SDRAM subsystem" to be written to SDRAM
@@ -34,12 +21,12 @@
 -- Data from the SWIR sensor is sent to an ADAQ7980 ADC, in 4-wire CS mode with busy indicator, with VIO over 1.7 V
 -- Voltage to the SWIR sensor is controlled by two voltage regulators: TPS73601DCQR (1V2) and TPS62821DLCR (4V0)
 
--- swir_subsystem.vhd is the top level code of SWIR subsystem, and does the following
+-- swir_subsystem.vhd is the top level code of SWIR subsystem, and does the following:
 --		Manages signals from FPGA and SDRAM subsystems into SWIR subsystem, and prepares signal for crossing clock domains
 --		Reads configuration signals from FPGA subsystem, and passes on integration time to SWIR sensor control circuit
 --		Triggers SWIR sensor control circuit to image rows
 --		Instantiates PLL IP to create SWIR and ADC clocks
---		Read data out of FIFO buffer to SDRAM subsystem
+--		Reads data out of FIFO buffer to SDRAM subsystem
 --		Control enable signals to voltage regulators
 --		Instantiates swir_sensor.vhd, which controls signals directly to SWIR sensor, and may image 1 row if triggered
 --		Instantiates swir_adc.vhd, which controls signals to ADC and writes data from ADC to FIFO buffer
@@ -54,7 +41,7 @@
 --		config: 		Configuration signals. Consists of:
 --			config.frame_clocks: 	Integer, sets number of 50 MHz clock cycles per frame (one frame indicates length between subsequent sensor integrations)
 --			config.exposure_clocks: Integer, sets number of clock cycles for sensor to integrate over (multiple of 64)
---			config.length: 			Integer, number of rows to image (512 pixels per row, one frame per row)
+--			config.length: 			Integer, number of rows to image (512 pixels per row, one row per frame)
 --		control:		Control signals. Consists of:
 --			control.volt_conv: 		Sets enable signal (active high) for voltage regulators
 --
@@ -82,9 +69,9 @@
 --		SWIR_1V2:			Enable signal for TPS73601DCQR voltage regulator
 
 -- Constraints:
---		config.frame_clocks: 
---		config.exposure_clocks: 64 - 17856 inclusive. Must be a multiple of 64
---		config.length: 1 - 1023 inclusive
+--		config.frame_clocks: -1 to 100000 inclusive
+--		config.exposure_clocks: 64 to 17856 inclusive. Must be a multiple of 64
+--		config.length: 1 to 5000 inclusive
 
 
 library ieee;
@@ -179,9 +166,9 @@ architecture rtl of swir_subsystem is
 		clock_main			: in std_logic;  
         reset_n         	: in std_logic;
 		
-        output_done		   	: out std_logic;  -- Indicate that one pixel has been received
+        output_done		   	: out std_logic;
 		
-		-- Signals from sensor
+		-- Signals from sensor code
 		adc_trigger			: in std_logic;
 		adc_start			: in std_logic;
 		
@@ -223,9 +210,9 @@ architecture rtl of swir_subsystem is
 	signal counter_sensor_begin : integer range 0 to 1001;
 	signal sensor_begin_local	: std_logic;
 	
-	signal frame_counter		: unsigned(16 downto 0);
+	signal frame_counter		: unsigned(17 downto 0);
 	signal in_frame				: std_logic;
-	signal min_one_frame_len	: integer range 0 to 100000; -- Minimum number of 50 MHz clock cycles in one frame (based on readout time and min integration time)
+	signal min_one_frame_len	: integer range 0 to 100000;
 	
 	signal sensor_done1			: std_logic;
 	signal sensor_done2			: std_logic;
@@ -297,7 +284,7 @@ begin
 		clock_main			=>	clock,
 		reset_n     		=>	reset_n_synchronous,
         
-		output_done			=>	adc_done,
+		output_done			=>	adc_done,  -- Indicate that one pixel has been received
         
 		adc_trigger			=>	sensor_adc_trigger,
 		adc_start			=>	sensor_adc_start,
@@ -311,7 +298,7 @@ begin
 		fifo_data_read		=>	pixel_vector
 	);
 
-	-- Synchronize reset
+	-- Synchronize the asynchronous reset
 	process(clock) is
 	begin
 		if rising_edge(clock) then
@@ -321,15 +308,17 @@ begin
 		end if;
 	end process;
 	
-	-- Hold reset for 'hold_time' clock cycles to be registered by other clock domains
+	-- Hold reset for 'hold_time' clock cycles to be registered by other clock domains (so that the pulse is not missed)
 	-- hold_time is at least 65 (50 MHz FPGA clock speed / 0.78125 MHz SWIR clock speed [slowest clock] + 1)
 	process(clock) is
 	begin
 		if rising_edge(clock) then
-			if reset_counter = hold_time then
+			if reset_n2 = '0' and reset_n3 = '1' then 
+			-- reset_n1, reset_n2, and reset_n3 are 1 clock cycle delayed from one another
+			--  So, this condition will occur once after reset_n is toggled
 				reset_counter <= (others => '0');
-			elsif reset_n2 = '0' and reset_n3 = '1' then
-				reset_counter <= (others => '0');
+			elsif reset_counter = hold_time then
+				reset_counter <= reset_counter;
 			elsif reset_n3 = '0' or reset_counter > 0 then
 				reset_counter <= reset_counter + 1;
 			end if;
@@ -545,13 +534,25 @@ begin
 	begin
 		if reset_n = '0' or circuit_on /= '1' then
 			adc_fifo_rd <= '0';
-			pixel_available <= '0';
 		elsif rising_edge(clock) then
 			if read_counter > 0 and adc_fifo_empty = '0' then
 				adc_fifo_rd <= '1';
-				pixel_available <= '1';
 			else
 				adc_fifo_rd <= '0';
+			end if;
+		end if;
+	end process;
+	
+	-- Want pixel_available to lag adc_fifo_rd by 1 clock cycle
+	--  Because FIFO read data will only be valid after 1 clock cycle
+	process(clock, reset_n, circuit_on)
+	begin
+		if reset_n = '0' or circuit_on /= '1' then
+			pixel_available <= '0';
+		elsif rising_edge(clock) then
+			if adc_fifo_rd = '1' then
+				pixel_available <= '1';
+			else
 				pixel_available <= '0';
 			end if;
 		end if;
@@ -567,7 +568,7 @@ begin
 	sensor_clock_even <= sensor_clock;
 	sensor_clock_odd <= not sensor_clock;
 	
-	-- Convert integration time in 50 Mhz clock cycles to 0.78125 MHz clock cycles
+	-- Convert integration time in 50 MHz clock cycles to 0.78125 MHz clock cycles
 	--  and add 5 clock cycles for actual integration time setting (as shown in sensor datasheet)
 	sensor_integration <= to_unsigned(clocks_per_exposure / 64, sensor_integration'length) + 5;
 	

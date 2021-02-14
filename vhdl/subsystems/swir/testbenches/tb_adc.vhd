@@ -7,7 +7,6 @@ use ieee.numeric_std.all;
 --					t(acq) >= 290 ns
 --					500 <= t(conv) <= 800 ns
 -- Additionally, note: sck max speed 45 MHz
--- Note: get ModelSim error: Argument value -2147483648 is not in bounds of subtype NATURAL.
 
 entity tb_adc is
 	 port (

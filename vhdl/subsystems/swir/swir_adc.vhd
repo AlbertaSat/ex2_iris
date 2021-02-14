@@ -19,6 +19,22 @@
 -- When conversion has finished, output_done is pulsed
 -- As data is being outputted, it is written to FIFO buffer
 
+-- Signals:
+--		clock_adc: 		43.75 MHz ADC clock
+--		clock_main:		Main 50 MHz clock, needed to feed into FIFO IP
+--		reset_n: 		input reset from SWIR subsystem top-level, stretched to accomadate slower SWIR and ADC clocks
+--		
+--		output_done: 	Pulse indicating that one pixel has been received and top level should read it out of FIFO
+--
+--		adc_trigger:	Signal sent from SWIR code to mirror AD_trig of SWIR sensor; unused
+--		adc_start: 		Pulse sent from SWIR code to tell it to begin capturing analog data
+--
+--		sdi, cnv, sdo:	Signals sent to and from ADC (refer to ADC datasheet)
+--
+--		fifo_rdreq:		FIFO read request (Refer to FIFO Intel FPGA IP User Guide for Quartus 17.0 for timing information)
+--		fifo_rdempty:	FIFO read empty
+--		FIFO_data_read:	FIFO read data
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -26,10 +42,10 @@ use ieee.numeric_std.all;
 entity swir_adc is
     port (
         clock_adc	      	: in std_logic;  -- sck
-		clock_main			: in std_logic;  -- Main 50 MHz clock, needed to feed into FIFO IP
+		clock_main			: in std_logic;
         reset_n         	: in std_logic;
 		
-        output_done		   	: out std_logic;  -- Indicate that one pixel has been received
+        output_done		   	: out std_logic;
 		
 		-- Signals from sensor circuit
 		adc_trigger			: in std_logic;

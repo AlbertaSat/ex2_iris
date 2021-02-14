@@ -55,7 +55,7 @@ architecture sim of tb_fpga is
 		reset_n_p <= '1';
 		wait for 13 ns;
 		reset_n_p <= '0';
-		wait for 77 ns;
+		wait for 2500 ns;
 		reset_n_p <= '1';
 		
 		-- Wait, and set configuration signals
@@ -350,7 +350,7 @@ architecture sim of tb_fpga is
 		start_config_p <= '1';
 		wait until rising_edge(fpga_clock_internal_p);
 		start_config_p <= '0';
-		wait until rising_edge (config_done); -- Wait until configuration signals are registered
+		-- wait until rising_edge (config_done); -- Configuration will automaticalley be registered since it will not be imaging
 		wait until rising_edge(fpga_clock_internal_p);
 		do_imaging_p <= '1';
 		wait until rising_edge(fpga_clock_internal_p);
@@ -370,12 +370,12 @@ begin
 		-- Important signals to monitor from main_circuit:
 		-- add wave clock reset_n sck sensor_clock_even do_imaging sensor_reset_even AD_sp_even sensor_begin sensor_adc_start sdi sdo sensor_done row_counter in_frame
 		
-		-- test1(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
+		test1(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
 		-- test2(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
 		-- test3(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
 		-- test4(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
 		-- test5(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
-		test6(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
+		-- test6(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
 		
 		wait;
 	end process;

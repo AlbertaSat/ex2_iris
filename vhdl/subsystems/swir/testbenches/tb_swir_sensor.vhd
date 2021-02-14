@@ -16,10 +16,6 @@
 
 -- Testbench to simulate behaviour of g11508 short-wave infrared sensor
 
-
--- TODO: AD_trig signal
--- 		Assert statement for clock not working
-
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -59,15 +55,6 @@ architecture sim of tb_swir_sensor is
 	signal transmitting_trigger :	std_logic	:= '0';
 	
 begin
-	
-	-- Check that even and odd signals are aligned
-	--assert (sensor_clock_even = not sensor_clock_odd) 
-	--		and not (state_reg = idle) 
-	--		report "sensor clock error" severity error;
-	--	
-	--assert (sensor_reset_even = not sensor_reset_odd) 
-	--	and not (state_reg = idle)
-	--	report "sensor reset error" severity error;
 	
 	-- Check that cf signal are of acceptable values
 	assert ((Cf_select1 = '1' and Cf_select2 = '1') or (Cf_select1 = '1' and Cf_select2 = '0')) 
