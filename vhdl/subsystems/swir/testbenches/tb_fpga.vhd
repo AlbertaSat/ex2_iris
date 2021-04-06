@@ -1,3 +1,22 @@
+----------------------------------------------------------------
+-- Copyright 2020 University of Alberta
+
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+
+--     http://www.apache.org/licenses/LICENSE-2.0
+
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+----------------------------------------------------------------
+
+-- Testbench to simulate top-level FPGA subsystem
+-- Contains test sequences to test RTL (since stimulus for SWIR subsystem comes from FPGA subsystem)
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -62,7 +81,7 @@ architecture sim of tb_fpga is
 		wait until rising_edge(fpga_clock_internal_p);
 		wait for ClockPeriod*100;
 		frame_clocks_p <= 50000;
-		exposure_clocks_p <= 64*6;
+		exposure_clocks_p <= 64*7;
 		length_p <= 3;
 		wait until rising_edge(fpga_clock_internal_p);
 		start_config_p <= '1';
@@ -107,7 +126,7 @@ architecture sim of tb_fpga is
 		wait until rising_edge(fpga_clock_internal_p);
 		wait for ClockPeriod*100;
 		frame_clocks_p <= -1;
-		exposure_clocks_p <= 64*6;
+		exposure_clocks_p <= 64*7;
 		length_p <= 3;
 		wait until rising_edge(fpga_clock_internal_p);
 		start_config_p <= '1';
@@ -152,7 +171,7 @@ architecture sim of tb_fpga is
 		wait until rising_edge(fpga_clock_internal_p);
 		wait for ClockPeriod*100;
 		frame_clocks_p <= -1;
-		exposure_clocks_p <= 64*10;
+		exposure_clocks_p <= 64*11;
 		length_p <= 5;
 		wait until rising_edge(fpga_clock_internal_p);
 		start_config_p <= '1';
@@ -208,7 +227,7 @@ architecture sim of tb_fpga is
 		wait until rising_edge(fpga_clock_internal_p);
 		wait for ClockPeriod*100;
 		frame_clocks_p <= -1;
-		exposure_clocks_p <= 64*6;
+		exposure_clocks_p <= 64*7;
 		length_p <= 2;
 		wait until rising_edge(fpga_clock_internal_p);
 		start_config_p <= '1';
@@ -226,7 +245,7 @@ architecture sim of tb_fpga is
 		wait for ClockPeriod*50;
 		wait until rising_edge(fpga_clock_internal_p);
 		frame_clocks_p <= -1;
-		exposure_clocks_p <= 64*9;
+		exposure_clocks_p <= 64*13;
 		length_p <= 1;
 		wait until rising_edge(fpga_clock_internal_p);
 		start_config_p <= '1';
@@ -271,7 +290,7 @@ architecture sim of tb_fpga is
 		wait until rising_edge(fpga_clock_internal_p);
 		wait for ClockPeriod*100;
 		frame_clocks_p <= -1;
-		exposure_clocks_p <= 64*6;
+		exposure_clocks_p <= 64*7;
 		length_p <= 4;  -- 4 frames this time
 		wait until rising_edge(fpga_clock_internal_p);
 		start_config_p <= '1';
@@ -321,7 +340,7 @@ architecture sim of tb_fpga is
 		wait until rising_edge(fpga_clock_internal_p);
 		wait for ClockPeriod*100;
 		frame_clocks_p <= -1;
-		exposure_clocks_p <= 64*6;
+		exposure_clocks_p <= 64*7;
 		length_p <= 2;
 		wait until rising_edge(fpga_clock_internal_p);
 		start_config_p <= '1';
@@ -344,7 +363,7 @@ architecture sim of tb_fpga is
 		-- Set do_imaging signal with new configuration signals
 		wait until rising_edge(fpga_clock_internal_p);
 		frame_clocks_p <= -1;
-		exposure_clocks_p <= 64*8;
+		exposure_clocks_p <= 64*9;
 		length_p <= 1;
 		wait until rising_edge(fpga_clock_internal_p);
 		start_config_p <= '1';
@@ -358,6 +377,75 @@ architecture sim of tb_fpga is
 		
 	end procedure;
 	
+	-- Test 7: Reset hold time test
+	-- Testing that reset is able to be held for correct amount of time
+	procedure test7(signal fpga_clock_internal_p : in std_logic;
+	                signal do_imaging_p : out std_logic;
+	                signal reset_n_p	: out std_logic;
+	                signal volt_conv_p : out std_logic;
+	                signal start_config_p	: out std_logic;
+	                signal frame_clocks_p	: out integer;
+	                signal exposure_clocks_p	: out integer;
+	                signal length_p	: out integer) is
+		constant ClockPeriodADC			:	time := 23 ns;
+		constant ClockPeriodSWIR		:	time := 1280 ns;
+		constant ClockPeriod			:	time := 20 ns;
+	begin
+		-- Set voltage control signal
+		volt_conv_p <= '1';
+	
+		do_imaging_p <= '0';
+		
+		-- Take the DUT out of reset
+		reset_n_p <= '1';
+		wait for 13 ns;
+		reset_n_p <= '0';
+		wait for 77 ns;
+		reset_n_p <= '1';
+		
+		-- Wait, and set configuration signals
+		wait until rising_edge(fpga_clock_internal_p);
+		wait for ClockPeriod*100;
+		frame_clocks_p <= -1;
+		exposure_clocks_p <= 64*7;
+		length_p <= 2;
+		wait until rising_edge(fpga_clock_internal_p);
+		start_config_p <= '1';
+		wait until rising_edge(fpga_clock_internal_p);
+		start_config_p <= '0';
+		
+		-- Set do_imaging signal
+		wait for ClockPeriod*50;
+		do_imaging_p <= '1';
+		wait until rising_edge(fpga_clock_internal_p);
+		do_imaging_p <= '0';
+		
+		-- Take the DUT out of reset for a long time
+		-- Test that synchronous reset is held for same amount of time as FPGA reset
+		reset_n_p <= '0';
+		wait for 13 ns;
+		reset_n_p <= '0';
+		wait for 3000 ns;
+		reset_n_p <= '1';
+		
+		-- Set do_imaging signal
+		wait for ClockPeriod*50;
+		do_imaging_p <= '1';
+		wait until rising_edge(fpga_clock_internal_p);
+		do_imaging_p <= '0';
+		
+		-- Take the DUT out of reset twice, check that it is able to recognize the two resets
+		reset_n_p <= '0';
+		wait for 13 ns;
+		reset_n_p <= '0';
+		wait for 55 ns;
+		reset_n_p <= '1';
+		wait for 20 ns;
+		reset_n_p <= '0';
+		wait for 40 ns;
+		reset_n_p <= '1';
+	end procedure;
+	
 begin
 	
 	-- Process for generating the clock
@@ -368,14 +456,15 @@ begin
 	begin
 		-- Run one test at a time, comment out the rest
 		-- Important signals to monitor from main_circuit:
-		-- add wave clock reset_n sck sensor_clock_even do_imaging sensor_reset_even AD_sp_even sensor_begin sensor_adc_start sdi sdo sensor_done row_counter in_frame
+		-- add wave clock reset_n sck sensor_clock_even sensor_clock_odd do_imaging sensor_reset_even sensor_reset_odd AD_sp_even AD_sp_odd sensor_begin sensor_adc_start sdi sdo sensor_done row_counter in_frame
 		
-		test1(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
+		-- test1(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
 		-- test2(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
 		-- test3(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
 		-- test4(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
-		-- test5(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
+		test5(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
 		-- test6(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
+		-- test7(fpga_clock_internal, do_imaging, reset_n, control.volt_conv, start_config, config.frame_clocks, config.exposure_clocks, config.length);
 		
 		wait;
 	end process;

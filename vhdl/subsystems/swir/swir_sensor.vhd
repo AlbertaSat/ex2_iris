@@ -80,9 +80,9 @@ architecture main of swir_sensor is
 	
 	signal sensor_reset							: std_logic;  -- Necessary because cannot read output
 	signal counter								: unsigned(9 downto 0);
-	signal adc_sp								: std_logic;
-
-
+	signal first_pixel_outputted				: std_logic;
+	
+	signal sensor_reset_odd_2					: std_logic;
 begin
 	
 	
@@ -129,7 +129,7 @@ begin
 	end process;
 	
 	-- Hold reset signal for set period to define integration time
-	process(clock_swir) is
+	process(clock_swir, reset_n_local) is
 	begin
 		if (reset_n_local = '0') then
 			reset_counter <= (others=>'0');
@@ -151,14 +151,14 @@ begin
 	end process;
 	
 	-- Process to keep track of number of pixels outputted (512 pixels total)
-	process(clock_swir) is
+	process(clock_swir, reset_n_local) is
 	begin
 		if (reset_n_local = '0') then
 			counter <= (others=>'0');
 			
 		elsif (rising_edge(clock_swir)) then
-			if adc_sp = '1' then  -- If pixel outputting has begun
-				counter <= "1000000001";
+			if first_pixel_outputted = '1' then  -- If pixel outputting has begun
+				counter <= "1000000000";  -- =512
 			elsif counter > 1 then  -- Decrement counter
 				counter <= counter - 1;
 			else
@@ -168,21 +168,41 @@ begin
 	end process;
 	
 	
-	sensor_reset_even 	<=	sensor_reset when reset_n_local = '1' else '0';  -- add reset condition to ensure it is 0 in startup state
-	sensor_reset_odd 	<=	not sensor_reset;
+	-- Delay sensor_reset_even by 1 clock cycle
+	-- Since odd pixel will be outputed first, 
+	--   and sensor even pixel is 1/2 clock_swir, shifted by 180 deg.
+	--   this corresponds to 1 clock cycle shift of sensor_reset_even
+	process(clock_swir, reset_n_local) is
+	begin
+		if (reset_n_local = '0') then
+			sensor_reset_even <= '0';
+			
+		elsif (rising_edge(clock_swir)) then
+			if sensor_reset_odd_2 = '1' then
+				sensor_reset_even <= '1';
+			else
+				sensor_reset_even <= '0';
+			end if;
+		end if;
+	end process;
+	
+	-- First pixel outputted after falling edge of ad_sp_odd, while ad_sp_even is still high, since it is delayed by a clock cycle
+	first_pixel_outputted <= '1' when AD_sp_odd = '0' and AD_sp_even = '1' else '0';
+	
+	sensor_reset_odd_2 	<=	sensor_reset when reset_n_local = '1' else '0';  -- add reset condition to ensure it is 0 in startup state
+	sensor_reset_odd	<=	sensor_reset_odd_2;  -- Due to VHDL not being able to read outputs
 	
 	-- Register signals from SWIR sensor
-	adc_sp			 	<=	'1' when AD_sp_even = '1' and AD_sp_odd = '0' else '0';
-	adc_trigger 		<=	'1' when AD_trig_even = '1' and AD_trig_odd = '0' else '0';
+	adc_trigger 		<=	'1' when AD_trig_even = '1' or AD_trig_odd = '1' else '0';  -- UNUSED
 	
 	-- Set conversion efficiency
 	Cf_select1 			<=	'1';
-	Cf_select2 			<=	'1' when ce = '0' and reset_n_local = '1' else '0';
+	Cf_select2 			<=	'1' when ce = '0' else '0';
 	
 	-- Indicates when 512 pixels have been outputted
 	sensor_done			<=	'1' when counter = 1 else '0';
 	
 	-- Indicates ADC to do a conversion when the sensor indicates it has begun outputting, and every SWIR sensor clock cycle after that until all pixels outputted
-	adc_start			<=	not clock_swir when (counter > 2 or adc_sp = '1') else '0';
+	adc_start			<=	clock_swir when (counter > 1 or first_pixel_outputted = '1') else '0';
 
 end architecture main;

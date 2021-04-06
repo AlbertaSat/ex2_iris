@@ -1,3 +1,21 @@
+----------------------------------------------------------------
+-- Copyright 2020 University of Alberta
+
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+
+--     http://www.apache.org/licenses/LICENSE-2.0
+
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+----------------------------------------------------------------
+
+-- Top level testbench that connects individual testbenches to DUT
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -44,7 +62,10 @@ architecture sim of tb_top is
 		
 		-- SWIR Voltage control
 		SWIR_4V0			: out std_logic;	
-		SWIR_1V2			: out std_logic
+		SWIR_1V2			: out std_logic;
+				
+		-- Signals to SWIR Switch
+		sensor_clock		: out std_logic
 	);
 	end component swir_subsystem;
 	
@@ -95,6 +116,15 @@ architecture sim of tb_top is
 	);
 	end component tb_fpga;
 	
+	component tb_switch is
+	port (
+		s1					: in integer;
+		s2					: in integer;
+        in_pin			  	: in std_logic;
+		d				    : out integer
+    );
+	end component tb_switch;
+	
 	signal fpga_clk					:	std_logic;
 	signal fpga_reset_n				:	std_logic;
 	signal fpga_do_imaging			:	std_logic;
@@ -124,6 +154,8 @@ architecture sim of tb_top is
 	signal swir_video_odd			:	integer;
 	signal swir_voltage_4V0			:	std_logic;
 	signal swir_voltage_1V2			:	std_logic;
+	signal swir_select				:	std_logic;
+	signal swir_video				:	integer;
 	
 begin
 	
@@ -161,7 +193,9 @@ begin
 		AD_trig_odd			=>	swir_AD_trig_odd,
 		
 		SWIR_4V0			=>	swir_voltage_4V0,
-		SWIR_1V2			=>	swir_voltage_1V2
+		SWIR_1V2			=>	swir_voltage_1V2,
+		
+		sensor_clock		=>	swir_select
 	);
 	
 	g11508 : component tb_swir_sensor  -- Testbench
@@ -189,7 +223,7 @@ begin
 	    cnv					=>  adc_cnv,	
 	    sdo					=>  adc_sdo,	
 		                        
-	    video_in			=>	swir_video_even
+	    video_in			=>	swir_video
 	);
 	
 	fpga_to_swir_subsystem : component tb_fpga  -- Testbench
@@ -207,6 +241,14 @@ begin
 		pixel             	=>	fpga_pixel,
         pixel_available   	=>  fpga_pixel_available
 	);
+
+	adg719brmz : component tb_switch
+	port map(
+		s1					=> swir_video_odd,
+		s2					=> swir_video_even,
+        in_pin			  	=> swir_select,
+		d				    => swir_video
+    );
 
 
 end architecture;
