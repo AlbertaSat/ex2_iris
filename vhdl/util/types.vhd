@@ -21,58 +21,26 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 -- Avalon interface types
-package avalonmm_types is
+package avalonmm is
 
-    type avalonmm_write_from_master_t is record
-        address     : std_logic_vector(28 downto 0);
+    type from_master_t is record
+        address     : std_logic_vector(27 downto 0);
         burst_count : std_logic_vector(7 downto 0);
-        write_data  : std_logic_vector(63 downto 0);
-        byte_enable : std_logic_vector(7 downto 0);
+        write_data  : std_logic_vector(127 downto 0);
+        byte_enable : std_logic_vector(15 downto 0);
         write_cmd   : std_logic;
-    end record avalonmm_write_from_master_t;
+    end record from_master_t;
 
-    type avalonmm_write_to_master_t is record
-        wait_request : std_logic;
-    end record avalonmm_write_to_master_t;
-
-    type avalonmm_read_from_master_t is record
-        address     : std_logic_vector(28 downto 0);
-        burst_count : std_logic_vector(7 downto 0);
-        read_cmd    : std_logic;
-    end record avalonmm_read_from_master_t;
-
-    type avalonmm_read_to_master_t is record
+    type to_master_t is record
         wait_request    : std_logic;
-        read_data       : std_logic_vector(63 downto 0);
-        read_data_valid : std_logic;
-    end record avalonmm_read_to_master_t;
+    end record to_master_t;
 
-    type avalonmm_write_t is record
-        from_master : avalonmm_write_from_master_t;
-        to_master   : avalonmm_write_to_master_t;
-    end record avalonmm_write_t;
+    type bus_t is record
+        from_master : from_master_t;
+        to_master   : to_master_t;
+    end record bus_t;
 
-    type avalonmm_read_t is record
-        from_master : avalonmm_read_from_master_t;
-        to_master   : avalonmm_read_to_master_t;
-    end record avalonmm_read_t;
-
-    type avalonmm_rw_from_master_t is record
-        r : avalonmm_read_from_master_t;
-        w : avalonmm_write_from_master_t;
-    end record avalonmm_rw_from_master_t;
-
-    type avalonmm_rw_to_master_t is record
-        r : avalonmm_read_to_master_t;
-        w : avalonmm_write_to_master_t;
-    end record avalonmm_rw_to_master_t;
-
-    type avalonmm_rw_t is record
-        from_master : avalonmm_rw_from_master_t;
-        to_master   : avalonmm_rw_to_master_t;
-    end record avalonmm_rw_t;
-
-end package avalonmm_types;
+end package avalonmm;
 
 
 library ieee;

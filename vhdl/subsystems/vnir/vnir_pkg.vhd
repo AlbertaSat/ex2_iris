@@ -45,9 +45,9 @@ package vnir is
     subtype calibration_t is vnir_base.calibration_t;
 
     type config_t is record
-        window_blue      : window_t;
         window_red       : window_t;
         window_nir       : window_t;
+        window_blue      : window_t;
         flip             : flip_t;
         calibration      : calibration_t;
     end record config_t;
