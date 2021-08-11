@@ -18,36 +18,45 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.avalonmm_types.all;
-use work.sdram_types.all;
-use work.vnir_types.all;
+use work.avalonmm;
+use work.sdram;
+use work.vnir;
 use work.swir_types.all;
-use work.fpga_types.all;
+use work.fpga.timestamp_t;
 
 
 entity sdram_subsystem is
     port (
+        --Control signals
         clock               : in std_logic;
         reset_n             : in std_logic;
 
-        vnir_rows_available : in std_logic;
+        --VNIR row signals
+        vnir_row_available  : in vnir.row_type_t;
         vnir_num_rows       : in integer;
-        vnir_rows           : in vnir_rows_t;
+        vnir_row            : in vnir.row_t;
         
-        swir_row_available  : in std_logic;
+        --SWIR row signals
+        swir_pxl_available  : in std_logic;
         swir_num_rows       : in integer;
-        swir_row            : in swir_row_t;
+        swir_pixel          : in swir_pixel_t;
         
         timestamp           : in timestamp_t;
-        mpu_memory_change   : in sdram_address_list_t;
-        config_in           : in sdram_config_to_sdram_t;
-        config_out          : out sdram_config_from_sdram_t;
+        mpu_memory_change   : in sdram.address_block_t;
+        config_in           : in sdram.config_to_sdram_t;
+        start_config        : in std_logic;
+        config_out          : out sdram.memory_state_t;
         config_done         : out std_logic;
+        img_config_done     : out std_logic;
         
         sdram_busy          : out std_logic;
-        sdram_error         : out stdram_error_t;
+        sdram_error         : out sdram.error_t;
         
-        sdram_avalon_out    : out avalonmm_rw_from_master_t;
-        sdram_avalon_in     : in avalonmm_rw_to_master_t
+        sdram_avalon_out    : out avalonmm.from_master_t;
+        sdram_avalon_in     : in avalonmm.to_master_t
     );
 end entity sdram_subsystem;
+
+architecture rtl of sdram_subsystem is
+begin
+end architecture rtl;
