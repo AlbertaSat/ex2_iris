@@ -25,10 +25,6 @@ package swir_types is
 		length			: integer;
     end record swir_config_t;
 
-    type swir_control_t is record
-        volt_conv : std_logic;
-    end record swir_control_t;
-
     constant swir_pixel_bits : integer := 16;
     constant swir_row_width : integer := 512;
     type swir_pixel_t is array(0 to swir_pixel_bits-1) of std_logic;

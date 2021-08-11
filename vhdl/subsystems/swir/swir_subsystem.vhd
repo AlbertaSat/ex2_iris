@@ -19,7 +19,6 @@
 --		certain configuration specifications, and send the data to the "SDRAM subsystem" to be written to SDRAM
 -- The SWIR sensor is the 1x512 pixel G11508 Hamamatsu sensor
 -- Data from the SWIR sensor is sent to an ADAQ7980 ADC, in 4-wire CS mode with busy indicator, with VIO over 1.7 V
--- Voltage to the SWIR sensor is controlled by two voltage regulators: TPS73601DCQR (1V2) and TPS62821DLCR (4V0)
 
 -- swir_subsystem.vhd is the top level code of SWIR subsystem, and does the following:
 --		Manages signals from FPGA and SDRAM subsystems into SWIR subsystem, and prepares signal for crossing clock domains
@@ -42,8 +41,6 @@
 --			config.frame_clocks: 	Integer, sets number of 50 MHz clock cycles per frame (one frame indicates length between subsequent sensor integrations)
 --			config.exposure_clocks: Integer, sets number of clock cycles for sensor to integrate over (multiple of 64 + 128*n)
 --			config.length: 			Integer, number of rows to image (512 pixels per row, one row per frame)
---		control:		Control signals. Consists of:
---			control.volt_conv: 		Sets enable signal (active high) for voltage regulators
 --
 --		do_imaging: 	[Pulse] Starts imaging process given current configuration settings (triggers imaging of n rows)
 --		pixel_available:[Pulse] Indicates one pixel of data is valid to be read by SDRAM subsystem
@@ -64,9 +61,6 @@
 --		AD_sp_odd:			Pulse sent from SWIR sensor, indicates data is about to be read out
 --		AD_trig_even:		Signal sent from SWIR sensor, not used
 --		AD_trig_odd:		Signal sent from SWIR sensor, not used
---
---		SWIR_4V0:			Enable signal for TPS62821DLCR voltage regulator
---		SWIR_1V2:			Enable signal for TPS73601DCQR voltage regulator
 --
 -- 		sensor_clock:		SWIR switch/mux clocks - controls switching between even and odd pixels from sensor to FPGA
 
@@ -90,9 +84,7 @@ entity swir_subsystem is
 		
 		start_config		: in std_logic;
 		config_done			: out std_logic;
-        config          	: in swir_config_t;
-        control         	: in swir_control_t;
-		
+        config          	: in swir_config_t;		
         do_imaging      	: in std_logic;
 	
 		-- Signals to SDRAM subsystem
@@ -116,10 +108,6 @@ entity swir_subsystem is
 		AD_sp_odd			: in std_logic;
 		AD_trig_even		: in std_logic;
 		AD_trig_odd			: in std_logic;
-		
-		-- SWIR Voltage control
-		SWIR_4V0			: out std_logic;	
-		SWIR_1V2			: out std_logic;
 		
 		-- Signals to SWIR Switch
 		sensor_clock		: out std_logic
@@ -590,13 +578,8 @@ begin
 	-- Refer to TX2-PL-124 for derivation of 35200 hard coded value
 	min_one_frame_len <= 35200 + clocks_per_exposure;
 	
-	-- Set voltage
-	-- Not neccessary to use reset_n_synchronous for these
-	SWIR_4V0 <= '1' when reset_n = '1' and control.volt_conv = '1' else '0';
-	SWIR_1V2 <= '1' when reset_n = '1' and control.volt_conv = '1' else '0';
-	
-	-- Circuit_on indicates if voltage regulators and PLL are ready. If not, want to keep circuit in "reset" state
-	circuit_on <= '1' when control.volt_conv = '1' and pll_locked =  '1' else '0';
+	-- Circuit_on indicates if PLL is ready. If not, want to keep circuit in "reset" state
+	circuit_on <= '1' when pll_locked =  '1' else '0';
 	
 	-- reset (active high) for PLL IP
 	reset <= not reset_n;
