@@ -18,37 +18,61 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-package sdram_types is
-    type sdram_config_t is record
-        memory_base : integer;
-        memory_bounds : integer;
-    end record sdram_config_t;
+use work.vnir;
 
-    type sdram_address_list_t is array(0 to 10) of integer;  -- TODO: properly define this
+package sdram is
+    --An SDRAM Address is a 29 bit signed, any negative addresses are invalid
+    constant ADDRESS_LENGTH : integer := 29;
+    constant HEADER_LENGTH  : integer := 128;
 
-    type sdram_error_t is (SDRAM_NO_ERROR, SDRAM_FULL, SDRAM_MPU_CHECK_FAILED);
+    --Creating the address type, a signed that shows a invalid address if negative
+    subtype address_t is signed (ADDRESS_LENGTH-1 downto 0);
+    constant UNDEFINED_ADDRESS : address_t := (ADDRESS_LENGTH-1 => '1', others => '0');
 
-    type memory_range_t is record
+    --A header type that stores the headers as a std_logic_vector
+    subtype header_t is std_logic_vector (HEADER_LENGTH-1 downto 0);
 
-    type sdram_config_to_sdram_t is record
-        memory_base : integer;
-        memory_bounds : integer;
-    end record sdram_config_in_t;
+    --Address block for the MPU to specify block of changed RAM
+    type address_block_t is array (0 to 1) of address_t;
+    
+    --Enumerators for both the errors and row types
+    type error_t is (no_error, full, mpu_check_failed);
+    type row_type_t is (ROW_NONE, ROW_BLUE, ROW_RED, ROW_NIR, ROW_SWIR);
 
-    type sdram_config_from_sdram_t is record
-        swir_base : integer;
-        swir_bounds : integer;
-        swir_temp_base : integer;
-        swir_temp_bounds : integer;
-        vnir_base : integer;
-        vnir_bounds : integer;
-        vnir_temp_base : integer;
-        vnir_temp_bounds : integer;
-    end record sdram_config_out_t;
+    type config_to_sdram_t is record
+        memory_base     : address_t;
+        memory_bounds   : address_t;
+    end record config_to_sdram_t;
 
-    type sdram_config is record
-        to_sdram : sdram_config_to_sdram_t;
-        from_sdram : sdram_config_from_sdram_t;
-    end record sdram_config;
+    type partition_t is record
+        base               : address_t;
+        bounds             : address_t;
+        fill_bounds        : address_t;
+        fill_base          : address_t;
+    end record partition_t;
 
-end package sdram_types;
+    type memory_state_t is record
+        vnir        : partition_t;
+        swir        : partition_t;
+        vnir_temp   : partition_t;
+        swir_temp   : partition_t;
+    end record memory_state_t;
+
+    function sdram_type (row_type : in vnir.row_type_t) return row_type_t;
+end package sdram;
+
+package body sdram is
+    function sdram_type (row_type : in vnir.row_type_t) return row_type_t is
+    begin
+        case row_type is
+            when vnir.ROW_RED =>
+                return ROW_RED;
+            when vnir.ROW_BLUE =>
+                return ROW_BLUE;
+            when vnir.ROW_NIR =>
+                return ROW_NIR;
+            when vnir.ROW_NONE =>
+                return ROW_NONE;
+        end case;
+    end function;
+end package body;
