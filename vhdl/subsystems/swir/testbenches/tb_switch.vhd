@@ -14,22 +14,27 @@
 -- limitations under the License.
 ----------------------------------------------------------------
 
+-- Testbench to simulate behaviour of ADG719BRMZ 2:1 Mux/SPDT Switch
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-package swir_types is
-    type swir_config_t is record
-        frame_clocks	: integer;
-        exposure_clocks : integer;
-		length			: integer;
-    end record swir_config_t;
+entity tb_switch is
+	port (	-- The switch will be used on analog data, which is modelled as an integer type
+		s1					: in integer;  -- Switch input 1
+		s2					: in integer;  -- Switch input 2
+        in_pin			  	: in std_logic;  -- Switch select signal
+		d				    : out integer  -- Switch output
+    );
+end entity;
 
-    type swir_control_t is record
-        volt_conv : std_logic;
-    end record swir_control_t;
-
-    constant swir_pixel_bits : integer := 16;
-    constant swir_row_width : integer := 512;
-    type swir_pixel_t is array(0 to swir_pixel_bits-1) of std_logic;
-end package swir_types;
+architecture sim of tb_switch is 
+	
+begin
+	
+	d <= s1 when in_pin = '0' else
+		 s2 when in_pin = '1' else
+		 0;
+		
+end architecture;
