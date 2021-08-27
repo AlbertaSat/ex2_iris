@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ip>
+ <presets version="12.1">
+  <preset
+     name="de10nano_systemclock"
+     kind="altera_up_avalon_sys_sdram_pll"
+     version="All"
+     description="">
+   <parameter name="gui_refclk" value="50.0" />
+   <parameter name="gui_outclk" value="50.0" />
+   <parameter name="CV_boards" value="DE10-Nano" />
+  </preset>
+ </presets>
+</ip>

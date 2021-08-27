@@ -1,0 +1,3 @@
+# ignore everything in quartus or modelsim project folders
+/**/quartus/*
+/**/modelsim/*
