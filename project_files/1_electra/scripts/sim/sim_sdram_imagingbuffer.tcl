@@ -1,6 +1,6 @@
 # util 
 vcom -2008 -explicit ../../../vhdl/util/types.vhd
-# vcom -2008 -explicit ../../../vhdl/util/edge_detector.vhd
+vcom -2008 -explicit ../../../vhdl/util/edge_detector.vhd
 vcom -2008 -explicit ../../../vhdl/util/pulse_genenerator.vhd
 
 vcom -2008 -explicit ../../../vhdl/subsystems/swir/swir_types.vhd
@@ -30,5 +30,5 @@ vcom -2008 -explicit {../../../vhdl/subsystems/sdram/testbenches/imaging_buffer_
 
 vsim -gui work.imaging_buffer_tb(sim)
 add wave -position end sim:/imaging_buffer_tb/imaging_buffer/*
-run 1 ms 
+run 2 ms 
 wave zoom full 

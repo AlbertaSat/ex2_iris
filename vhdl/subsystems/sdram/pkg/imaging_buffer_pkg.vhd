@@ -56,7 +56,7 @@ package img_buffer_pkg is
 
     -- functions for converting from swir pixel to std_logic_vector and back
     function swir_pixel_to_stdlogicvector(px_in : swir_types.swir_pixel_t) return swir_pixel_stdlogicvector_t;
-    function stdlogicvector_to_swir_pixel(data_in : swir_pixel_stdlogicvector_t) return swir_types.swir_pixel_t;
+    function stdlogicvector_to_swir_pixel(stdlogicvect_in : swir_pixel_stdlogicvector_t) return swir_types.swir_pixel_t;
 
 end package img_buffer_pkg;
 
