@@ -257,15 +257,15 @@ begin
           when s1_data_in =>
             swir_pxl_rdy   <= '1';
             swir_pxl_count <= swir_pxl_count + 1;
-            swir_pixel     <= to_unsigned(swir_pxl_count, swir_pixel'length);
+            swir_pixel     <= stdlogicvector_to_swir_pixel(std_logic_vector(to_unsigned(swir_pxl_count, swir_pixel'length)));
           when s1_data_wait =>
             swir_pxl_rdy   <= '0';
             swir_pxl_count <= swir_pxl_count;
-            swir_pixel     <= to_unsigned(0, swir_pixel'length);
+            swir_pixel     <= stdlogicvector_to_swir_pixel(std_logic_vector(to_unsigned(0, swir_pixel'length)));
           when others =>
             swir_pxl_rdy   <= '0';
             swir_pxl_count <= 0;
-            swir_pixel     <= to_unsigned(0, swir_pixel'length);
+            swir_pixel     <= stdlogicvector_to_swir_pixel(std_logic_vector(to_unsigned(0, swir_pixel'length)));
         end case;
       end if;
     end process swir_model_process;
