@@ -131,7 +131,7 @@ begin
             for i in 1 to 512 loop -- one row of 512 pixels
                 wait until rising_edge(clock);
                 swir_pxl_rdy <= '1';
-                swir_pixel <= to_unsigned(i, swir_pixel'length);
+                swir_pixel <= stdlogicvector_to_swir_pixel(std_logic_vector(to_unsigned(i, swir_pixel'length)));
 
                 wait until rising_edge(clock);
                 swir_pxl_rdy <= '0';   

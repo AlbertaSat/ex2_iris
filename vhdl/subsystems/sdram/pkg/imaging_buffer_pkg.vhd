@@ -18,6 +18,8 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+use work.swir_types;
+
 package img_buffer_pkg is
     --Generating 1 buffer for each, allowing for storage of up to 1 row
     --Do not change the number of fifos, as the logic to handle them is written for these numbers, ie. 1 fifo per row type
@@ -50,5 +52,32 @@ package img_buffer_pkg is
     type row_buffer_a is array (0 to NUM_VNIR_ROW_FIFO-1) of vnir_row_fragment_a;
     type frag_count_a is array (0 to NUM_VNIR_ROW_FIFO-1) of natural range 0 to VNIR_FIFO_DEPTH;
 
+    subtype swir_pixel_stdlogicvector_t is std_logic_vector(0 to swir_types.SWIR_PIXEL_BITS-1);
+
+    -- functions for converting from swir pixel to std_logic_vector and back
+    function swir_pixel_to_stdlogicvector(px_in : swir_types.swir_pixel_t) return swir_pixel_stdlogicvector_t;
+    function stdlogicvector_to_swir_pixel(data_in : swir_pixel_stdlogicvector_t) return swir_types.swir_pixel_t;
 
 end package img_buffer_pkg;
+
+package body img_buffer_pkg is
+
+    function swir_pixel_to_stdlogicvector(px_in : swir_types.swir_pixel_t) return swir_pixel_stdlogicvector_t is
+        variable stdlogicvect_out : swir_pixel_stdlogicvector_t;
+    begin
+        for i in stdlogicvect_out'range loop
+            stdlogicvect_out(i) := px_in(i);
+        end loop;
+        return stdlogicvect_out;
+    end function;
+
+    function stdlogicvector_to_swir_pixel(stdlogicvect_in : swir_pixel_stdlogicvector_t) return swir_types.swir_pixel_t is
+        variable px_out : swir_types.swir_pixel_t;
+    begin
+        for i in px_out'range loop
+            px_out(i) := stdlogicvect_in(i);
+        end loop;
+        return px_out;
+    end function;
+
+end package body img_buffer_pkg;

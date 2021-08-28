@@ -78,7 +78,7 @@ architecture rtl of imaging_buffer is
 
     --Signal for the second stage of the swir pipeline
     signal swir_fragment_ready  : std_logic;
-    signal swir_fifo_stored   : std_logic;
+    signal swir_fifo_stored     : std_logic;
 
     --Signals for the third stage of the swir pipeline
     signal swir_link_rdreq      : std_logic_vector(0 to NUM_SWIR_ROW_FIFO-1);
@@ -278,7 +278,7 @@ begin
 
             --The first stage of the swir_pipeline, accumulating pixels to fill a word
             if (swir_pixel_ready = '1') then 
-                swir_fragment(swir_bit_counter + SWIR_PIXEL_BITS - 1 downto swir_bit_counter) <= std_logic_vector(swir_pixel);
+                swir_fragment(swir_bit_counter + SWIR_PIXEL_BITS - 1 downto swir_bit_counter) <= swir_pixel_to_stdlogicvector(swir_pixel);
                 swir_bit_counter <= swir_bit_counter + SWIR_PIXEL_BITS;
             end if;
         
